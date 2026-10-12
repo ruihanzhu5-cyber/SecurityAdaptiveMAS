@@ -7,7 +7,8 @@ from pathlib import Path
 
 class TraceLogger:
     def __init__(self, path: Path, mode: str = "offline_mock"):
-        if mode not in {"offline_mock", "real_are_single", "real_are_multi"}:
+        if mode not in {"offline_mock", "real_are_single", "real_are_multi",
+                        "real_connectivity_probe"}:
             raise ValueError("Unknown execution mode")
         self.path = path
         self.mode = mode

@@ -4,7 +4,7 @@
 
 ## 结论
 
-已在 D 盘完成固定五场景的可校验恢复路径、安全网关修复、DeepSeek V4.1 Flash 的固定路由适配、ARE 官方 Runner 的只读接线，以及嵌入 ARE 工具循环的动态团队实现。`bootstrap.ps1 -SkipDownloads` 在当前目录校验了五个 JSON，离线测试 **22 passed**。ARE 离线探测已初始化 Universe，进入官方事件循环并导出轨迹。**没有真实 DeepSeek API 调用，费用为 0；真实 Single Agent 与动态 Multi-Agent 尚未在线端到端验证，不能报告 Gaia2 成功率。**
+已在 D 盘完成固定五场景的可校验恢复路径、安全网关修复、DeepSeek V4.1 Flash 的固定路由适配、ARE 官方 Runner 的只读接线，以及嵌入 ARE 工具循环的动态团队实现。`bootstrap.ps1 -SkipDownloads` 在当前目录校验了五个 JSON，离线测试 **22 passed**。ARE 离线探测已初始化 Universe，进入官方事件循环并导出轨迹。**2026-10-12 已完成一次真实 DeepSeek 连通性请求；真实 Single Agent 与动态 Multi-Agent 尚未在线端到端验证，不能报告 Gaia2 成功率。**
 
 ## 实际修改的文件
 
@@ -68,20 +68,19 @@ Set-Location D:\SecurityAdaptiveMAS
 # Five pinned scenario checksums OK; 22 passed, 1 upstream Pydantic warning
 ```
 
-另在 D 盘独立 `work/clean_venv_v2` 中安装兼容依赖，最新代码同样 **22 passed**。`bootstrap.ps1` 的 PowerShell 语法检查、Python `compileall`、`git diff --check` 通过；将 `UV_CACHE_DIR` 设在 D 盘后，`uv pip check` 显示 **98 个包兼容**。单独运行 `uv pip check` 时，默认 C 盘缓存目录因 ACL 拒绝访问；启动脚本已明确把缓存设在 D 盘。`deepseek_probe` 在缺少确认标志时正确拒绝调用；环境变量检查显示 `DEEPSEEK_API_KEY=UNSET`。离线 demo 输出 `mode=offline_mock` 和 `singleton → star → chain → chain`，不视为正式成绩。真实付费连通性命令如下，**本轮未执行**：
+另在 D 盘独立 `work/clean_venv_v2` 中安装兼容依赖，最新代码同样 **22 passed**。`bootstrap.ps1` 的 PowerShell 语法检查、Python `compileall`、`git diff --check` 通过；将 `UV_CACHE_DIR` 设在 D 盘后，`uv pip check` 显示 **98 个包兼容**。单独运行 `uv pip check` 时，默认 C 盘缓存目录因 ACL 拒绝访问；启动脚本已明确把缓存设在 D 盘。`deepseek_probe` 在缺少确认标志时正确拒绝调用。离线 demo 输出 `mode=offline_mock` 和 `singleton → star → chain → chain`，不视为正式成绩。连通性检查第一次启动时因新日志模式未登记而在网络请求前失败；已修复 `TraceLogger` 模式列表。随后在费用确认下执行了如下命令：
 
 ```powershell
 Set-Location D:\SecurityAdaptiveMAS
-$key = Read-Host 'DeepSeek API Key' -AsSecureString
-$env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $key).Password
+$env:DEEPSEEK_API_KEY = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
 .\.venv\Scripts\python.exe -m security_adaptive_mas.deepseek_probe --acknowledge-model-cost
 ```
 
-该命令最多 1 次请求，超时 45 秒，最大 4096 输出 Token，预算 0.01 USD。后续 Single/Multi 命令见 `README.md`。截至本报告：`DEEPSEEK_API_KEY` 未设置；真实 API 调用 **0**，实际费用 **0 USD**。
+该命令最多 1 次请求，超时 45 秒，最大 4096 输出 Token，预算 0.01 USD。实际收到 `OK`，官方返回 usage 为输入 11 Token、输出 1 Token，延迟约 2.407 秒。真实 API 调用 **1 次**；按当前峰值费率本地估算费用约 **0.0000045 USD**，实际账单金额未核对。用量日志位于 `results/deepseek/probe_20261012T023238Z.jsonl`，未记录密钥。后续 Single/Multi 命令见 `README.md`，尚未运行。
 
 ## 尚未实现与下一阶段最短路径
 
-1. 取得费用确认和环境变量后，仅运行上述单请求连通性检查；核对响应、usage、真实费用与固定路由。随后各执行一次只读 Single 和 Multi smoke，检查官方轨迹是否出现任务通知、ARE 工具结果回流及 `dynamic_team_executed`。不把只读 smoke 当正式任务完成。
+1. 连通性检查已通过。另行确认 Single/Multi 的费用后，各执行一次只读 smoke，检查官方轨迹是否出现任务通知、ARE 工具结果回流及 `dynamic_team_executed`。不把只读 smoke 当正式任务完成。
 2. 将真实 ARE 合法任务中的精确写动作映射为 Controller 签发的 `TaskAuthorization`；对不可回滚动作加入远端状态对账后才逐项开放写工具。这是合法任务成功评测的前提。
 3. 从官方可见事件与轨迹提取未完成子任务、计划变化和工具状态；将阶段更新从当前工具调用触发扩展到长时程自动控制，并处理隔离后共享记忆与历史摘要的重新构造。
 4. 在独立模拟环境实现低可信邮件/文件/消息/工具结果的 Attack Overlay 和四种策略统一入口，保持相同模型、预算与工具检查，分别记录合法目标和攻击目标，避免把网关收益全归因于拓扑。

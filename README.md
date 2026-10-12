@@ -1,6 +1,6 @@
 # Security-Aware Adaptive Multi-Agent Organization v2
 
-固定五个 Gaia2 场景的安全组织控制原型。项目代码、Python 环境、ARE/MANTA 源码快照和场景文件位于 `D:\SecurityAdaptiveMAS`。`offline_mock` 可离线运行；真实 DeepSeek/ARE 入口已接线，但截至 2026-10-12 尚未调用付费 API，不能宣称真实场景完成或动态团队在线验证成功。详细证据与限制见 `implementation_report_v2.md`。
+固定五个 Gaia2 场景的安全组织控制原型。项目代码、Python 环境、ARE/MANTA 源码快照和场景文件位于 `D:\SecurityAdaptiveMAS`。`offline_mock` 可离线运行；2026-10-12 的单请求 DeepSeek 连通性检查已成功，但尚未运行真实 ARE Single/Multi 场景，不能宣称 Gaia2 任务完成或动态团队在线验证成功。详细证据与限制见 `implementation_report_v2.md`。
 
 ## 固定版本与安装
 
@@ -58,14 +58,14 @@ Set-Location D:\SecurityAdaptiveMAS
 
 ## 最小连通性检查
 
-先做一条真实 Chat Completion；它不运行 Gaia2 任务。当前尚未执行，等待费用确认：
+以下单请求检查已在 2026-10-12 获得费用确认后执行成功。再次运行仍会产生一次新的付费请求；它不运行 Gaia2 任务：
 
 ```powershell
 Set-Location D:\SecurityAdaptiveMAS
 .\.venv\Scripts\python.exe -m security_adaptive_mas.deepseek_probe --acknowledge-model-cost
 ```
 
-该命令最多发送 1 个请求、最多 5000 个总 Token，按当前峰值标价的费用预算为 0.01 美元。ARE 单 Agent 默认最多 4 个请求、预算 0.05 美元；动态团队默认最多 12 个请求、预算 0.20 美元。费用统计是基于 API usage 的估算，不是账单；模型返回没有 usage 时会报错。超时 45 秒，仅限流或超时最多重试一次，重试计入请求上限。所有入口固定 `deepseek-flash`、官方 DeepSeek endpoint，不回退其他 Provider。
+该命令最多发送 1 个请求、最多 5000 个总 Token，按当前峰值标价的费用预算为 0.01 美元。本次返回 `OK`，输入 11 Token、输出 1 Token，本地费用估算为 0.0000045 美元。ARE 单 Agent 默认最多 4 个请求、预算 0.05 美元；动态团队默认最多 12 个请求、预算 0.20 美元。费用统计是基于 API usage 的估算，不是账单；模型返回没有 usage 时会报错。超时 45 秒，仅限流或超时最多重试一次，重试计入请求上限。所有入口固定 `deepseek-flash`、官方 DeepSeek endpoint，不回退其他 Provider。
 
 ## 当前边界
 
