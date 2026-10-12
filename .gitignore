@@ -4,7 +4,9 @@ python/
 work/
 results/
 outputs/
+archive/
 .pytest_cache/
+pytest-cache-files-*/
 __pycache__/
 *.py[cod]
 .uv-cache/
