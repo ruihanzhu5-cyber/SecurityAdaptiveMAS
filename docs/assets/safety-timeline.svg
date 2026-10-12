@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="480" viewBox="0 0 960 480" role="img" aria-labelledby="title desc">
+  <title id="title">T1 到 T5 的全过程安全研究时间线</title>
+  <desc id="desc">五个拟议干预时点依次为接触前预防、接触后限制传播、历史状态恢复、敏感动作授权边界和最终状态检查。它们具有不同目标和限制，尚未作为完整机制实现。</desc>
+  <rect x="1" y="1" width="958" height="478" rx="18" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <g font-family="'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif">
+    <text x="31" y="45" fill="#0F172A" font-size="27" font-weight="700">全过程安全：不同时间，处理不同问题</text>
+    <text x="32" y="70" fill="#475569" font-size="15">拟议干预目标 · 结构可达不等于攻击成功 · 每一步都需保留合法任务能力</text>
+    <path d="M 64 116 L 64 416" stroke="#CBD5E1" stroke-width="4"/>
+
+    <rect x="94" y="88" width="834" height="64" rx="10" fill="#FFFFFF" stroke="#C7D2FE"/>
+    <circle cx="64" cy="120" r="15" fill="#4F46E5" stroke="#F8FAFC" stroke-width="4"/>
+    <text x="113" y="114" fill="#4338CA" font-size="16" font-weight="700">T1 · PREVENTION</text>
+    <text x="300" y="114" fill="#0F172A" font-size="18" font-weight="700">接触前限制不必要的暴露</text>
+    <text x="113" y="139" fill="#475569" font-size="15">边界：未知攻击内容无法全部预知；任务所需读取仍要发生。</text>
+
+    <rect x="94" y="162" width="834" height="64" rx="10" fill="#FFFFFF" stroke="#99DED4"/>
+    <circle cx="64" cy="194" r="15" fill="#0F766E" stroke="#F8FAFC" stroke-width="4"/>
+    <text x="113" y="188" fill="#0F766E" font-size="16" font-weight="700">T2 · CONTAINMENT</text>
+    <text x="300" y="188" fill="#0F172A" font-size="18" font-weight="700">接触后限制进一步传播</text>
+    <text x="113" y="213" fill="#475569" font-size="15">边界：Exposure 不等于 Compromise；不能把所有协作停掉。</text>
+
+    <rect x="94" y="236" width="834" height="64" rx="10" fill="#FFFFFF" stroke="#F1C48A"/>
+    <circle cx="64" cy="268" r="15" fill="#D97706" stroke="#F8FAFC" stroke-width="4"/>
+    <text x="113" y="262" fill="#9A3412" font-size="16" font-weight="700">T3 · RECOVERY</text>
+    <text x="300" y="262" fill="#0F172A" font-size="18" font-weight="700">核验、失效或重算历史状态</text>
+    <text x="113" y="287" fill="#475569" font-size="15">边界：断开当前消息边，不能清除 Memory 或摘要中的旧内容。</text>
+
+    <rect x="94" y="310" width="834" height="64" rx="10" fill="#FFFFFF" stroke="#C7D2FE"/>
+    <circle cx="64" cy="342" r="15" fill="#4338CA" stroke="#F8FAFC" stroke-width="4"/>
+    <text x="113" y="336" fill="#4338CA" font-size="16" font-weight="700">T4 · BOUNDARY</text>
+    <text x="300" y="336" fill="#0F172A" font-size="18" font-weight="700">敏感动作前验证责任和授权</text>
+    <text x="113" y="361" fill="#475569" font-size="15">边界：拓扑调整不能取代可信任务授权和 Tool Gateway。</text>
+
+    <rect x="94" y="384" width="834" height="64" rx="10" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <circle cx="64" cy="416" r="15" fill="#475569" stroke="#F8FAFC" stroke-width="4"/>
+    <text x="113" y="410" fill="#475569" font-size="16" font-weight="700">T5 · FINAL STATE</text>
+    <text x="300" y="410" fill="#0F172A" font-size="18" font-weight="700">检查持久状态与遗留能力</text>
+    <text x="113" y="435" fill="#475569" font-size="15">边界：不可逆结果无法靠任务结束后的改图撤销。</text>
+    <text x="32" y="468" fill="#64748B" font-size="12">T1–T5 是研究中的时间切分，不表示已实现的流水线。</text>
+  </g>
+</svg>

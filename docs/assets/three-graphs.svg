@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="440" viewBox="0 0 960 440" role="img" aria-labelledby="title desc">
+  <title id="title">三图模型：任务、执行与历史依赖共同约束下一阶段拓扑</title>
+  <desc id="desc">D_t 表示任务依赖，G_t 表示当前执行拓扑，H_t 表示历史来源依赖。三者与观测进入拟议的 Controller，决定候选 G_t+1。三图尚处于系统建模阶段。</desc>
+  <rect x="1" y="1" width="958" height="438" rx="18" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <g font-family="'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif">
+    <text x="30" y="47" fill="#0F172A" font-size="27" font-weight="700">三种图，三种不同的问题</text>
+    <text x="31" y="74" fill="#475569" font-size="16">任务为什么协作 · 当前能怎样协作 · 过去的内容来自哪里</text>
+
+    <rect x="30" y="104" width="280" height="166" rx="13" fill="#FFFFFF" stroke="#A5B4FC" stroke-width="2"/>
+    <rect x="30" y="104" width="280" height="6" rx="3" fill="#4F46E5"/>
+    <text x="49" y="147" fill="#4338CA" font-size="27" font-weight="700">D<tspan baseline-shift="sub" font-size="18">t</tspan></text>
+    <text x="105" y="145" fill="#0F172A" font-size="20" font-weight="700">任务依赖</text>
+    <text x="49" y="186" fill="#475569" font-size="17">子任务 · 前后顺序</text>
+    <text x="49" y="215" fill="#475569" font-size="17">并行机会 · 信息需求</text>
+    <text x="49" y="249" fill="#4338CA" font-size="15" font-weight="600">回答：为什么需要这条协作边？</text>
+
+    <rect x="340" y="104" width="280" height="166" rx="13" fill="#FFFFFF" stroke="#7DD3C7" stroke-width="2"/>
+    <rect x="340" y="104" width="280" height="6" rx="3" fill="#0F766E"/>
+    <text x="359" y="147" fill="#0F766E" font-size="27" font-weight="700">G<tspan baseline-shift="sub" font-size="18">t</tspan></text>
+    <text x="414" y="145" fill="#0F172A" font-size="20" font-weight="700">执行拓扑</text>
+    <text x="359" y="186" fill="#475569" font-size="17">Agent · 消息 · Memory</text>
+    <text x="359" y="215" fill="#475569" font-size="17">委托 · 工具与可见性</text>
+    <text x="359" y="249" fill="#0F766E" font-size="15" font-weight="600">回答：谁能影响谁？</text>
+
+    <rect x="650" y="104" width="280" height="166" rx="13" fill="#FFFFFF" stroke="#F3C087" stroke-width="2"/>
+    <rect x="650" y="104" width="280" height="6" rx="3" fill="#D97706"/>
+    <text x="669" y="147" fill="#B45309" font-size="27" font-weight="700">H<tspan baseline-shift="sub" font-size="18">t</tspan></text>
+    <text x="724" y="145" fill="#0F172A" font-size="20" font-weight="700">历史来源</text>
+    <text x="669" y="186" fill="#475569" font-size="17">读取 · 摘要 · 消息</text>
+    <text x="669" y="215" fill="#475569" font-size="17">Memory 更新与继承</text>
+    <text x="669" y="249" fill="#9A3412" font-size="15" font-weight="600">回答：当前状态可能来自哪里？</text>
+
+    <path d="M 170 271 L 170 301 L 479 301 M 480 271 L 480 301 M 790 271 L 790 301 L 481 301 M 480 301 L 480 322" fill="none" stroke="#64748B" stroke-width="2.5"/>
+    <path d="M 475 317 L 480 324 L 485 317" fill="none" stroke="#64748B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="211" y="327" width="538" height="72" rx="12" fill="#EEF2FF" stroke="#A5B4FC" stroke-width="1.5"/>
+    <text x="232" y="356" fill="#312E81" font-size="18" font-weight="700">拟议 Controller：比较任务收益、来源路径与重组成本</text>
+    <text x="232" y="383" fill="#475569" font-size="16">输出候选 G<tspan baseline-shift="sub" font-size="12">t+1</tspan>；保留合法依赖，执行前仍须验证授权边界</text>
+    <text x="31" y="424" fill="#64748B" font-size="13">图中箭头表示研究中的约束关系，不是已完成的软件模块。</text>
+  </g>
+</svg>
