@@ -1,10 +1,10 @@
 ![SecurityAdaptiveMAS：现有多智能体协作原型示意](docs/assets/hero.svg)
 
 <h1 align="center">SecurityAdaptiveMAS</h1>
-<p align="center"><strong>研究怎样预测不可信信息在长任务中可能影响谁、流向哪里，并调整团队的信息与执行路径，守住安全边界和任务连续性。</strong></p>
-<p align="center"><em>Predictive Attack-Containment via Execution-Topology Reconfiguration in Long-Horizon Multi-Agent Systems</em>（暂定研究方向）</p>
+<p align="center"><strong>让多智能体团队随着任务变化调整分工与信息流，并在整个执行过程中检查安全风险。</strong></p>
+<p align="center"><em>Safety-Constrained Adaptive Topology for Long-Horizon Multi-Agent Systems</em>（暂定研究标题）</p>
 
-<p align="center"><a href="#研究动机一次延迟生效的提示注入">研究动机</a> · <a href="#核心问题与研究对象">核心问题</a> · <a href="#拟研究的结构控制">研究框架</a> · <a href="#现有代码能做什么">现有原型</a> · <a href="#相关工作与研究定位">相关工作</a> · <a href="#计划如何验证">实验计划</a> · <a href="#快速开始">快速开始</a></p>
+<p align="center"><a href="#研究定位">研究定位</a> · <a href="#为什么任务需要动态团队">性能动机</a> · <a href="#同时考虑性能与安全的例子">完整例子</a> · <a href="#研究问题">研究问题</a> · <a href="#计划中的决策框架">计划框架</a> · <a href="#相关工作与研究定位">相关工作</a> · <a href="#现有原型与边界">现有原型</a> · <a href="#计划如何验证">实验计划</a> · <a href="#快速开始">快速开始</a></p>
 
 <p align="center">
   <img alt="Python 3.12" src="https://img.shields.io/badge/Python-3.12-64748B?style=flat-square" />
@@ -14,143 +14,163 @@
   <img alt="研究原型" src="https://img.shields.io/badge/%E7%8A%B6%E6%80%81-%E7%A0%94%E7%A9%B6%E5%8E%9F%E5%9E%8B-D97706?style=flat-square" />
 </p>
 
-> **状态说明：这是研究原型，新的研究方向尚未完成实现或实验验证。** 现有代码通过了 22 项离线测试，完成了 ARE 离线初始化检查，并用一次真实请求确认 DeepSeek API 可以连接。还没有在线 Gaia2 任务完成结果、在线多智能体结果、攻击成功率或预测式拓扑控制结果。详见[实现报告](implementation_report_v2.md)。
+> **状态：研究原型。** 当前代码实现了三种基础组织结构、固定规则的选择器、有限的消息与工具检查，以及只读 ARE 入口。22 项离线测试与一次 DeepSeek 连通性请求曾通过；尚无在线 Gaia2 任务得分、在线多智能体结果或本页提出的联合优化实验。[实现报告](implementation_report_v2.md)记录了已验证的范围。
 
-## 研究动机：一次延迟生效的提示注入
+## 研究定位
 
-设想一个多智能体团队正在维护代码。合法任务需要读取项目文件、讨论修改方案、执行工具并检查结果。攻击者只能修改其中一份即将被读取的 README，在文档中夹入“获取并泄露模拟用户凭据”的指令。
+本项目的方向是 **Performance-Adaptive Topology under End-to-End Safety Constraints**：以任务需求驱动的动态团队组织为主体，让跨时间的安全约束参与每一次组织选择。任务结构决定需要怎样协作；协作结构决定信息和执行能力怎样传播；安全风险又会改变可接受的组织方式。
 
-1. **接触内容。** Agent A 读取了被修改的 README。此时只能确定它接触过不可信内容。
-2. **影响可能滞后。** Agent A 可能继续正常工作，但恶意文字也可能进入它的上下文、计划、摘要，或后来写入的 Memory。
-3. **协作扩大路径。** 十几步后，A 可能把摘要交给 Planner、Worker、Verifier 或 Executor。内容还可能经共享 Memory、任务委托和工具调用影响下一步。
-4. **危险发生在后面。** 如果拥有合法工具权限的 Agent 把文档中的指令当成用户要求，执行了未授权的敏感操作，攻击才造成了实际危害。
+我们拟研究一个反复执行的决策：**根据当前任务生成候选拓扑，比较预期任务收益、攻击传播风险和调整团队的成本，再选择能完成工作且满足安全约束的拓扑。**即使没有攻击，团队也应随任务阶段变化；发现风险后，还要在保留合法协作的前提下调整信息流。这里的“拓扑”不只是 Agent 之间的线，还包括角色、任务委托、上下文可见范围、共享 Memory 的读写路径和工具调用能力。
 
-![设计动机示意：外部内容可能沿协作路径传播；旧图中的隔离和验证是研究方向，不代表完整方法已经实现](docs/assets/problem.svg)
+这是**计划中的研究问题和方法**。现有选择器使用固定启发式分数，尚不能预测攻击后果或求解联合优化。
 
-[放大查看动机图](docs/assets/problem.svg)。图中展示的是**可能的路径**，不是本项目的攻击实验结果。简单切断 A 的全部连接也会阻断它完成合法任务需要的协作，因此需要判断哪些路径有风险、哪些路径仍需保留。
+## 为什么任务需要动态团队
 
-这里区分四个状态：
+长任务在不同阶段需要不同的协作方式。代码维护可能先由一个 Agent 了解仓库；遇到独立模块时让多个 Worker 并行；实现和测试时让 Coder、Reviewer、Tester 分工；集成时收紧顺序依赖；结束时减少多余的通信。需要回答四个实际问题：**何时组队、怎样分工、何时重组，以及收益是否抵得上 Token、等待和协调成本。**任务长短本身不能决定 Agent 数量或通信密度。
 
-| 状态 | 可以确认什么 |
-|---|---|
-| **Exposure（接触）** | Agent 读到了不可信内容；尚不能断言其决定被改变。 |
-| **Suspected Compromise（疑似受影响）** | 观察到可疑输出、状态或行为，需要进一步核验。 |
-| **Compromise（确有影响）** | 恶意内容已实质影响决策或持久化状态，需要相应证据。 |
-| **Harm Realized（危害发生）** | 最终未授权操作已经执行。 |
+这一动机有两类证据，但它们不直接证明本项目的方法有效。[Benefits and Limitations of Communication in Multi-Agent Reasoning](https://arxiv.org/abs/2510.13903)在特定理论任务及受控实验中说明：Associative Recall 可能只需少量通信，State Tracking 在条件满足时可从并行协作获益，k-hop Reasoning 仍有不能靠增加 Agent 消除的顺序依赖。[Architectural Design, Not Only Model Intelligence, Governs Multi-Agent LLM Performance](https://arxiv.org/abs/2602.03128)通过 MAFBench 分析多智能体框架的架构选择与性能差异。这些工作支持**按任务依赖评估组织方式**，不能推出某个固定图形对所有真实长任务最优。
 
-**读到恶意 README 不等于攻击成功。** 上面的凭据情节是拟研究的模拟案例，当前仓库没有完成该攻击实验。
+## 同时考虑性能与安全的例子
 
-## 核心问题与研究对象
+下表是**拟用于研究的情境**，不是已运行的攻击轨迹。合法任务是维护代码；攻击者只控制一个将被读取的 README，在其中加入诱导读取并外传**模拟凭据**的文字，目标地址也是受控测试地址，不涉及真实秘密。
 
-> 在长程多智能体任务中，当攻击者控制的信息已经进入或可能进入部分 Agent 的上下文、Memory 或中间状态时，能否根据攻击影响**未来可能到达的路径**调整协作关系，限制传播和危险行为，同时保留合法任务所需的协作？
-
-研究对象是 **Attack Reachability（攻击影响的可达性）随时间怎样变化**。团队重构是改变可达性的手段；团队人数和 Token 成本属于任务效用与系统成本问题。
-
-### 两张需要一起看的图
-
-| 关系 | 记录什么 | 为什么重要 |
+| 任务进度 | 任务为何可能需要换拓扑 | 同时需要检查的安全问题 |
 |---|---|---|
-| **Execution / Control Topology（执行与控制拓扑）** | 当前允许的 Agent 间消息、Agent 对 Memory 的读写、任务委托、工具调用、上下文可见范围、角色与工具权限。 | 决定下一步信息与执行能力可以沿哪些路径走。安全拓扑的范围超过 Agent 间通信边。 |
-| **Historical Information Dependency / Provenance（历史信息依赖与来源）** | 外部文档和工具结果被谁看到，哪些消息、计划、摘要或 Memory 由它们派生，后续动作依赖了什么历史状态。 | 决定哪些旧状态可能仍携带风险，即使未来的连接已经改变。 |
+| Step 1：了解仓库 | 一个 Agent 阅读需求和目录，额外组队可能只增加开销。 | 外部文件应作为数据处理。 |
+| Step 5：两个独立模块出现 | 即使**没有攻击**，两个 Worker 并行研究也可能比单人顺序处理更合适。 | 分工和可见范围仍须与任务匹配。 |
+| Step 8：Worker 读取被改写的 README | 正常分析仍需继续。 | 只能确认 **Exposure（接触）**，不能因此断言 Worker 已被控制。 |
+| Step 11：生成摘要或共享状态 | 下一阶段可能需要 Planner 汇总信息。 | 恶意文字可能残留在摘要、上下文或 Memory；是否实际改变决定须另找证据。 |
+| Step 13：需要 Executor | 合法实现/测试需要具备相应工具能力的角色。 | 新的消息、Memory 或委托路径可能让旧内容接近敏感能力；只检查新 Agent 的权限不够。 |
+| Step 15：比较候选组织 | 在继续并行、增加核验、限制可见性、改派工作之间比较任务收益与成本。 | 排除违反硬约束的方案，估计剩余危险路径；避免一概停掉合法任务。 |
+| Step 18：准备敏感动作 | 执行前确认动作服务于原任务。 | 若模拟凭据被发送到受控攻击地址，才记为相应攻击结果；单纯存在路径不是成功。 |
 
-下面是**研究设计示意，不是当前代码生成的轨迹**：
+![外部内容可能沿协作路径传播的动机示意；旧图不代表实验结果](docs/assets/problem.svg)
+
+[放大查看动机图](docs/assets/problem.svg)。**无攻击对照同样关键**：从探索转入可并行模块时，系统仍应考虑重组；完成并行部分后，也应考虑缩减团队。
+
+### 安全约束具体指什么
+
+**权限合规不等于抗攻击。** 一个 Tester 即使只持有合法 Shell 权限，也可能把外部文档中的恶意指令误当成用户要求，用已有权限做出未授权操作。可执行的**硬约束**包括工具白名单、精确动作授权、消息路由与可见范围、可信指令边界，以及重构时的能力继承规则；**预测性风险**则关心候选拓扑是否增加低可信信息到敏感能力的未来路径。这两种判断不能混为一个“安全分数”。
+
+计划中的模型同时看两张图：**执行/控制拓扑**描述未来允许的 Agent 消息、Memory 读写、共享工具状态、任务委托、上下文可见性与工具权限；**历史信息依赖**记录外部内容进入了哪些消息、摘要、计划、Memory 和动作。共享 Memory 或工具状态可能连接原本没有直接消息边的 Agent。修改未来的边不会自动清除过去留下的内容。
+
+| 研究概念 | 应怎样解释 |
+|---|---|
+| Exposure / Compromise / Harm | 接触不可信信息、确有证据表明决策受影响、以及未授权结果发生，是不同阶段。 |
+| Structural Reachability | 给定拓扑与权限时，低可信信息在结构上**可能**触及的角色或能力。 |
+| Behavioral Risk | 某种输入在未来**实际诱发**偏离任务的可能性，需要实验估计，不能由路径直接推出。 |
+| Blast Radius | 潜在受影响的 Agent、Memory、中间产物与资源范围。 |
+| Provenance | 来源与历史依赖的保守记录，不等同于模型内部的语义因果证明。 |
+
+当前仓库没有完整的时序来源图、Memory 污染恢复、攻击成功概率模型或形式化安全保证。如果受影响的 Agent 自己能直接使用危险工具，仅删除 Agent 间通信边也挡不住该工具动作。
+
+## 研究问题
+
+1. **RQ1 · Performance-Driven Topology Adaptation：**任务阶段、并行机会、信息依赖和通信成本如何决定组队、组织方式与重构时机？无攻击时，与固定团队相比能否提高合法任务效用？
+2. **RQ2 · Temporal Safety under Topology Evolution：**当拓扑、角色和工具路径变化时，怎样结合历史来源与未来结构路径，区分接触、可能传播和真正危险的动作？
+3. **RQ3 · Safety-Constrained Joint Topology Optimization：**在硬约束下，安全风险会怎样改变原本由性能驱动的候选拓扑排序？哪些细粒度改动既限制传播又保留任务所需协作？
+4. **RQ4 · Security–Performance–Cost Trade-offs：**与固定团队、只按性能重组、信任隔离或全面隔离相比，何时值得为安全调整付出通信和重构成本，何时没有明显收益？
+
+四个问题均待实现和实验验证。
+
+## 计划中的决策框架
+
+任务变化与风险变化都可以触发重新评估，而不是只有检测到攻击才重组：
 
 ```mermaid
 flowchart LR
-    R["被修改的 README<br/>不可信来源"] --> A["Agent A<br/>接触内容"]
-    A --> S["摘要 / 计划"]
-    S --> M["共享 Memory"]
-    M --> E["有工具权限的 Agent"]
-    E --> T["敏感工具调用"]
-    C["结构控制：消息、Memory、委托、工具权限"] -. "选择未来可走的路径" .-> E
-    P["历史来源记录"] -. "标出可能受影响的旧状态" .-> M
+    T["任务状态与资源预算"] --> G["生成候选拓扑"]
+    H["历史来源与风险信号"] --> S["评估候选拓扑的安全性"]
+    G --> S
+    S --> J["联合选择：任务收益、风险与成本"]
+    J --> R["受控重构并继续执行"]
+    R --> M["监测任务与风险变化"]
+    M --> T
+    M --> H
 ```
 
-**改掉未来的通信边，不会自动清除过去写进 Memory 或其他 Agent 上下文的内容。** 因此后续研究还需考虑让可疑状态失效、独立核验、在干净实例中重算，或只传递经过约束的信息。当前原型只有有限的可见输入来源记录和消息限制，没有通用状态回滚。
+**计划步骤：**依据任务依赖和预算生成候选结构；依据历史来源、未来信息流和权限评估风险；先筛掉违反硬约束的方案，再比较预期任务收益、通信成本、重构成本及风险预算；执行角色、边、可见性或核验路径的调整；监测后再次选择。一个可研究的目标是最大化“预期任务效用 − 通信成本 − 重构成本”，同时满足可执行安全约束、资源预算和适当的风险预算。当前代码**没有**求解该目标；现有 risk proxy 也不是可靠的攻击成功概率。
 
-本项目拟分别研究：
-
-- **Structural Reachability（结构可达性）：**按给定拓扑和权限，低可信信息在结构上可能触及哪些敏感能力。
-- **Unsafe-Outcome Risk（不安全结果风险）：**这些路径在未来导致未授权行为的可能性，需要用实验估计。
-- **Blast Radius（影响范围）：**攻击可能涉及的 Agent、Memory、中间产物与敏感执行能力。
-
-这些是待定义和检验的研究概念。**存在路径不代表攻击必然成功；来源依赖也不等于真实因果影响。**当前仓库没有实现严格的可达性预测器或安全保证。
-
-## 拟研究的结构控制
-
-目标是根据任务需要、历史依赖和可能的未来路径，选择**限制危险信息流、保留必要协作**的干预。预想中的控制对象包括消息边、Memory 可见范围、任务分派、核验步骤和工具权限，不能只看“是否删除某个 Agent”。
-
-| 运行时机 | 拟研究的动作 | 例子 |
-|---|---|---|
-| **Pre-Exposure：事前预测** | 在高权限角色接触外部内容前，比较候选执行拓扑的潜在危险路径。 | 让低权限 Worker 先读外部资料，限制其文本直接变成 Executor 的指令。 |
-| **Post-Exposure：接触后限制传播** | 某个 Agent 已接触可疑内容、尚未发生最终危害时，调整路线、可见内容、任务分配或核验步骤。 | 限制可疑摘要的转发，同时保留不依赖它的工作。 |
-| **Post-Propagation：传播后选择性恢复** | 风险内容已进入 Memory 或其他中间状态时，找出可能受影响的依赖并做必要的失效或重算。 | 只重算受影响的计划与摘要，保留独立可信的工作。 |
-
-**这三行是研究路线，不是已经完成的三个模块。**现有控制器只能在有限结构中按固定规则选择、调整和隔离。
-
-![现有原型的单人、星形、风险限制与继续处理示意；四步完整流程尚未在线验证](docs/assets/topology-evolution.svg)
-
-[放大查看团队变化图](docs/assets/topology-evolution.svg)。这张旧图说明现有原型能表达的组织变化；它**不展示未来攻击可达性预测或 Memory 恢复**。
-
-### 研究问题
-
-1. **RQ1 · How Does Attack Reachability Evolve?** 不可信信息怎样通过消息、Memory、状态继承和工具调用，在多步任务中形成潜在路径？怎样描述其未来可达性与影响范围？
-2. **RQ2 · Can Predictive Reconfiguration Contain Attacks While Preserving Utility?** 能否结合历史依赖、未来风险和合法协作需求，选择细粒度限制、重新连接、信息约束或恢复措施？
-3. **RQ3 · When Is Structural Intervention More Effective Than Existing Defenses?** 与固定拓扑、全局隔离、节点信任驱动的隔离、静态来源控制及敏感动作审计相比，哪些任务受益，哪些任务没有明显收益？
-
-这些问题都是**待检验的假设**。团队人数、延迟和 Token 仍需测量，但不再是核心研究问题。
-
-## 现有代码能做什么
-
-![现有原型框架：Gaia2 与 ARE 环境、控制器和网关、DeepSeek 驱动的只读角色](docs/assets/architecture.svg)
-
-[放大查看现有框架图](docs/assets/architecture.svg)。图中的模块指当前代码结构；它没有未来可达性预测器，也没有通用的污染状态恢复模块。
-
-| 已有部分 | 当前实际能力与边界 |
+| 同一决策在不同阶段 | 可能研究的调整 |
 |---|---|
-| [Controller](security_adaptive_mas/controller.py) 与[组织选择](security_adaptive_mas/organization.py) | 根据传入的任务阶段、待办子任务和一个风险布尔值，按**固定启发式分数**选择 Singleton、Star 或 Chain，给组织设版本并分配角色。这个分数不是 Attack Reachability Predictor。 |
-| [MANTA 适配](security_adaptive_mas/manta_adapter.py) | 复用 `TopologySpec`、`ContextPolicy`、`TopologyMutation` 等结构；没有接入 MANTA 的完整 Engine、Planner 或 Trace Auditor。 |
-| [ProvenanceStore、MessageGateway、ToolGateway](security_adaptive_mas/security.py) | 记录可见输入的保守来源依赖；检查消息边、可见范围、版本与隔离状态；按角色、资源和精确动作授权检查工具。来源记录不等于模型内部的真实因果影响。 |
-| [ARE / Gaia2 适配](security_adaptive_mas/are_bridge.py) | 接入官方场景、Runner 和工具；固定五个[场景](configs/gaia2_v1_five.yaml)并检查哈希。当前 ARE 入口只开放获准的只读工具。 |
-| [只读 Worker / Verifier](security_adaptive_mas/dynamic_team.py) | 协调员可调用 `delegate_parallel_reads`，分出两个只读小任务，再让验证员接收证据包。风险信号来自少量英文字符串的匹配规则，不能视为成熟的 Prompt Injection 检测器。 |
-| [DeepSeek 接口](security_adaptive_mas/deepseek.py)、[离线测试](tests/)与运行日志 | 固定 `deepseek-flash` 路由和本地预算；一次在线连通性请求成功，22 项离线测试通过。尚无在线 Gaia2 多角色端到端结果。 |
+| **Pre-Exposure：接触前** | 预估读取外部内容后可能形成的路径，预先限制高权限角色的直接接触或转发。 |
+| **Post-Exposure：接触后** | 根据观察到的来源和风险信号调整路由、可见性、任务分派或核验，继续独立的合法工作。 |
+| **Post-Propagation：传播后** | 若内容已进入共享状态，识别可能受影响的依赖，选择性失效、核验或重算。 |
 
-上述能力支持后续研究，但**尚未实现**预测式攻击可达性优化、完整长程注入实验、真实持久化 Memory 污染与延迟后果评估、通用传播追踪和状态回滚，也没有在线 Gaia2 合法任务成功率与攻击成功率对照。
+三阶段都属于**计划中的同一拓扑决策过程**，并非已经实现的三个模块。旧的团队演化图仅说明当前原型能表达的少量结构变化：
+
+![现有原型的单人、星形与链形变化示意；不代表完整预测控制已经实现](docs/assets/topology-evolution.svg)
+
+[放大查看团队变化图](docs/assets/topology-evolution.svg)。
 
 ## 相关工作与研究定位
 
-这些工作已经研究了动态拓扑、安全图干预、前瞻性风险判断或污染状态恢复。下表只概括论文中与本项目直接相关的部分；本仓库没有集成这些论文的防御实现。
+以下按每项工作的**主要研究问题**比较；这些论文与本方向有真实重合，不能把安全和性能简单划成互不相干的两块。文中的“本项目拟研究”均指假设，尚无比较结果；除部分 MANTA 结构接口外，本仓库尚未集成下列方法的完整实现。
 
-| 工作 | 与本问题有关的贡献 |
+### 1. 性能驱动的拓扑自适应
+
+[MANTA — Multi-Agent Network Topology Adaptation for Self-Evolving Multi-Agent Systems](https://arxiv.org/abs/2607.28527)研究任务驱动的运行时组织调整，覆盖角色、通信、执行顺序和可见性，并设置结构变更验证路径。因此本项目不能把“动态调整团队”本身当作新贡献；拟进一步问历史低可信信息如何改变候选结构的安全评价。[ATM — Autonomous Topology Mutation: Safe Runtime Restructuring for Multi-Agent LLM Systems with Capability, State, and Shadow Invariants](https://arxiv.org/abs/2607.20488)更直接地把能力、状态路由和影子验证约束放进运行时变更。与 ATM 的潜在区别应落在**外部攻击内容的跨步来源、未来传播路径和候选拓扑排序**，但必须在同等任务与威胁模型下实证比较，不能仅凭摘要宣称 ATM 没有涉及攻击。
+
+[Benefits and Limitations of Communication in Multi-Agent Reasoning](https://arxiv.org/abs/2510.13903)提供不同任务依赖下通信收益与限制的理论动机；[Architectural Design, Not Only Model Intelligence, Governs Multi-Agent LLM Performance](https://arxiv.org/abs/2602.03128)（MAFBench）分析框架架构与性能差异。前者的理论条件和后者的框架级测量，都不足以直接给出本项目在长程任务中的最优组织策略。
+
+### 2. 安全感知的多智能体架构与拓扑防御
+
+[G-Safeguard — A Topology-Guided Security Lens and Treatment on LLM-based Multi-agent Systems](https://aclanthology.org/2025.acl-long.359/)（ACL 2025）以多智能体消息图检测异常并进行拓扑干预，说明“通过拓扑防御攻击”已有直接先例。[DynaTrust — Defending Multi-Agent Systems Against Sleeper Agents via Dynamic Trust Graphs](https://arxiv.org/abs/2603.15661)通过动态信任图隔离可疑节点、恢复团队连通性；它的主要威胁是 **Sleeper Agent**，与攻击者控制外部 README 的间接提示注入并不等价，而且 DynaTrust 已考虑任务连通性，不能称其只顾安全。[BPD — Securing Multi-Agent Systems Against Corruptions via Node Contribution Backpropagation](https://proceedings.mlr.press/v306/wu26cc.html)（ICML 2026）沿通信贡献图回溯节点影响并识别、隔离恶意 Agent；本项目拟关注的历史文档与 Memory 路径不能由此自动视为未研究领域。
+
+[Architecture Matters for Multi-Agent Security](https://proceedings.mlr.press/v306/hagag26a.html)（ICML 2026）通过控制角色、拓扑和 Memory 等架构因素研究安全与任务表现的关系。[ORBIT — A Framework for Multi-Agent Safety and Security Evaluations](https://arxiv.org/abs/2609.33102)提供可配置的多智能体安全评测框架，涉及拓扑、Memory、调度及安全—性能权衡；本项目不能把这种权衡本身写成首创。[Cross-layer contagion of prompt injections in multi-agent swarms](https://link.springer.com/article/10.1186/s42400-026-00628-w)用 Agent 与共享工具的跨层传播模型说明：只看 Agent 间直接通信可能漏掉共享工具路径。其模型提供建模启发，不等于已证明本项目所设长任务中的行为结果。
+
+### 3. 时间性风险、来源边界与恢复
+
+[JANUS — Foreseeing Latent Risk for Long-Horizon Agent Safety](https://arxiv.org/abs/2607.19913)从部分轨迹预判后续风险；它与拟议的前瞻评估重合，但“预测风险”不自动给出团队结构的选择。[Blocking at the Boundary — Auditing Long-Horizon Agents against Staged Prompt Injection](https://arxiv.org/abs/2610.05163)研究分阶段注入及敏感边界前的审计，提示本项目应把动作前检查纳入对照，不能把网关效果算成拓扑效果。[Can CaMeLs Talk? Securing Multi-Agent Systems Against Indirect Prompt Injection Attacks](https://arxiv.org/abs/2610.05640)（multi-CaMeL）研究跨 Agent 保留不可信来源和指令/数据边界，是来源约束的直接相关工作。[From Faulty Memories to Corrected Actions: Dependency-Guided Rollback Repair for Memory-Augmented Agents](https://arxiv.org/abs/2608.10502)追踪 Memory 到动作的依赖并选择性修复；它提醒我们，重新连边不能代替对已污染状态的处理。
+
+### 4. 对照与拟议研究空缺
+
+| 工作 | 主要目标 | 已覆盖的关键内容 | 本项目拟检验的焦点 |
+|---|---|---|---|
+| [MANTA](https://arxiv.org/abs/2607.28527) | 任务驱动组织适应 | 运行时角色、边、顺序和可见性调整 | 低可信历史如何改变任务驱动的选择 |
+| [ATM](https://arxiv.org/abs/2607.20488) | 安全的运行时拓扑变更 | 能力、状态路由与影子验证不变量 | 跨步攻击内容的可达性约束能否改变候选排序 |
+| [G-Safeguard](https://aclanthology.org/2025.acl-long.359/) | 图上的攻击检测与干预 | 消息图异常与拓扑治疗 | 任务收益与历史 Memory 路径共同作用时的选择 |
+| [DynaTrust](https://arxiv.org/abs/2603.15661) | Sleeper Agent 信任隔离 | 动态信任、隔离和连通性恢复 | 外部注入威胁下的任务驱动重组与状态继承 |
+| [BPD](https://proceedings.mlr.press/v306/wu26cc.html) | 恶意节点识别 | 通信贡献回溯与节点隔离 | 外部内容—Memory—执行能力的跨步路径 |
+| [Architecture Matters](https://proceedings.mlr.press/v306/hagag26a.html) | 架构因素与安全表现 | 角色、拓扑、Memory 的受控比较 | 在线选择和调整规则 |
+| [ORBIT](https://arxiv.org/abs/2609.33102) | 安全评测 | 可配置架构、攻击与安全—性能测量 | 用于检验联合决策，而非取代评测框架 |
+| [JANUS](https://arxiv.org/abs/2607.19913) | 长程风险预判 | 部分轨迹到后续风险信号 | 风险信号怎样进入拓扑选择 |
+| [multi-CaMeL](https://arxiv.org/abs/2610.05640) | 跨 Agent 来源边界 | 不可信数据与指令的跨边界约束 | 不同组织下的路径与任务收益 |
+| [Blocking at the Boundary](https://arxiv.org/abs/2610.05163) | 分阶段注入审计 | 敏感消息和动作前检查 | 与拓扑控制分开评估贡献 |
+| [Dependency-Guided Rollback](https://arxiv.org/abs/2608.10502) | 污染状态修复 | Memory—动作依赖及选择性重算 | 结构调整后怎样处理历史状态 |
+
+**Research Gap and Proposed Positioning：**已有工作分别推进了任务驱动拓扑适应、带不变量的运行时变更、图上隔离、长程风险预判、来源控制和状态修复；ATM、DynaTrust 与 ORBIT 尤其已经触及安全与性能的共同问题。本项目拟问一个更窄、可检验的问题：**当长任务的协作需求发生变化、历史低可信信息又可能影响未来执行时，安全约束会怎样改变原本由任务性能驱动的候选拓扑排序？**例如两种候选都能完成并行分析，但其中一种使先前接触恶意 README 的摘要经共享 Memory 到达 Executor；能否通过改路由或加核验保留并行收益，同时减少实际未授权行为？若实验表明排序没有变化、代价超过收益或对照方法同样有效，就应收窄相应主张。这是**拟议贡献和待验证假设**，不是现有成果。
+
+## 现有原型与边界
+
+![现有原型框架：Gaia2 与 ARE 环境、控制器和网关、DeepSeek 驱动的只读角色](docs/assets/architecture.svg)
+
+[放大查看现有框架图](docs/assets/architecture.svg)。图示的是已有工程连接，不包含已完成的风险预测器。
+
+| 已有部分 | 实际能力与限制 |
 |---|---|
-| [MANTA](https://arxiv.org/abs/2607.28527) | 根据任务和运行轨迹调整角色、通信、执行顺序与信息可见性；本仓库只复用其部分结构接口。 |
-| [G-Safeguard](https://arxiv.org/abs/2502.11127) | 从多智能体消息图中检测异常，并通过拓扑干预应对攻击。 |
-| [DynaTrust](https://arxiv.org/abs/2603.15661) | 动态更新节点信任，隔离受影响节点，同时恢复任务连通性。 |
-| [BPD](https://arxiv.org/abs/2510.19420) | 在多轮通信图上回溯节点对最终结果的贡献，识别可疑 Agent。 |
-| [JANUS](https://arxiv.org/abs/2607.19913) | 从部分长程轨迹预判后续危险行为，服务于执行前的安全判断。 |
-| [multi-CaMeL](https://arxiv.org/abs/2610.05640) | 在 Agent 间通信中区分可信指令与不可信数据，并跨边界保留来源信息。 |
-| [Blocking at the Boundary](https://arxiv.org/abs/2610.05163) | 研究长程任务中的分阶段提示注入，在敏感消息或工具动作发生前审计。 |
-| [Dependency-Guided Rollback Repair](https://arxiv.org/abs/2608.10502) | 根据 Memory 到动作的依赖关系，选择性失效和重算受影响状态。 |
+| [Controller](security_adaptive_mas/controller.py) 与[组织选择](security_adaptive_mas/organization.py) | 根据任务阶段、待办子任务和风险布尔值，用固定启发式分数选择 Singleton、Star、Chain；组织版本和少量隔离规则已存在。它不是联合优化器。 |
+| [MANTA 适配](security_adaptive_mas/manta_adapter.py) | 复用部分 TopologySpec、ContextPolicy、TopologyMutation 接口；未接入完整 Engine、Planner 或 Trace Auditor。 |
+| [ProvenanceStore、MessageGateway、ToolGateway](security_adaptive_mas/security.py) | 保守记录可见输入来源；检查部分消息边、可见范围、版本、隔离和精确工具授权。未实现完整历史因果图。 |
+| [ARE / Gaia2 适配](security_adaptive_mas/are_bridge.py) | 使用官方场景、Runner 和工具；固定五个[场景](configs/gaia2_v1_five.yaml)及其哈希。当前 ARE 入口只允许获准的只读工具。 |
+| [只读 Worker / Verifier](security_adaptive_mas/dynamic_team.py) | 可并行委派两个只读任务，再交给 Verifier。风险信号只是少量英文字符串的正则匹配，不能当作成熟的注入检测。 |
+| [DeepSeek 接口](security_adaptive_mas/deepseek.py)与[离线测试](tests/) | 固定 deepseek-flash 路由和本地预算；已有一次在线连通性请求及 22 项离线测试的记录，未得到在线 Gaia2 多角色端到端结果。 |
 
-**拟研究的组合问题：**把历史信息依赖、候选执行拓扑下的未来攻击可达性，以及合法任务的协作连续性放在一起，研究预测驱动的细粒度结构控制。这是待验证的研究假设；不能据此声称已有方法无效或本项目已经取得性能提升。
+**当前未完成：**任务依赖驱动的候选生成、可靠的时间性风险估计、跨 Agent/Memory 的完整历史依赖、选择性恢复、可写敏感工具场景，以及正式的安全—性能对照实验。现有角色使用固定 Agent ID；在一次从 Star 转为 Chain 的重构中，原先的 Worker ID 可能被复用为 Verifier，而隔离逻辑只遍历新拓扑中的 Worker。若风险首先出现在第二个 Worker，不能仅凭现有测试推断该 ID 已持续隔离；正式实验前须检查并修正状态继承。当前入口依然保持只读。
 
 ## 计划如何验证
 
-以下均为 **Planned Experiments（计划实验）**，目前没有相应结果：
+以下是**计划实验，没有测量结果**。先分别检验两个命题：①无攻击时，按任务依赖调整拓扑能否比不合适的固定组织提高合法任务效用；②有攻击路径时，安全约束能否改变候选拓扑选择，并在安全与合法任务连续性之间优于只按性能选或一概隔离。结论需按任务类型、威胁模型与预算报告，不能预设总是更好。
 
-1. 先搭建小型可控环境，明确攻击入口、消息和 Memory 的传播路径、敏感工具动作，以及合法任务的成功条件。
-2. 分别在接触前、接触后、状态传播后和敏感操作前干预，检查何时调整结构有用，何时会妨碍任务。
-3. 与固定拓扑、全局隔离、信任分数驱动隔离、无预测的动态拓扑，以及适用的来源控制和动作审计方法比较；保持任务、模型与预算可比。
-4. 分开统计合法任务完成率、攻击成功率、信息暴露、受影响状态范围、Token、延迟与重构成本。
-5. 机制在可控环境中得到证据后，再扩展到 Gaia2 / ARE 长程任务。
+| 比较维度 | 计划中的对照与消融 |
+|---|---|
+| 性能侧 | Single Agent、固定 Multi-Agent、只按性能自适应；条件允许时接入 MANTA 或 ATM 的可比实现。 |
+| 安全侧 | 相同网关下的固定拓扑、全面隔离、信任驱动隔离、静态来源策略、动作前守卫；G-Safeguard / DynaTrust 仅在威胁模型与复现条件相符时比较。 |
+| 联合方法消融 | 去掉时间性可达性、去掉任务驱动调整、去掉历史/Memory 依赖，各自与完整方案比较。 |
 
-### 安全边界
+性能指标包括合法任务完成率、Token、时延、Agent 数与创建成本、通信和重构开销。安全指标包括攻击成功率、未授权工具动作率、敏感信息暴露、结构可达范围和受影响状态范围；若实现预测器，还需报告误报、漏报与校准。联合分析安全条件下的任务完成率、恢复能力和安全—性能—成本的权衡。**ToolGateway、权限限制、检测器与拓扑重构要分别消融**，不能把网关带来的防护都记在动态图上。
 
-- 拓扑调整只是防御的一部分。如果受影响的 Agent 自己就有危险工具权限，切断它与其他 Agent 的通信仍不足以阻止操作。
-- 历史污染可能留在共享 Memory、计划和摘要里；改变新消息路线不会清除旧状态。
-- 来源依赖是保守记录，可能包含并未真正改变模型决定的内容，因此会有误报。
-- 结构可达性既不是攻击成功概率，也不是形式化安全保证。
-- 结构控制需要与工具授权、可信指令边界和必要的执行前审计配合。当前 ARE 写工具保持关闭。
+第一阶段做可控的长程传播实验，明确模拟凭据、受控目的地、攻击入口和合法成功条件；第二阶段在 Gaia2 / ARE 的任务中测动态组织和适用的攻击场景。AgentDojo、MultiAgentDojo、AppWorld 和 ORBIT 仅是后续可评估的候选环境，本仓库尚未完成兼容或评测。所有敏感写入和外传实验应限于受控环境；当前 ARE 入口保持只读。
 
 ## 快速开始
 
