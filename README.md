@@ -1,75 +1,191 @@
-# Security-Aware Adaptive Multi-Agent Organization v2
+![SecurityAdaptiveMAS banner: adaptive agent collaboration with an explicit trust gate](docs/assets/hero.svg)
 
-固定五个 Gaia2 场景的安全组织控制原型。项目代码、Python 环境、ARE/MANTA 源码快照和场景文件位于 `D:\SecurityAdaptiveMAS`。`offline_mock` 可离线运行；2026-10-12 的单请求 DeepSeek 连通性检查已成功，但尚未运行真实 ARE Single/Multi 场景，不能宣称 Gaia2 任务完成或动态团队在线验证成功。详细证据与限制见 `implementation_report_v2.md`。
+<h1 align="center">SecurityAdaptiveMAS</h1>
+<p align="center"><em>Security-Aware Adaptive Multi-Agent Organization for Long-Horizon Tasks</em><br><strong>Adapting agent collaboration without losing control of trust boundaries.</strong></p>
 
-## 固定版本与安装
+<p align="center"><a href="#why-does-multi-agent-organization-need-to-adapt-securely">Motivation</a> · <a href="#system-architecture">Architecture</a> · <a href="#from-static-teams-to-runtime-organization">Adaptive Topology</a> · <a href="#current-prototype-status">Implementation</a> · <a href="#quick-start">Quick Start</a> · <a href="#limitations-and-roadmap">Roadmap</a></p>
 
-需要 PowerShell、Git、Python 3.12、`uv` 和网络。全新检出的项目可运行：
+<p align="center">
+  <img alt="Python 3.12" src="https://img.shields.io/badge/Python-3.12-64748B?style=flat-square" />
+  <img alt="Gaia2 and ARE" src="https://img.shields.io/badge/Gaia2%20%2F%20ARE-environment-06B6D4?style=flat-square" />
+  <img alt="MANTA topology" src="https://img.shields.io/badge/MANTA-topology-8B5CF6?style=flat-square" />
+  <img alt="DeepSeek Flash" src="https://img.shields.io/badge/DeepSeek-Flash-64748B?style=flat-square" />
+  <img alt="Research prototype" src="https://img.shields.io/badge/Status-research%20prototype-F59E0B?style=flat-square" />
+</p>
 
-```powershell
-Set-Location D:\SecurityAdaptiveMAS
-.\bootstrap.ps1 -PythonExe .\python\python.exe
+> **Research prototype.** The repository has offline organization and security tests, an offline ARE initialization probe, and one successful DeepSeek API connectivity request. It has **no verified online Gaia2 task success or online dynamic multi-agent result**. See the [v2 implementation report](implementation_report_v2.md) for the evidence and limits.
+
+## Why Does Multi-Agent Organization Need to Adapt Securely?
+
+Adding agents and communication edges can help a team divide work. The same edges can also carry instructions from a lower-trust tool result into summaries and later actions. A topology change alone does not check what an agent can see, send, or execute.
+
+![Conceptual comparison: performance-only adaptation permits a possible untrusted propagation path; security-aware adaptation adds explicit route and evidence controls](docs/assets/problem.svg)
+
+[Open the problem diagram at full size](docs/assets/problem.svg).
+
+**Research question:** Can an agent team adapt its structure to changing task demands while controlling prompt-injection exposure across long-running workflows? The figure is a design contrast, **not** an experimental result.
+
+## Research objectives
+
+| Question | Research target |
+|---|---|
+| **RQ1 · Temporal safety** | Track low-trust evidence as summaries, agents, and task phases change. |
+| **RQ2 · When to organize?** | Detect when observed subtasks or events justify adding or retiring roles. |
+| **RQ3 · How to organize securely?** | Select edges, visibility, verification, and permissions under explicit constraints. |
+| **RQ4 · Security–performance–cost** | Measure legitimate task success, attack success, latency, tokens, and reconfiguration cost together. |
+
+These are **research objectives**, not completed findings.
+
+## System architecture
+
+![Three-layer architecture: Gaia2 ARE environment, organization controller with MANTA topology structures and security gateways, and DeepSeek-powered coordinator, workers, and verifier](docs/assets/architecture.svg)
+
+[Open the architecture diagram at full size](docs/assets/architecture.svg).
+
+| Layer | What the current code does |
+|---|---|
+| **Gaia2 / ARE** | Loads five pinned scenarios, initializes simulated apps and tools, runs the official event loop and validator. Online task completion remains unverified. |
+| **Controller** | Scores Singleton, Star, and Chain candidates from supplied task state; uses MANTA topology structures; versions organizations and applies route, visibility, provenance, quarantine, and tool checks. Its risk signal is a limited rule, not a general semantic detector. |
+| **Agent roles** | An ARE coordinator can call the prototype `delegate_parallel_reads` tool. Two read-only Worker model calls and a Verifier model call share the same Scenario; their messages pass through the gateway. This path has offline tests but no online end-to-end validation. |
+
+The controller enforces permissions in code. DeepSeek supplies model responses; it does not grant its own tool privileges. The actual source is in [`controller.py`](security_adaptive_mas/controller.py), [`security.py`](security_adaptive_mas/security.py), and [`dynamic_team.py`](security_adaptive_mas/dynamic_team.py).
+
+## From Static Teams to Runtime Organization
+
+![Illustrative evolution from a Singleton to a Star, a restricted branch, and controlled continuation with a verifier](docs/assets/topology-evolution.svg)
+
+**Illustrative target workflow.** The offline controller can represent and test reconfiguration, including Star-to-Chain changes. The full four-stage sequence has **not** been demonstrated in a real long-horizon Gaia2 run. [View the figure at full size](docs/assets/topology-evolution.svg).
+
+| Pattern in the planner | Intended use in this prototype |
+|---|---|
+| **Singleton** | One coordinator at intake. |
+| **Star** | Coordinator dispatches two parallel read-only subtasks. |
+| **Chain** | Ordered continuation with an authorized direct path to the Verifier. |
+
+Debate and voting topologies are not implemented.
+
+## How the modules interact
+
+The sequence below follows the **implemented code path**. The optional multi-agent and risk branches are still awaiting a real ARE + DeepSeek end-to-end run; the risk rule only recognizes a small set of strings.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant E as Gaia2 / ARE
+    participant C as Coordinator
+    participant O as Controller
+    participant L as DeepSeek
+    participant G as Gateways
+    participant W as Worker
+    participant V as Verifier
+    E->>C: Deliver current task / event
+    C->>L: Submit visible task context
+    L-->>C: Return an action
+    C->>O: Supply observed task state
+    O-->>C: Select current organization
+    C->>G: Request an authorized read tool
+    G->>E: Execute allowed ARE tool
+    E-->>G: Return tool result
+    G-->>O: Record low-trust provenance
+    opt Coordinator invokes delegate_parallel_reads
+        C->>O: Provide two read-only subtasks
+        O-->>C: Reconfigure to Star
+        C->>G: Send subtask through Message Gateway
+        G->>W: Deliver allowed context
+        W->>L: Ask model and optionally use a read tool
+        L-->>W: Return a summary
+        alt Limited rule matches tool content
+            W->>O: Emit risk signal
+            O-->>G: Quarantine branch and restrict topology
+        else No rule match
+            W->>G: Return summary through allowed route
+            O-->>G: Continue with verification topology
+        end
+        G->>V: Deliver authorized evidence packet
+        V->>L: Request a verification verdict
+        L-->>V: Return verdict
+        V->>G: Send verdict through Message Gateway
+        G-->>C: Deliver verdict
+    end
+    E->>E: Apply official scenario validation
 ```
 
-脚本把依赖环境和缓存建在 D 盘，检出配置中固定的 ARE/MANTA 版本，下载三个固定 Gaia2 Parquet 和固定文件系统数据，校验 SHA-256，恢复五个原始场景，再运行离线测试。请预留约 1 GB 下载和数 GB 磁盘空间。当前目录中的 ARE/MANTA 是归档源码快照，没有 `.git` 元数据；上述完整模式会明确报错，避免将快照误报为已验证的 Git checkout。在当前已迁移的 D 盘目录，使用现有源码和场景文件运行：
+## Current Prototype Status
+
+| Capability | State | Evidence / boundary |
+|---|---|---|
+| Fixed five Gaia2 scenarios and SHA-256 checks | **Implemented; offline-tested** | [`configs/gaia2_v1_five.yaml`](configs/gaia2_v1_five.yaml), [`bootstrap_data.py`](security_adaptive_mas/bootstrap_data.py) |
+| MANTA topology structures; Singleton, Star, Chain | **Implemented; offline-tested** | [`manta_adapter.py`](security_adaptive_mas/manta_adapter.py), [`organization.py`](security_adaptive_mas/organization.py) |
+| Offline reconfiguration, provenance, message/tool gateways | **Implemented; offline-tested** | [`test_system.py`](tests/test_system.py); tests exercise exact-action grants and route checks |
+| DeepSeek V4.1 Flash connectivity | **One online request verified** | `OK`; 11 input + 1 output token. This proves connectivity only; see [report](implementation_report_v2.md). |
+| ARE scenario initialization and official loop | **Offline probe verified** | Official importer, initialization, event loop, validator, and export; no model-driven task completion. |
+| ARE Single Agent smoke entry | **Wired; online run pending** | Read-only [`are_smoke.py`](security_adaptive_mas/are_smoke.py) |
+| Dynamic Multi-Agent tool path | **Offline-tested; online run pending** | [`dynamic_team.py`](security_adaptive_mas/dynamic_team.py), [`test_dynamic_team.py`](tests/test_dynamic_team.py) |
+| Semantic risk detection and long-horizon attack evaluation | **Partial rule / planned evaluation** | A limited string rule exists; no attack success study. |
+| Fixed/adaptive baseline comparisons | **Planned** | No comparative scores or performance claims. |
+
+The [v2 report](implementation_report_v2.md) records **22 passing offline tests** in the reviewed state. Those tests measure code behavior; they are not a Gaia2 benchmark score.
+
+## Built on Existing Research
+
+| Project | Role here | Boundary |
+|---|---|---|
+| [Gaia2 / ARE](https://github.com/facebookresearch/meta-agents-research-environments) | Directly reused scenario importer, simulated applications, tools, runner, events, and validator. | The five pinned scenarios remain official; online success is unmeasured. |
+| [MANTA](https://github.com/mao-code/MANTA) | Directly reused `TopologySpec`, `ContextPolicy`, and `TopologyMutation`. | Its full engine, planner, and trace auditor are not integrated. |
+| [G-Safeguard](https://github.com/wslong20/G-safeguard) | Related security-topology research and a possible future comparison. | No G-Safeguard implementation is imported. |
+| [DeepSeek V4.1 Flash](https://api-docs.deepseek.com/news/news260910/) | Fixed LLM route (`deepseek-flash`) for agent model calls. | Connectivity was checked once; ARE task execution is still pending. |
+
+This is an independent prototype, not an official extension endorsed by those projects.
+
+## Quick Start
+
+**Prerequisites:** Windows PowerShell, Git, Python 3.12, `uv`, network access, and space for the pinned upstream sources and Gaia2 data. The full clean-checkout download path is scripted but has **not** yet been validated from an empty directory. The existing D-drive workspace passed `-SkipDownloads` verification; details are in the [implementation report](implementation_report_v2.md).
+
+### Free: clone, bootstrap, and inspect the offline prototype
 
 ```powershell
-Set-Location D:\SecurityAdaptiveMAS
-.\bootstrap.ps1 -PythonExe .\python\python.exe -SkipDownloads
-```
-
-`-SkipDownloads` 核对现有五个 JSON 的哈希并运行测试，不证明第三方源码的 Git 身份。若要验证从零下载，请在新的干净项目检出目录执行完整模式。场景清单是 `configs/five_manifest.json`；版本与 Parquet 哈希是 `configs/source_versions.json`。当前已固定文件系统数据在 `work/gaia2_filesystem`，第三方源码未修改。
-
-## 三种运行模式
-
-### 1. `offline_mock`
-
-```powershell
-Set-Location D:\SecurityAdaptiveMAS
+git clone https://github.com/ruihanzhu5-cyber/SecurityAdaptiveMAS.git
+Set-Location SecurityAdaptiveMAS
+$python312 = (py -3.12 -c 'import sys; print(sys.executable)').Trim()
+.\bootstrap.ps1 -PythonExe $python312
 .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests
 .\.venv\Scripts\python.exe -m security_adaptive_mas.demo --scenario scenario_universe_22_0421h2 --trace results\demo.jsonl
 ```
 
-这个模式验证控制器、拓扑、来源和网关。日志明确标记 `offline_mock`，不是 Gaia2 正式成功率。
+`bootstrap.ps1` pins ARE, MANTA, Gaia2 revisions and checks the fixed scenario hashes. `offline_mock` runs local control tests and a demo; it does **not** call a paid model or produce an official Gaia2 score.
 
-### 2. `real_are_single`
+### Paid: configure DeepSeek, then opt in to an ARE smoke run
 
-先在当前 PowerShell 会话设置 `DEEPSEEK_API_KEY`，不要把密钥写入脚本或 Git。下面命令会产生真实费用；只在确认费用后执行：
+Set the key only in the current PowerShell process. Do not commit it or place it in a command argument:
 
 ```powershell
-Set-Location D:\SecurityAdaptiveMAS
 $key = Read-Host 'DeepSeek API Key' -AsSecureString
 $env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $key).Password
+```
+
+**Single Agent, read-only** — at most 4 model requests; local cost budget USD 0.05:
+
+```powershell
 .\.venv\Scripts\python.exe -m security_adaptive_mas.are_smoke --scenario scenario_universe_22_0421h2 --allow-read-app Files --max-requests 4 --max-total-tokens 100000 --max-cost-usd 0.05 --acknowledge-model-cost
 ```
 
-入口使用官方 `JsonScenarioImporter`、`ScenarioRunner`、事件模拟、Validator 与轨迹导出。默认仅开放 Files 的官方只读工具；ARE 任务若需要写操作，正式目标不能在此入口完成。输出 `success` 是官方 Runner 的验证结果，需结合 `error_type`、轨迹及是否实际执行工具解读。
-
-### 3. `real_are_multi`
-
-同一 ARE Runner 中安装 `delegate_parallel_reads` 工具。协调者调用此工具时，两个低权限 Worker 分别调用 DeepSeek 和授权的 ARE 只读工具，经 `MessageGateway` 返回；控制器重构组织并将可见证据交给 Verifier。没有在线端到端验证，不保证模型会主动调用此工具。命令同样只在确认费用后执行：
+**Experimental Multi-Agent, read-only** — at most 12 model requests; local cost budget USD 0.20:
 
 ```powershell
-Set-Location D:\SecurityAdaptiveMAS
 .\.venv\Scripts\python.exe -m security_adaptive_mas.are_multi --scenario scenario_universe_22_0421h2 --allow-read-app Files --max-requests 12 --max-total-tokens 100000 --max-cost-usd 0.20 --acknowledge-model-cost
 ```
 
-请检查输出的 `dynamic_team_executed`、`organization_version`、官方轨迹和 JSONL 组织日志。`dynamic_team_executed=false` 表示本次没有实际执行动态团队。
+Both modes preserve the official ARE runner and export a trace, but neither has an online result yet. Their write tools are closed, so tasks requiring state changes may not complete. Budgets are local estimates, not a guarantee about provider billing. See [run details and limitations](implementation_report_v2.md).
 
-## 最小连通性检查
+## Limitations and Roadmap
 
-以下单请求检查已在 2026-10-12 获得费用确认后执行成功。再次运行仍会产生一次新的付费请求；它不运行 Gaia2 任务：
+| Current boundary | Next research step |
+|---|---|
+| Online ARE task success and real dynamic-team triggering are unverified. | Run separately authorized, bounded Single and Multi smoke tests; inspect official traces. |
+| Task phases and parallel subtasks are supplied through a narrow runtime tool path. | Derive state from observed events and trajectories across long workflows. |
+| Risk detection is a small rule set; provenance is conservative visible-input tracking. | Evaluate semantic injection signals and rebuild contaminated summaries or shared context after reconfiguration. |
+| Real ARE writes remain disabled. | Bind exact task authorization to actions and reconcile remote state before enabling writes. |
+| No Attack Overlay or comparable baselines exist. | Add isolated attack overlays, fixed/adaptive baselines, and separate legitimate/attacker success scoring. |
+| No security–performance–cost claim is supported yet. | Compare outcomes, tokens, latency, agent count, and reconfiguration under matched budgets. |
 
-```powershell
-Set-Location D:\SecurityAdaptiveMAS
-.\.venv\Scripts\python.exe -m security_adaptive_mas.deepseek_probe --acknowledge-model-cost
-```
-
-该命令最多发送 1 个请求、最多 5000 个总 Token，按当前峰值标价的费用预算为 0.01 美元。本次返回 `OK`，输入 11 Token、输出 1 Token，本地费用估算为 0.0000045 美元。ARE 单 Agent 默认最多 4 个请求、预算 0.05 美元；动态团队默认最多 12 个请求、预算 0.20 美元。费用统计是基于 API usage 的估算，不是账单；模型返回没有 usage 时会报错。超时 45 秒，仅限流或超时最多重试一次，重试计入请求上限。所有入口固定 `deepseek-flash`、官方 DeepSeek endpoint，不回退其他 Provider。
-
-## 当前边界
-
-- 动态团队 Worker 和 Verifier 是嵌在同一个官方 ARE Agent 工具调用中的模型角色，共用一个 Scenario；不是 ARE 原生多 Agent Scheduler。子任务识别来自协调者实际调用，尚未自动从全部轨迹或事件提取。
-- 安全监测目前是有限的确定性字符串规则。真实语义攻击判断、跨阶段共享状态清理和四策略攻击对照尚未完成。
-- 写工具在真实 ARE 入口关闭。精确任务授权和持久化写日志已在控制层实现并通过离线测试，但真实 Gaia2 写操作尚未接线，也没有跨进程并发事务保证。
-- 当前目录的第三方源码是固定版本的归档快照；完整 bootstrap 需要干净检出以完成 Git 版本核验。
+**Further reading:** [Implementation report](implementation_report_v2.md) · [Fixed scenario configuration](configs/gaia2_v1_five.yaml) · [Offline tests](tests/)

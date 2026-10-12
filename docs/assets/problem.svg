@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">Performance-only versus security-aware agent organization</title>
+  <desc id="desc">On the left, untrusted content moves through a worker and shared summary toward an executor as the team expands. On the right, an organization controller checks routes and visibility, isolates a risky branch, and provides a verification path. This is a research motivation, not a measured comparison.</desc>
+  <defs>
+    <marker id="cyanArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1 L7 4.5 L1 8" fill="none" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amberArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1 L7 4.5 L1 8" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="1200" height="560" rx="22" fill="#0F172A"/>
+  <text x="52" y="65" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">The organization problem</text>
+  <text x="52" y="93" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Conceptual comparison · topology changes alone do not establish safe information flow</text>
+
+  <rect x="42" y="122" width="542" height="371" rx="22" fill="#162338" stroke="#334155" stroke-width="2"/>
+  <rect x="616" y="122" width="542" height="371" rx="22" fill="#1A2340" stroke="#5B42A0" stroke-width="2"/>
+  <circle cx="78" cy="166" r="10" fill="#06B6D4"/>
+  <text x="100" y="174" fill="#E2E8F0" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700">Performance-only adaptation</text>
+  <circle cx="652" cy="166" r="10" fill="#8B5CF6"/>
+  <text x="674" y="174" fill="#EDE9FE" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700">Security-aware adaptation</text>
+  <text x="74" y="205" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="17">New workers and edges improve parallel work.</text>
+  <text x="648" y="205" fill="#B7AED5" font-family="Arial, Helvetica, sans-serif" font-size="17">Collaboration is checked against exposure.</text>
+
+  <!-- Left: an unchecked propagation path, not a benchmark result. -->
+  <g fill="#103A49" stroke="#22D3EE" stroke-width="2">
+    <rect x="93" y="244" width="112" height="63" rx="16"/>
+    <rect x="233" y="244" width="112" height="63" rx="16"/>
+    <rect x="373" y="244" width="112" height="63" rx="16"/>
+  </g>
+  <g fill="#CFFAFE" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700">
+    <text x="149" y="283">Agent 1</text><text x="289" y="283">Agent 2</text><text x="429" y="283">Agent 3</text>
+  </g>
+  <path d="M207 276 H224 M347 276 H364" stroke="#22D3EE" stroke-width="2.5" marker-end="url(#cyanArrow)"/>
+  <text x="74" y="354" fill="#FBBF24" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="1">POSSIBLE UNTRUSTED PROPAGATION</text>
+  <g fill="#40301D" stroke="#F59E0B" stroke-width="1.6">
+    <rect x="72" y="378" width="110" height="66" rx="13"/>
+    <rect x="201" y="378" width="100" height="66" rx="13"/>
+    <rect x="320" y="378" width="104" height="66" rx="13"/>
+    <rect x="443" y="378" width="112" height="66" rx="13"/>
+  </g>
+  <g fill="#FDE68A" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">
+    <text x="127" y="404">Untrusted</text><text x="127" y="424">content</text>
+    <text x="251" y="414">Worker</text>
+    <text x="372" y="404">Shared</text><text x="372" y="424">summary</text>
+    <text x="499" y="404">Privileged</text><text x="499" y="424">executor</text>
+  </g>
+  <path d="M185 411 H195 M304 411 H314 M427 411 H437" stroke="#F59E0B" stroke-width="2.6" marker-end="url(#amberArrow)"/>
+
+  <!-- Right: desired controls, with honest target labels. -->
+  <rect x="792" y="233" width="190" height="76" rx="18" fill="#34245B" stroke="#A78BFA" stroke-width="2"/>
+  <text x="887" y="264" fill="#F5F3FF" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">Organization</text>
+  <text x="887" y="289" fill="#F5F3FF" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">Controller</text>
+  <rect x="646" y="245" width="115" height="54" rx="15" fill="#103A49" stroke="#22D3EE" stroke-width="2"/>
+  <text x="703" y="278" fill="#CFFAFE" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700">Task</text>
+  <rect x="1014" y="245" width="115" height="54" rx="15" fill="#103A49" stroke="#22D3EE" stroke-width="2"/>
+  <text x="1071" y="278" fill="#CFFAFE" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700">Workers</text>
+  <path d="M763 272 H784 M984 272 H1005" stroke="#22D3EE" stroke-width="2.7" marker-end="url(#cyanArrow)"/>
+  <rect x="648" y="371" width="130" height="65" rx="14" fill="#40301D" stroke="#F59E0B" stroke-width="2"/>
+  <text x="713" y="396" fill="#FDE68A" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Risky branch</text>
+  <text x="713" y="417" fill="#FDE68A" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">isolate / inspect</text>
+  <path d="M783 404 H843" stroke="#F59E0B" stroke-width="2.6" stroke-dasharray="6 6"/>
+  <path d="M849 394 L867 414 M867 394 L849 414" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+  <rect x="926" y="371" width="204" height="65" rx="14" fill="#103A49" stroke="#22D3EE" stroke-width="2"/>
+  <text x="1028" y="396" fill="#CFFAFE" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Authorized evidence</text>
+  <text x="1028" y="418" fill="#CFFAFE" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15">→ Verifier</text>
+  <path d="M887 313 V350 H1028 V363" fill="none" stroke="#8B5CF6" stroke-width="2.6" marker-end="url(#cyanArrow)"/>
+  <text x="600" y="529" text-anchor="middle" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="17">Research question: can collaboration adapt while trust boundaries remain explicit?</text>
+</svg>
