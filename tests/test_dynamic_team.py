@@ -68,6 +68,10 @@ def test_dynamic_tool_reconfigures_one_real_controller_and_routes_verifier(tool_
     assert controller.pattern == "chain" and controller.spec.version == 3
     assert ("agent_1" in controller.quarantined) is risky
     assert len(client.inputs) == 4
+    online = controller.online_snapshot()
+    assert [action.tool_name for action in online.actions] == [
+        "delegate_parallel_reads", "read"]
+    assert [result.tool_name for result in online.tool_results] == ["read"]
     events = [json.loads(line) for line in trace.path.read_text(encoding="utf-8").splitlines()]
     assert {event["mode"] for event in events} == {"real_are_multi"}
     assert [event["kind"] for event in events].count("organization_changed") == 3

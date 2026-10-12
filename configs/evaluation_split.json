@@ -1,0 +1,21 @@
+{
+  "phase": "online-task-to-topology-phase1",
+  "source_versions": "source_versions.json",
+  "scenario_manifest": "five_manifest.json",
+  "development_scenarios": [
+    "scenario_universe_22_0421h2",
+    "scenario_universe_21_y6td7z",
+    "scenario_universe_30_erta5d",
+    "scenario_universe_25_27a695",
+    "scenario_universe_22_kb5ah9"
+  ],
+  "held_out_evaluation_scenarios": [],
+  "reason": "The five selected scenarios were inspected during static screening, including Oracle information. They are development cases, not unseen evaluation cases.",
+  "freeze_required_before_evaluation": [
+    "planner implementation and commit",
+    "prompts and extraction rules",
+    "candidate generation and selection parameters",
+    "tool authorization and runtime budgets",
+    "held-out scenario IDs, source revision and hashes"
+  ]
+}

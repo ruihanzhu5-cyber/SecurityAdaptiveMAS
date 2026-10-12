@@ -47,6 +47,7 @@ def main(mode: str = "real_are_single"):
     context = ObservedContext(controller, task_evidence.evidence_id)
     budget = RunBudget(trace, args.max_requests, args.max_total_tokens, args.max_cost_usd,
                        mode=mode)
+    controller.run_budget = budget
     client = DeepSeekClient(budget)
     builder = make_guarded_agent_builder(
         controller, context, DeepSeekEngineBuilder(client, context.record_model_input),

@@ -17,6 +17,16 @@ class ObservedContext:
         self.current_evidence_id = initial_evidence_id
         self.last_messages = []
 
+    def record_delivered_notification(self, kind: str, message) -> None:
+        # Called only after ARE's timestamp-gated get_notifications returns.
+        # Never inspect the Scenario or the notification queue's future items.
+        text = message.message
+        evidence = self.controller.provenance.add(
+            f"are:{kind}_notification", "trusted_task" if kind == "user" else "low_trust", text)
+        self.controller.online_observations.record_notification(kind, text, evidence.evidence_id)
+        self.visible_ids.append(evidence.evidence_id)
+        self.current_evidence_id = evidence.evidence_id
+
     def record_model_input(self, messages):
         self.last_messages = messages
         text = json.dumps(messages, ensure_ascii=False, default=str)
@@ -59,6 +69,8 @@ class GuardedARETool:
             self.controller.spec, "agent_0", self.controller.spec.version,
             self.name, self.resource, kwargs, evidence_id)
         if isinstance(self.context, ObservedContext):
+            self.controller.online_observations.record_action(self.name, evidence_id)
+            self.controller.online_observations.record_tool_result(self.name, evidence.evidence_id)
             self.context.record_tool_output(evidence.evidence_id)
         return result
 
@@ -66,6 +78,14 @@ class GuardedARETool:
 def guard_are_toolset(controller, tools, context):
     """Only exact policy-listed read tools can pass this bridge."""
     return [GuardedARETool(tool, controller, context) for tool in tools]
+
+
+def record_are_delivery(context: ObservedContext, users, environment) -> None:
+    """Map only timestamp-delivered ARE notifications into the online view."""
+    for message in users:
+        context.record_delivered_notification("user", message)
+    for message in environment:
+        context.record_delivered_notification("environment", message)
 
 
 def make_guarded_agent_builder(controller, context, llm_engine_builder=None,
@@ -83,6 +103,14 @@ def make_guarded_agent_builder(controller, context, llm_engine_builder=None,
     class GuardedAgentBuilder(AgentBuilder):
         def build(self, agent_config, env=None, mock_responses=None):
             agent = super().build(agent_config, env, mock_responses)
+            original_get_notifications = agent.get_notifications
+
+            def observed_get_notifications(instance, notification_system):
+                users, environment, stops = original_get_notifications(notification_system)
+                record_are_delivery(context, users, environment)
+                return users, environment, stops
+
+            agent.get_notifications = MethodType(observed_get_notifications, agent)
             original_init_tools = agent.init_tools
 
             def guarded_init_tools(instance, scenario):

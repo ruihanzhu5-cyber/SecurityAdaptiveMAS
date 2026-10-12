@@ -86,6 +86,8 @@ def make_dynamic_team_tool(controller, coordinator_context: ObservedContext,
                 result, observed = controller.tools.call(
                     controller.spec, worker_id, controller.spec.version,
                     name, tool.resource, arguments, worker_context.current_evidence_id)
+                controller.online_observations.record_action(name, worker_context.current_evidence_id)
+                controller.online_observations.record_tool_result(name, observed.evidence_id)
                 worker_context.record_tool_output(observed.evidence_id)
                 risk = bool(INJECTION_RULE.search(str(result)))
                 controller.trace.log("security_monitor_rule", agent_id=worker_id,
@@ -123,6 +125,8 @@ def make_dynamic_team_tool(controller, coordinator_context: ObservedContext,
             if not subtask_a.strip() or not subtask_b.strip():
                 raise ValueError("Both subtasks must be nonempty")
             self.invoked = True
+            controller.online_observations.record_action(
+                "delegate_parallel_reads", coordinator_context.current_evidence_id)
             task_text = "\n".join(str(item.get("content", "")) for item in
                                   coordinator_context.last_messages if item.get("role") == "user")
             controller.trace.log("runtime_subtasks_detected", source="coordinator_tool_call",

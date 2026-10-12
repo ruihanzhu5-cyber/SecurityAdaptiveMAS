@@ -75,7 +75,7 @@ Task-Driven Adaptive Topology with Temporal Information-Flow Safety Constraints
 
 ## 最新进展
 
-**2026-10-12 · 从框架设想推进到系统建模。** 区分 `D_t / G_t / H_t`，提出拓扑重组可能把旧暴露连接到未来敏感能力，并把干预目标拆为 T1–T5。初步写出 Controller 的状态、可控动作和 H1–H3。仓库另有一份[Controller 源码审查与集成方案](docs/controller_integration_plan.md)，明确哪些上游机制可复用、哪些只是研究设计。严格图语义、效用估计、选择算法和正式实验仍未完成。[阅读当日记录](docs/research-log/2026-10-12.md)。
+**2026-10-12 · 从框架设想推进到系统建模。** 区分 `D_t / G_t / H_t`，提出拓扑重组可能把旧暴露连接到未来敏感能力，并把干预目标拆为 T1–T5。初步写出 Controller 的状态、可控动作和 H1–H3。工程上新增了[仅记录已交付事件的在线观察接口与结构化拓扑候选](docs/online_task_to_topology_phase1.md)；它们尚未接成真正的 ARE 自适应执行。仓库另有一份[Controller 源码审查与集成方案](docs/controller_integration_plan.md)，明确哪些上游机制可复用、哪些只是研究设计。严格图语义、效用估计、选择算法和正式实验仍未完成。[阅读当日记录](docs/research-log/2026-10-12.md)。
 
 **2026-10-11 · 初步研究设想。** 提出 RQ1–RQ4，把任务驱动的组队与外部注入风险放在同一研究问题中；梳理候选 Benchmark、Baseline 和性能—安全—成本对照方向。当日没有得出正式实验结果。[阅读当日记录](docs/research-log/2026-10-11.md)。
 
@@ -127,6 +127,7 @@ Task-Driven Adaptive Topology with Temporal Information-Flow Safety Constraints
 
 - [技术概览、复现命令与详细 Related Work](docs/technical-overview.md)：保存此前 README 的技术内容。
 - [Controller 集成与研究方案](docs/controller_integration_plan.md)：源码审查、候选方法、强对照、边界和实施顺序。
+- [Gaia2 在线任务分析与拓扑候选 Phase 1](docs/online_task_to_topology_phase1.md)：已实现的在线观察边界、D_t 数据契约、结构候选、测试与尚未接通的 ARE 执行环节。
 - [Gaia2 / ARE 场景筛选](gaia2_screening_report.md) · [实现报告 v1](implementation_report_v1.md) / [v2](implementation_report_v2.md)。
 - [核心代码](security_adaptive_mas/) · [配置](configs/) · [离线测试](tests/)。
 
