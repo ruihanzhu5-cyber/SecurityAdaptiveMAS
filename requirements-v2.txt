@@ -1,0 +1,3 @@
+-r requirements-v1.txt
+pyarrow==26.0.0
+huggingface-hub>=0.33,<1

@@ -3,7 +3,7 @@ source:
   are_commit: a9fd2edccb4bc7e22fbf45c8482a5fef30a2a5a4
   gaia2_revision: 78ea3bdbdeec2bdcd6afa5420915d8a22f23ed99
   manta_commit_short: 3da4087
-  manifest: work/selected/manifest.json
+  manifest: configs/five_manifest.json
   manta_root: work/mao-code-MANTA-3da4087
   are_root: work/facebookresearch-meta-agents-research-environments-a9fd2ed
 controller:

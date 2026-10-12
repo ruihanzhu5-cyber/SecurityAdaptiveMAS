@@ -2,12 +2,30 @@
 from __future__ import annotations
 
 import sys
+import os
+import tempfile
+
+from .config import ROOT
+
+
+def prepare_are_sandbox():
+    """Keep ARE's temporary filesystem inside the D-drive project."""
+    sandbox = ROOT / "work" / "are_tmp"
+    filesystem = ROOT / "work" / "gaia2_filesystem" / "demo_filesystem"
+    if not filesystem.is_dir():
+        raise FileNotFoundError(f"Pinned Gaia2 filesystem missing: {filesystem}")
+    sandbox.mkdir(parents=True, exist_ok=True)
+    os.environ["TMP"] = str(sandbox)
+    os.environ["TEMP"] = str(sandbox)
+    tempfile.tempdir = str(sandbox)
+    os.environ["DEMO_FS_PATH"] = str(filesystem)
 
 
 def import_official_scenario(record, are_root):
     """Use ARE's own JSON importer; never inspect future events in controller."""
     if str(are_root) not in sys.path:
         sys.path.insert(0, str(are_root))
+    prepare_are_sandbox()
     from are.simulation.data_handler.importer import JsonScenarioImporter
 
     scenario, _completed, _logs = JsonScenarioImporter().import_from_json(
@@ -15,6 +33,7 @@ def import_official_scenario(record, are_root):
     )
     if scenario.scenario_id != record.scenario_id:
         raise ValueError("Official importer scenario ID mismatch")
+    scenario.initialize(sandbox_dir=str(ROOT / "work" / "are_tmp"))
     return scenario
 
 

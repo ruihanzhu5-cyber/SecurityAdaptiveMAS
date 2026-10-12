@@ -47,12 +47,14 @@ def load_config(path: Path = ROOT / "configs" / "gaia2_v1_five.yaml") -> Project
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     records = {}
     for row in manifest:
-        local_json = ROOT / "work" / "selected" / Path(row["path"]).name
-        local_single = ROOT / "work" / "selected_single" / Path(row["single_scenario_dir"]).name
+        relative_json = Path(row["path"])
+        relative_single = Path(row["single_scenario_dir"])
+        if relative_json.is_absolute() or relative_single.is_absolute():
+            raise ValueError("Scenario manifest paths must be project-relative")
         records[row["scenario_id"]] = ScenarioRecord(
             row["scenario_id"],
-            local_json if local_json.is_file() else Path(row["path"]),
-            local_single if local_single.is_dir() else Path(row["single_scenario_dir"]),
+            ROOT / relative_json,
+            ROOT / relative_single,
             row["sha256"],
         )
     if set(records) != set(ids):

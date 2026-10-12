@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .config import ROOT, load_config
 from .controller import Controller
-from .security import Message, ToolDefinition
+from .security import Message, TaskAuthorization, ToolDefinition
 from .trace import TraceLogger
 
 
@@ -33,7 +33,12 @@ def run_demo(scenario_id: str, trace_path: Path) -> dict:
         "mock_read", "read", frozenset({"mock_resource"}), mock_read))
     controller.tools.register(ToolDefinition(
         "mock_write", "write", frozenset({"mock_resource"}), mock_write))
-    task = controller.provenance.add("user_task", "trusted_task", "Collect, verify, save")
+    task_text = json.dumps({"task": "Collect, verify, save",
+                            "authorized_actions": [{
+                                "tool": "mock_write", "operation": "write",
+                                "resource": "mock_resource", "arguments": {"value": "approved"},
+                                "recipient_field": None, "recipient": None, "phase": "commit"}]})
+    task = controller.provenance.add("user_task", "trusted_task", task_text)
     stages = []
     stages.append(controller.update(task.text, (), "intake").pattern)
     stages.append(controller.update(task.text, ("collect A", "collect B"), "parallel").pattern)
@@ -61,6 +66,9 @@ def run_demo(scenario_id: str, trace_path: Path) -> dict:
     stages.append(controller.safe_reconfigure(task.text, (), 1).pattern)
     # Explicit task intent, rather than the untrusted tool output, authorizes
     # this one mock write. The low-trust content remains in the audit graph.
+    controller.authorization.grant(TaskAuthorization(
+        "agent_0", controller.spec.version, "mock_write", "write", "mock_resource",
+        None, None, {"value": "approved"}, "commit", task.evidence_id))
     controller.tools.call(controller.spec, "agent_0", controller.spec.version,
                           "mock_write", "mock_resource", {"value": "approved"},
                           task.evidence_id)

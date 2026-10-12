@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 from .organization import communication_edges
@@ -50,6 +52,12 @@ class ProvenanceStore:
             self.contains_low_trust(parent) for parent in item.parent_ids
         )
 
+    def derived_from(self, evidence_id: str, parent_id: str) -> bool:
+        item = self.items[evidence_id]
+        return evidence_id == parent_id or any(
+            self.derived_from(parent, parent_id) for parent in item.parent_ids
+        )
+
 
 @dataclass(frozen=True)
 class Message:
@@ -65,17 +73,40 @@ class MessageGateway:
         self.provenance, self.trace = provenance, trace
         self.pending: list[Message] = []
         self.blocked_agents: set[str] = set()
+        self.send_blocked: set[str] = set()
+        self.receive_blocked: set[str] = set()
+        self.shared: list[Message] = []
+        self.current_spec = None
 
-    def send(self, spec, message: Message) -> None:
+    def quarantine(self, agent_id: str, mode: str = "full") -> None:
+        if mode == "full":
+            self.blocked_agents.add(agent_id)
+        elif mode == "send":
+            self.send_blocked.add(agent_id)
+        elif mode == "receive":
+            self.receive_blocked.add(agent_id)
+        else:
+            raise ValueError("Unknown quarantine mode")
+        self.trace.log("agent_quarantined", agent_id=agent_id, quarantine_mode=mode)
+
+    def _check_route(self, spec, message: Message) -> None:
+        if spec is not self.current_spec:
+            raise PermissionError("Stale or forged organization")
         if message.version != spec.version:
             raise PermissionError("Stale organization version")
-        if message.source_agent in self.blocked_agents:
-            raise PermissionError("Agent quarantined")
+        if message.source_agent in self.blocked_agents or message.source_agent in self.send_blocked:
+            raise PermissionError("Sender quarantined")
+        if message.target_agent in self.blocked_agents or message.target_agent in self.receive_blocked:
+            raise PermissionError("Recipient quarantined")
         if (message.source_agent, message.target_agent) not in communication_edges(spec):
             raise PermissionError("Communication edge absent")
         target = spec.agent(message.target_agent)
         if message.source_agent not in target.context.visible_from:
             raise PermissionError("Context visibility denies sender")
+
+    def send(self, spec, message: Message) -> None:
+        self._check_route(spec, message)
+        target = spec.agent(message.target_agent)
         if message.evidence_id not in self.provenance.items:
             raise PermissionError("Unregistered evidence")
         evidence = self.provenance.items[message.evidence_id]
@@ -96,19 +127,8 @@ class MessageGateway:
         ready, self.pending = self.pending, []
         delivered = []
         for message in ready:
-            if message.version != spec.version:
-                self.trace.log("message_dropped", reason="stale_version",
-                               evidence_id=message.evidence_id)
-                continue
-            if message.source_agent in self.blocked_agents:
-                self.trace.log("message_dropped", reason="agent_quarantined",
-                               evidence_id=message.evidence_id)
-                continue
             try:
-                if (message.source_agent, message.target_agent) not in communication_edges(spec):
-                    raise PermissionError("edge changed")
-                if message.source_agent not in spec.agent(message.target_agent).context.visible_from:
-                    raise PermissionError("visibility changed")
+                self._check_route(spec, message)
             except (PermissionError, KeyError) as error:
                 self.trace.log("message_dropped", reason=str(error),
                                evidence_id=message.evidence_id)
@@ -117,6 +137,91 @@ class MessageGateway:
             self.trace.log("message_delivered", source=message.source_agent,
                            target=message.target_agent, evidence_id=message.evidence_id)
         return delivered
+
+    def publish_shared(self, spec, message: Message) -> None:
+        self.send(spec, message)
+        self.pending.pop()
+        self.shared.append(message)
+        self.trace.log("shared_memory_published", evidence_id=message.evidence_id,
+                       source=message.source_agent, target=message.target_agent)
+
+    def read_shared(self, spec, agent_id: str) -> list[Message]:
+        visible = []
+        for message in self.shared:
+            if message.target_agent != agent_id:
+                continue
+            try:
+                self._check_route(spec, message)
+            except (PermissionError, KeyError):
+                continue
+            visible.append(message)
+        return visible
+
+
+@dataclass(frozen=True)
+class TaskAuthorization:
+    agent_id: str
+    version: int
+    tool_name: str
+    operation: str
+    resource: str
+    recipient_field: str | None
+    recipient: str | None
+    arguments: dict[str, Any]
+    phase: str
+    evidence_id: str
+
+
+class TaskAuthorizationPolicy:
+    """Controller-issued, exact-action grants; source trust alone is insufficient."""
+
+    def __init__(self, provenance: ProvenanceStore, trace):
+        self.provenance, self.trace = provenance, trace
+        self.grants: list[TaskAuthorization] = []
+        self.phase = "intake"
+
+    def grant(self, authorization: TaskAuthorization) -> None:
+        evidence = self.provenance.items[authorization.evidence_id]
+        if evidence.trust != "trusted_task" or evidence.owner_agent is not None:
+            raise ValueError("Grant requires controller-owned trusted task evidence")
+        if authorization.operation != "write":
+            raise ValueError("Only sensitive writes require action grants")
+        try:
+            task = json.loads(evidence.text)
+            listed = task["authorized_actions"]
+        except (json.JSONDecodeError, KeyError, TypeError) as error:
+            raise ValueError("Trusted task lacks explicit structured action authorization") from error
+        expected_action = {"tool": authorization.tool_name,
+                           "operation": authorization.operation,
+                           "resource": authorization.resource,
+                           "arguments": authorization.arguments,
+                           "recipient_field": authorization.recipient_field,
+                           "recipient": authorization.recipient,
+                           "phase": authorization.phase}
+        if not isinstance(listed, list) or expected_action not in listed:
+            raise ValueError("Requested action is not listed in trusted task evidence")
+        if authorization.recipient_field is not None and (
+            authorization.arguments.get(authorization.recipient_field) != authorization.recipient
+        ):
+            raise ValueError("Recipient does not match granted arguments")
+        self.grants.append(authorization)
+        self.trace.log("task_authorization_granted", agent_id=authorization.agent_id,
+                       version=authorization.version, tool=authorization.tool_name,
+                       operation=authorization.operation, resource=authorization.resource,
+                       recipient=authorization.recipient, phase=authorization.phase,
+                       evidence_id=authorization.evidence_id)
+
+    def permits(self, agent_id: str, version: int, tool_name: str, operation: str,
+                resource: str, arguments: dict[str, Any], evidence_id: str) -> bool:
+        return any(
+            grant.agent_id == agent_id and grant.version == version and
+            grant.tool_name == tool_name and grant.operation == operation and
+            grant.resource == resource and grant.phase == self.phase and
+            grant.evidence_id == evidence_id and grant.arguments == arguments and
+            (grant.recipient_field is None or
+             arguments.get(grant.recipient_field) == grant.recipient)
+            for grant in self.grants
+        )
 
 
 @dataclass(frozen=True)
@@ -129,7 +234,8 @@ class ToolDefinition:
 
 class ToolGateway:
     def __init__(self, provenance: ProvenanceStore, trace,
-                 authorized_tools: frozenset[str], authorized_resources: frozenset[str]):
+                 authorized_tools: frozenset[str], authorized_resources: frozenset[str],
+                 authorization: TaskAuthorizationPolicy | None = None):
         self.provenance, self.trace = provenance, trace
         self.authorized_tools = authorized_tools
         self.authorized_resources = authorized_resources
@@ -138,6 +244,23 @@ class ToolGateway:
         self.pending_writes: set[str] = set()
         self.lock = threading.Lock()
         self.blocked_agents: set[str] = set()
+        self.authorization = authorization or TaskAuthorizationPolicy(provenance, trace)
+        self.current_spec = None
+        self.journal_path = Path(trace.path).with_suffix(".writes.jsonl")
+        if self.journal_path.exists():
+            for line in self.journal_path.read_text(encoding="utf-8").splitlines():
+                entry = json.loads(line)
+                if entry["state"] == "started":
+                    self.pending_writes.add(entry["fingerprint"])
+                elif entry["state"] == "completed":
+                    self.pending_writes.discard(entry["fingerprint"])
+                    self.completed_writes[entry["fingerprint"]] = True
+
+    def _journal(self, fingerprint: str, state: str) -> None:
+        with self.journal_path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({"fingerprint": fingerprint, "state": state}) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
 
     def register(self, definition: ToolDefinition):
         if definition.mode not in {"read", "write"}:
@@ -148,9 +271,13 @@ class ToolGateway:
              resource: str, arguments: dict[str, Any], evidence_id: str):
         reason = None
         try:
+            if spec is not self.current_spec:
+                reason = "stale_or_forged_organization"
             node = spec.agent(agent_id)
             definition = self.tools[tool_name]
-            if version != spec.version:
+            if reason:
+                pass
+            elif version != spec.version:
                 reason = "stale_version"
             elif agent_id in self.blocked_agents:
                 reason = "agent_quarantined"
@@ -167,6 +294,10 @@ class ToolGateway:
                 reason = "low_trust_sensitive_write"
             elif definition.mode == "write" and self.provenance.items[evidence_id].trust != "trusted_task":
                 reason = "write_requires_task_authorization"
+            elif definition.mode == "write" and not self.authorization.permits(
+                agent_id, version, tool_name, definition.mode, resource, arguments, evidence_id
+            ):
+                reason = "action_not_authorized"
         except (KeyError, TypeError):
             reason = "unknown_agent_or_tool"
         if reason:
@@ -188,6 +319,7 @@ class ToolGateway:
                     self.trace.log("tool_denied", agent_id=agent_id, tool=tool_name,
                                    resource=resource, reason="duplicate_write")
                     raise PermissionError("duplicate_write")
+                self._journal(fingerprint, "started")
                 self.pending_writes.add(fingerprint)
         self.trace.log("tool_started", agent_id=agent_id, tool=tool_name,
                        resource=resource, version=version, arguments=arguments,
@@ -202,6 +334,7 @@ class ToolGateway:
             raise
         if definition.mode == "write":
             with self.lock:
+                self._journal(fingerprint, "completed")
                 self.pending_writes.remove(fingerprint)
                 self.completed_writes[fingerprint] = result
         observed = self.provenance.add(

@@ -1,34 +1,75 @@
-# Security-Aware Adaptive Multi-Agent Organization v1
+# Security-Aware Adaptive Multi-Agent Organization v2
 
-这是固定五个 Gaia2 场景的离线可验证系统骨架。现有演示使用 mock 工具；不会运行付费模型，也不会把 mock 结果当作 Gaia2 任务成功。
+固定五个 Gaia2 场景的安全组织控制原型。项目代码、Python 环境、ARE/MANTA 源码快照和场景文件位于 `D:\SecurityAdaptiveMAS`。`offline_mock` 可离线运行；真实 DeepSeek/ARE 入口已接线，但截至 2026-10-12 尚未调用付费 API，不能宣称真实场景完成或动态团队在线验证成功。详细证据与限制见 `implementation_report_v2.md`。
 
-## 最小集成方案
+## 固定版本与安装
 
-1. `configs/gaia2_v1_five.yaml` 固定五个 ID、官方数据修订版与本地路径。`config.py` 从已有 manifest 加载原始 JSON，并核对 SHA-256。拓扑控制器只接收当前任务与已观察到的执行状态，不接触未来事件或官方验证器。
-2. `manta_adapter.py` 直接加载官方 MANTA 的 `MAS.self_evolved.spec`，使用其 `TopologySpec`、`ContextPolicy` 和 `TopologyMutation`。Adapter 避开 `MAS.__init__` 对 LangGraph 的 eager import；发布前显式收紧所有 Agent 权限。
-3. `Controller` 根据当前阶段和未完成子任务比较 Singleton、Star、Chain；组织版本、候选分数、变更原因写入 JSONL。消息与工具调用都经网关。
-4. `are_adapter.py` 使用官方 `JsonScenarioImporter`、`ScenarioRunner`。`are_bridge.py` 通过官方 `AgentBuilder` 接口安装工具网关。当前真实 ARE 接入只支持单 Agent、明确允许的只读工具；有状态写入保持关闭，直到完成行动级来源追踪与真实多 Agent 调度。
-
-## 离线运行
-
-在本目录执行：
+需要 PowerShell、Git、Python 3.12、`uv` 和网络。全新检出的项目可运行：
 
 ```powershell
-python -m pip install -r requirements-v1.txt
-python -m pytest tests -q -p no:cacheprovider
-python -m security_adaptive_mas.demo --scenario scenario_universe_22_0421h2 --trace results/demo.jsonl
+Set-Location D:\SecurityAdaptiveMAS
+.\bootstrap.ps1 -PythonExe .\python\python.exe
 ```
 
-允许的五个 ID 在 `configs/gaia2_v1_five.yaml`。`demo` 会验证原始场景文件的哈希，但并不加载 ARE Universe 或使用原始场景任务目标作为 mock 任务。结果中的 `mode=offline_mock` 是明确标记。
-
-## 可选 ARE 只读 smoke 入口
-
-当前 D 盘环境 `D:\SecurityAdaptiveMAS\.venv` 已安装官方 ARE `requirements.txt`，并通过五场景官方 JSON 导入器与 `ScenarioRunner` 构造检查。真实模型执行仍需准备模型 API 配置，以及明确工具名与 App 允许列表。`are_smoke.py` 调用官方 `ScenarioRunner`，保留官方环境、Validator 和轨迹导出；其工具网关只放行 `write_operation=False` 的工具。未知操作类型按写入处理。
+脚本把依赖环境和缓存建在 D 盘，检出配置中固定的 ARE/MANTA 版本，下载三个固定 Gaia2 Parquet 和固定文件系统数据，校验 SHA-256，恢复五个原始场景，再运行离线测试。请预留约 1 GB 下载和数 GB 磁盘空间。当前目录中的 ARE/MANTA 是归档源码快照，没有 `.git` 元数据；上述完整模式会明确报错，避免将快照误报为已验证的 Git checkout。在当前已迁移的 D 盘目录，使用现有源码和场景文件运行：
 
 ```powershell
-python -m security_adaptive_mas.are_smoke --scenario scenario_universe_22_0421h2 --model MODEL --provider PROVIDER --allow-read-tool TOOL_NAME --allow-app APP_NAME --acknowledge-model-cost
+Set-Location D:\SecurityAdaptiveMAS
+.\bootstrap.ps1 -PythonExe .\python\python.exe -SkipDownloads
 ```
 
-此命令可能产生模型费用，当前未执行。这个入口只用于验证 ARE 接线与真实工具读取，不代表可完成需要写入的 Gaia2 任务。完整真实执行还需实现动态多 Agent 调度、行动与来源的因果绑定，并完成 ARE 依赖安装及端到端验证。
+`-SkipDownloads` 核对现有五个 JSON 的哈希并运行测试，不证明第三方源码的 Git 身份。若要验证从零下载，请在新的干净项目检出目录执行完整模式。场景清单是 `configs/five_manifest.json`；版本与 Parquet 哈希是 `configs/source_versions.json`。当前已固定文件系统数据在 `work/gaia2_filesystem`，第三方源码未修改。
 
-详细现状见 `implementation_report_v1.md`。
+## 三种运行模式
+
+### 1. `offline_mock`
+
+```powershell
+Set-Location D:\SecurityAdaptiveMAS
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests
+.\.venv\Scripts\python.exe -m security_adaptive_mas.demo --scenario scenario_universe_22_0421h2 --trace results\demo.jsonl
+```
+
+这个模式验证控制器、拓扑、来源和网关。日志明确标记 `offline_mock`，不是 Gaia2 正式成功率。
+
+### 2. `real_are_single`
+
+先在当前 PowerShell 会话设置 `DEEPSEEK_API_KEY`，不要把密钥写入脚本或 Git。下面命令会产生真实费用；只在确认费用后执行：
+
+```powershell
+Set-Location D:\SecurityAdaptiveMAS
+$key = Read-Host 'DeepSeek API Key' -AsSecureString
+$env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $key).Password
+.\.venv\Scripts\python.exe -m security_adaptive_mas.are_smoke --scenario scenario_universe_22_0421h2 --allow-read-app Files --max-requests 4 --max-total-tokens 100000 --max-cost-usd 0.05 --acknowledge-model-cost
+```
+
+入口使用官方 `JsonScenarioImporter`、`ScenarioRunner`、事件模拟、Validator 与轨迹导出。默认仅开放 Files 的官方只读工具；ARE 任务若需要写操作，正式目标不能在此入口完成。输出 `success` 是官方 Runner 的验证结果，需结合 `error_type`、轨迹及是否实际执行工具解读。
+
+### 3. `real_are_multi`
+
+同一 ARE Runner 中安装 `delegate_parallel_reads` 工具。协调者调用此工具时，两个低权限 Worker 分别调用 DeepSeek 和授权的 ARE 只读工具，经 `MessageGateway` 返回；控制器重构组织并将可见证据交给 Verifier。没有在线端到端验证，不保证模型会主动调用此工具。命令同样只在确认费用后执行：
+
+```powershell
+Set-Location D:\SecurityAdaptiveMAS
+.\.venv\Scripts\python.exe -m security_adaptive_mas.are_multi --scenario scenario_universe_22_0421h2 --allow-read-app Files --max-requests 12 --max-total-tokens 100000 --max-cost-usd 0.20 --acknowledge-model-cost
+```
+
+请检查输出的 `dynamic_team_executed`、`organization_version`、官方轨迹和 JSONL 组织日志。`dynamic_team_executed=false` 表示本次没有实际执行动态团队。
+
+## 最小连通性检查
+
+先做一条真实 Chat Completion；它不运行 Gaia2 任务。当前尚未执行，等待费用确认：
+
+```powershell
+Set-Location D:\SecurityAdaptiveMAS
+.\.venv\Scripts\python.exe -m security_adaptive_mas.deepseek_probe --acknowledge-model-cost
+```
+
+该命令最多发送 1 个请求、最多 5000 个总 Token，按当前峰值标价的费用预算为 0.01 美元。ARE 单 Agent 默认最多 4 个请求、预算 0.05 美元；动态团队默认最多 12 个请求、预算 0.20 美元。费用统计是基于 API usage 的估算，不是账单；模型返回没有 usage 时会报错。超时 45 秒，仅限流或超时最多重试一次，重试计入请求上限。所有入口固定 `deepseek-flash`、官方 DeepSeek endpoint，不回退其他 Provider。
+
+## 当前边界
+
+- 动态团队 Worker 和 Verifier 是嵌在同一个官方 ARE Agent 工具调用中的模型角色，共用一个 Scenario；不是 ARE 原生多 Agent Scheduler。子任务识别来自协调者实际调用，尚未自动从全部轨迹或事件提取。
+- 安全监测目前是有限的确定性字符串规则。真实语义攻击判断、跨阶段共享状态清理和四策略攻击对照尚未完成。
+- 写工具在真实 ARE 入口关闭。精确任务授权和持久化写日志已在控制层实现并通过离线测试，但真实 Gaia2 写操作尚未接线，也没有跨进程并发事务保证。
+- 当前目录的第三方源码是固定版本的归档快照；完整 bootstrap 需要干净检出以完成 Git 版本核验。

@@ -1,18 +1,45 @@
 """ARE custom-builder bridge. Real writes fail closed until action provenance is wired."""
 from __future__ import annotations
 
+import json
 from types import MethodType
 
 from .security import ToolDefinition
 
 
+class ObservedContext:
+    """Conservative provenance of inputs actually submitted to the model."""
+
+    def __init__(self, controller, initial_evidence_id: str, agent_id: str = "agent_0"):
+        self.controller = controller
+        self.agent_id = agent_id
+        self.visible_ids = [initial_evidence_id]
+        self.current_evidence_id = initial_evidence_id
+        self.last_messages = []
+
+    def record_model_input(self, messages):
+        self.last_messages = messages
+        text = json.dumps(messages, ensure_ascii=False, default=str)
+        evidence = self.controller.provenance.add(
+            "runtime:model_input", "derived", text,
+            parents=tuple(dict.fromkeys(self.visible_ids)), owner_agent=self.agent_id)
+        self.current_evidence_id = evidence.evidence_id
+        self.visible_ids.append(evidence.evidence_id)
+        self.controller.trace.log("model_input_observed", agent_id=self.agent_id,
+                                  evidence_id=evidence.evidence_id,
+                                  parent_ids=evidence.parent_ids)
+
+    def record_tool_output(self, evidence_id: str):
+        self.visible_ids.append(evidence_id)
+
+
 class GuardedARETool:
     """Preserve ARE tool description while routing execution through ToolGateway."""
 
-    def __init__(self, original, controller, task_evidence_id):
+    def __init__(self, original, controller, context):
         self.original = original
         self.controller = controller
-        self.task_evidence_id = task_evidence_id
+        self.context = context
         self.name = original.name
         self.description = original.description
         self.inputs = original.inputs
@@ -26,18 +53,25 @@ class GuardedARETool:
     def __call__(self, *args, **kwargs):
         if args:
             raise PermissionError("ARE positional tool arguments require explicit adapter")
-        result, _evidence = self.controller.tools.call(
+        evidence_id = (self.context.current_evidence_id
+                       if isinstance(self.context, ObservedContext) else self.context)
+        result, evidence = self.controller.tools.call(
             self.controller.spec, "agent_0", self.controller.spec.version,
-            self.name, self.resource, kwargs, self.task_evidence_id)
+            self.name, self.resource, kwargs, evidence_id)
+        if isinstance(self.context, ObservedContext):
+            self.context.record_tool_output(evidence.evidence_id)
         return result
 
 
-def guard_are_toolset(controller, tools, task_evidence_id):
+def guard_are_toolset(controller, tools, context):
     """Only exact policy-listed read tools can pass this bridge."""
-    return [GuardedARETool(tool, controller, task_evidence_id) for tool in tools]
+    return [GuardedARETool(tool, controller, context) for tool in tools]
 
 
-def make_guarded_agent_builder(controller, task_evidence_id):
+def make_guarded_agent_builder(controller, context, llm_engine_builder=None,
+                               allow_read_apps: frozenset[str] = frozenset(),
+                               allow_read_tools: frozenset[str] = frozenset(),
+                               dynamic_client=None):
     """Use ARE's official AbstractAgentBuilder seam without editing ARE code.
 
     The current bridge is single-agent and read-only. It preserves ARE's own
@@ -53,11 +87,25 @@ def make_guarded_agent_builder(controller, task_evidence_id):
 
             def guarded_init_tools(instance, scenario):
                 original_init_tools(scenario)
-                guarded = guard_are_toolset(controller, instance.tools, task_evidence_id)
-                instance.tools = guarded
-                instance.react_agent.tools = {tool.name: tool for tool in guarded}
+                guarded = guard_are_toolset(controller, instance.tools, context)
+                enabled = [tool for tool in guarded if tool.mode == "read" and
+                           tool.resource in allow_read_apps and
+                           (not allow_read_tools or tool.name in allow_read_tools)]
+                controller.authorized_tools = frozenset(tool.name for tool in enabled)
+                controller.tools.authorized_tools = controller.authorized_tools
+                controller.tools.authorized_resources = allow_read_apps
+                controller.update("ARE task delivered through official notifications", (), "intake")
+                controller.trace.log("are_read_tools_enabled",
+                                     tools=sorted(controller.authorized_tools),
+                                     apps=sorted(allow_read_apps))
+                if dynamic_client is not None:
+                    from .dynamic_team import make_dynamic_team_tool
+                    enabled.append(make_dynamic_team_tool(controller, context, dynamic_client,
+                                                          enabled))
+                instance.tools = enabled
+                instance.react_agent.tools = {tool.name: tool for tool in enabled}
 
             agent.init_tools = MethodType(guarded_init_tools, agent)
             return agent
 
-    return GuardedAgentBuilder()
+    return GuardedAgentBuilder(llm_engine_builder=llm_engine_builder)

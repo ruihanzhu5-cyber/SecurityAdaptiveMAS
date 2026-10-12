@@ -41,7 +41,8 @@ class TopologyPlanner:
         self.max_agents = max_agents
 
     def make(self, pattern: str, version: int, authorized_tools: frozenset[str],
-             subtasks: tuple[str, ...] = (), restricted: bool = False):
+             subtasks: tuple[str, ...] = (), restricted: bool = False,
+             read_tools: frozenset[str] = frozenset()):
         if pattern not in {"singleton", "star", "chain"}:
             raise ValueError("Unsupported v1 topology")
         count = 1 if pattern == "singleton" else min(
@@ -71,13 +72,15 @@ class TopologyPlanner:
         ids = [node.agent_id for node in spec.agents]
         for index, node in enumerate(spec.agents):
             role = "coordinator" if index == 0 else ("verifier" if pattern == "chain" and index == len(ids) - 1 else "worker")
-            tools = tuple(sorted(authorized_tools)) if index == 0 else ()
+            tools = tuple(sorted(authorized_tools if index == 0 else read_tools))
             visible = tuple(i for i in ids if i != node.agent_id and (
                 pattern == "star" and (index == 0 or i == ids[0])
                 or pattern == "chain" and abs(index - ids.index(i)) == 1
             ))
-            if restricted and pattern == "chain" and index == 0:
+            if pattern == "chain" and index == 0:
                 visible = tuple(sorted(set(visible) | {ids[-1]}))
+            if pattern == "chain" and index == len(ids) - 1:
+                visible = tuple(sorted(set(visible) | {ids[0]}))
             policy = self.m.ContextPolicy(visible_from=visible, share_scope="parent_only",
                                           evidence_access="own", summary_only=index != 0,
                                           max_packet_chars=1000)
@@ -88,10 +91,10 @@ class TopologyPlanner:
             )
         spec = replace(spec, version=version, agents=tuple(agents),
                        rationale=f"{pattern}: task-derived plan")
-        if restricted and pattern == "chain" and len(ids) > 2:
+        if pattern == "chain" and len(ids) > 2:
             mutation = self.m.TopologyMutation(
-                rationale="verifier bypasses quarantined worker",
-                target_failure_modes=("untrusted_input_to_write",),
+                rationale="direct authorized verification channel",
+                target_failure_modes=("verifier_unreachable",),
                 ops=(self.m.MutationOp("add_edge", {"src": ids[-1], "dst": ids[0]}),),
             )
             spec = replace(mutation.apply(spec, max_agents=self.max_agents), version=version)
@@ -104,13 +107,14 @@ class OrganizationSelector:
         self.planner, self.weights = planner, weights
 
     def choose(self, state: TaskState, version: int,
-               authorized_tools: frozenset[str]) -> tuple[Candidate, list[dict]]:
+               authorized_tools: frozenset[str],
+               read_tools: frozenset[str] = frozenset()) -> tuple[Candidate, list[dict]]:
         trials = []
         candidates = []
         for pattern in ("singleton", "star", "chain"):
             spec, assignments = self.planner.make(
                 pattern, version, authorized_tools, state.pending_subtasks,
-                restricted=state.risky_input,
+                restricted=state.risky_input, read_tools=read_tools,
             )
             checks = []
             for node in spec.agents:
@@ -149,5 +153,9 @@ def communication_edges(spec) -> frozenset[tuple[str, str]]:
         edges = {(a, b) for left, right in zip(ids, ids[1:]) for a, b in ((left, right), (right, left))}
     else:
         raise ValueError("Unsupported v1 topology")
-    edges.update(spec.extra_edges)
+    # MANTA treats extra edges as undirected; its mutation rejects the reverse
+    # as a duplicate. The gateway must implement the same semantics.
+    for src, dst in spec.extra_edges:
+        edges.add((src, dst))
+        edges.add((dst, src))
     return frozenset(edges)
