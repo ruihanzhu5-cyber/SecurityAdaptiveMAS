@@ -1,67 +1,67 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="480" viewBox="0 0 1280 480" role="img" aria-labelledby="title desc">
-  <title id="title">Illustrative topology evolution from Singleton to controlled continuation</title>
-  <desc id="desc">Four conceptual stages show a coordinator alone, a star with two workers, a restricted branch after a low-trust risk signal, and a revised team with an authorized verifier path. The full sequence has not been demonstrated in an online Gaia2 run.</desc>
+  <title id="title">团队随任务变化的示意图</title>
+  <desc id="desc">四步示意：协调员接任务、两个工作者并行读取、发现风险后限制支路、调整团队继续处理。完整流程尚未在在线 Gaia2 任务中验证。</desc>
   <defs>
-    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1 L7 4.5 L1 8" fill="none" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
-    <marker id="cyanArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1 L7 4.5 L1 8" fill="none" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1 L7 4.5 L1 8" fill="none" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="cyanArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1 L7 4.5 L1 8" fill="none" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   </defs>
-  <rect width="1280" height="480" rx="22" fill="#0F172A"/>
-  <text x="40" y="61" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">From static teams to runtime organization</text>
-  <text x="40" y="91" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Illustrative target workflow · current online end-to-end evidence is still pending</text>
-  <g fill="#172338" stroke="#334155" stroke-width="1.7">
+  <rect width="1280" height="480" rx="22" fill="#F8FAFC"/>
+  <text x="40" y="61" fill="#0F172A" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="34" font-weight="700">团队怎样随任务变化</text>
+  <text x="40" y="91" fill="#475569" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="16">流程示意 · 真实在线任务的完整验证仍待完成</text>
+  <g fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.7">
     <rect x="38" y="124" width="276" height="306" rx="20"/>
     <rect x="350" y="124" width="276" height="306" rx="20"/>
     <rect x="662" y="124" width="276" height="306" rx="20"/>
     <rect x="974" y="124" width="276" height="306" rx="20"/>
   </g>
-  <path d="M58 126 H294 M370 126 H606 M682 126 H918 M994 126 H1230" stroke="#8B5CF6" stroke-width="4" stroke-linecap="round"/>
-  <path d="M682 126 H918" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
-  <g fill="#C4B5FD" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">
-    <text x="62" y="159">T0 · INTAKE</text><text x="374" y="159">T1 · PARALLEL WORK</text>
-    <text x="686" y="159" fill="#FBBF24">T2 · RISK SIGNAL</text><text x="998" y="159">T3 · CONTINUE</text>
+  <path d="M58 126 H294 M370 126 H606 M682 126 H918 M994 126 H1230" stroke="#7C3AED" stroke-width="4" stroke-linecap="round"/>
+  <path d="M682 126 H918" stroke="#D97706" stroke-width="4" stroke-linecap="round"/>
+  <g fill="#6D28D9" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">
+    <text x="62" y="159">T0 · 接任务</text><text x="374" y="159">T1 · 并行读取</text>
+    <text x="686" y="159" fill="#D97706">T2 · 发现风险</text><text x="998" y="159">T3 · 继续处理</text>
   </g>
-  <g fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">
-    <text x="62" y="190">Singleton</text><text x="374" y="190">Star</text>
-    <text x="686" y="190">Restricted path</text><text x="998" y="190">Revised team</text>
+  <g fill="#0F172A" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">
+    <text x="62" y="190">单人</text><text x="374" y="190">星形</text>
+    <text x="686" y="190">限制支路</text><text x="998" y="190">调整后的团队</text>
   </g>
-  <path d="M324 264 L336 274 L324 284 M636 264 L648 274 L636 284 M948 264 L960 274 L948 284" fill="none" stroke="#A78BFA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M324 264 L336 274 L324 284 M636 264 L648 274 L636 284 M948 264 L960 274 L948 284" fill="none" stroke="#7C3AED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 
   <!-- T0 -->
-  <circle cx="176" cy="282" r="34" fill="#34245B" stroke="#A78BFA" stroke-width="2.5"/>
-  <text x="176" y="290" text-anchor="middle" fill="#F5F3FF" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">C</text>
-  <text x="176" y="346" text-anchor="middle" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="16">Coordinator</text>
-  <text x="176" y="398" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="15">One visible task stream</text>
+  <circle cx="176" cy="282" r="34" fill="#F1EBFF" stroke="#7C3AED" stroke-width="2.5"/>
+  <text x="176" y="290" text-anchor="middle" fill="#5B21B6" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="24" font-weight="700">C</text>
+  <text x="176" y="346" text-anchor="middle" fill="#475569" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="16">协调员</text>
+  <text x="176" y="398" text-anchor="middle" fill="#475569" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="15">先处理当前任务</text>
 
   <!-- T1 -->
-  <path d="M488 270 L430 314 M488 270 L550 314" stroke="#22D3EE" stroke-width="2.7" marker-end="url(#cyanArrow)"/>
-  <circle cx="488" cy="248" r="30" fill="#34245B" stroke="#A78BFA" stroke-width="2.3"/>
-  <circle cx="430" cy="335" r="28" fill="#103A49" stroke="#22D3EE" stroke-width="2.3"/>
-  <circle cx="550" cy="335" r="28" fill="#103A49" stroke="#22D3EE" stroke-width="2.3"/>
-  <g text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">
-    <text x="488" y="255" fill="#F5F3FF">C</text><text x="430" y="342" fill="#CFFAFE">W</text><text x="550" y="342" fill="#CFFAFE">W</text>
+  <path d="M488 270 L430 314 M488 270 L550 314" stroke="#0891B2" stroke-width="2.7" marker-end="url(#cyanArrow)"/>
+  <circle cx="488" cy="248" r="30" fill="#F1EBFF" stroke="#7C3AED" stroke-width="2.3"/>
+  <circle cx="430" cy="335" r="28" fill="#E7F8FB" stroke="#0891B2" stroke-width="2.3"/>
+  <circle cx="550" cy="335" r="28" fill="#E7F8FB" stroke="#0891B2" stroke-width="2.3"/>
+  <g text-anchor="middle" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">
+    <text x="488" y="255" fill="#5B21B6">C</text><text x="430" y="342" fill="#155E75">W</text><text x="550" y="342" fill="#155E75">W</text>
   </g>
-  <text x="488" y="398" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="15">Two read-only subtasks</text>
+  <text x="488" y="398" text-anchor="middle" fill="#475569" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="15">两个只读小任务</text>
 
   <!-- T2 -->
-  <circle cx="800" cy="248" r="30" fill="#34245B" stroke="#A78BFA" stroke-width="2.3"/>
-  <circle cx="730" cy="335" r="28" fill="#40301D" stroke="#F59E0B" stroke-width="2.3"/>
-  <circle cx="870" cy="335" r="28" fill="#103A49" stroke="#22D3EE" stroke-width="2.3"/>
-  <path d="M781 271 L749 310" stroke="#F59E0B" stroke-width="2.4" stroke-dasharray="5 5"/>
-  <path d="M820 270 L851 311" stroke="#A78BFA" stroke-width="2.5" marker-end="url(#arrow)"/>
-  <path d="M758 308 L769 319 M769 308 L758 319" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
-  <g text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">
-    <text x="800" y="255" fill="#F5F3FF">C</text><text x="730" y="342" fill="#FDE68A">W</text><text x="870" y="342" fill="#CFFAFE">V</text>
+  <circle cx="800" cy="248" r="30" fill="#F1EBFF" stroke="#7C3AED" stroke-width="2.3"/>
+  <circle cx="730" cy="335" r="28" fill="#FFF4D8" stroke="#D97706" stroke-width="2.3"/>
+  <circle cx="870" cy="335" r="28" fill="#E7F8FB" stroke="#0891B2" stroke-width="2.3"/>
+  <path d="M781 271 L749 310" stroke="#D97706" stroke-width="2.4" stroke-dasharray="5 5"/>
+  <path d="M820 270 L851 311" stroke="#7C3AED" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M758 308 L769 319 M769 308 L758 319" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+  <g text-anchor="middle" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">
+    <text x="800" y="255" fill="#5B21B6">C</text><text x="730" y="342" fill="#92400E">W</text><text x="870" y="342" fill="#155E75">V</text>
   </g>
-  <text x="800" y="398" text-anchor="middle" fill="#FCD34D" font-family="Arial, Helvetica, sans-serif" font-size="15">Isolate · verify allowed evidence</text>
+  <text x="800" y="398" text-anchor="middle" fill="#92400E" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="15">隔离风险 · 检查获准的信息</text>
 
   <!-- T3 -->
-  <circle cx="1112" cy="248" r="30" fill="#34245B" stroke="#A78BFA" stroke-width="2.3"/>
-  <circle cx="1054" cy="335" r="28" fill="#103A49" stroke="#22D3EE" stroke-width="2.3"/>
-  <circle cx="1170" cy="335" r="28" fill="#103A49" stroke="#22D3EE" stroke-width="2.3"/>
-  <path d="M1094 271 L1072 311 M1130 271 L1152 311" stroke="#22D3EE" stroke-width="2.5" marker-end="url(#cyanArrow)"/>
-  <g text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">
-    <text x="1112" y="255" fill="#F5F3FF">C</text><text x="1054" y="342" fill="#CFFAFE">W</text><text x="1170" y="342" fill="#CFFAFE">V</text>
+  <circle cx="1112" cy="248" r="30" fill="#F1EBFF" stroke="#7C3AED" stroke-width="2.3"/>
+  <circle cx="1054" cy="335" r="28" fill="#E7F8FB" stroke="#0891B2" stroke-width="2.3"/>
+  <circle cx="1170" cy="335" r="28" fill="#E7F8FB" stroke="#0891B2" stroke-width="2.3"/>
+  <path d="M1094 271 L1072 311 M1130 271 L1152 311" stroke="#0891B2" stroke-width="2.5" marker-end="url(#cyanArrow)"/>
+  <g text-anchor="middle" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">
+    <text x="1112" y="255" fill="#5B21B6">C</text><text x="1054" y="342" fill="#155E75">W</text><text x="1170" y="342" fill="#155E75">V</text>
   </g>
-  <text x="1112" y="398" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="15">Controlled information flow</text>
-  <text x="40" y="462" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="13">C = coordinator · W = worker · V = verifier · amber = restricted low-trust branch</text>
+  <text x="1112" y="398" text-anchor="middle" fill="#475569" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="15">按权限传递信息</text>
+  <text x="40" y="462" fill="#64748B" font-family="Arial, Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="13">C = 协调员 · W = 工作者 · V = 验证员 · 橙色 = 被限制的风险支路</text>
 </svg>
