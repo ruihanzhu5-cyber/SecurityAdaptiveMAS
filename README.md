@@ -23,7 +23,7 @@ python -m security_adaptive_mas.demo --scenario scenario_universe_22_0421h2 --tr
 
 ## 可选 ARE 只读 smoke 入口
 
-先在隔离 Python 环境安装官方 ARE `requirements.txt`（本机尚未完成），准备模型 API 配置，并明确工具名与 App 允许列表。`are_smoke.py` 调用官方 `ScenarioRunner`，保留官方环境、Validator 和轨迹导出；其工具网关只放行 `write_operation=False` 的工具。未知操作类型按写入处理。
+当前 D 盘环境 `D:\SecurityAdaptiveMAS\.venv` 已安装官方 ARE `requirements.txt`，并通过五场景官方 JSON 导入器与 `ScenarioRunner` 构造检查。真实模型执行仍需准备模型 API 配置，以及明确工具名与 App 允许列表。`are_smoke.py` 调用官方 `ScenarioRunner`，保留官方环境、Validator 和轨迹导出；其工具网关只放行 `write_operation=False` 的工具。未知操作类型按写入处理。
 
 ```powershell
 python -m security_adaptive_mas.are_smoke --scenario scenario_universe_22_0421h2 --model MODEL --provider PROVIDER --allow-read-tool TOOL_NAME --allow-app APP_NAME --acknowledge-model-cost

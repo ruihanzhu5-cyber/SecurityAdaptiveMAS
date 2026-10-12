@@ -61,7 +61,7 @@ README.md
 
 ## 依赖与运行命令
 
-离线骨架需要 Python 3.11+、PyYAML 与 pytest；当前本机 Python 3.13.5 完成测试。已有 `work/.venv` 为前期创建的隔离环境，但官方 ARE 完整依赖未装完，先前 `litellm` 下载超时。直接导入 ARE 的 `JsonScenarioImporter` 目前报 `ModuleNotFoundError: inputimeout`，因此官方场景导入、工具列表与 `ScenarioRunner` **没有在本机实际跑通**。
+离线骨架需要 Python 3.11+、PyYAML、pytest 和 `typing-extensions`。2026-10-12 已把项目复制到 `D:\SecurityAdaptiveMAS`，其中 `python\` 为 Python 3.12.13 运行时、`.venv\` 为独立隔离环境。D 盘环境安装了 ARE 官方 `requirements.txt` 的固定版本；`uv pip check` 显示 98 个已安装包兼容。离线测试在 D 盘 **9 passed**；ARE 官方 `JsonScenarioImporter` 已成功逐一加载五个固定 JSON，`ScenarioRunner` 可构造。**未运行官方 Universe/Validator 的完整场景回合，也未调用模型。** 原 C 盘 `work/.venv` 的依赖不完整，但已不再用于 D 盘项目。
 
 ```powershell
 python -m pip install -r requirements-v1.txt
@@ -69,7 +69,7 @@ python -m pytest tests -q -p no:cacheprovider
 python -m security_adaptive_mas.demo --scenario scenario_universe_22_0421h2 --trace results/demo.jsonl
 ```
 
-要试真实 ARE 的只读接线，应先在隔离环境安装官方 ARE `requirements.txt`，准备模型名、provider、API 密钥或 endpoint，以及确切的 App 和只读工具白名单。然后运行 `README.md` 的 `are_smoke` 命令；必须显式传 `--acknowledge-model-cost`。该命令会调用真实模型，费用取决于所选服务和实际 token，当前未选择服务，不能可靠给出数值估算，也没有执行。真实运行会设置 `oracle=False`、`export=True`，官方 Validator 与轨迹导出保持在 `ScenarioRunner` 中。
+要试真实 ARE 的只读接线，可使用已就绪的 D 盘环境，准备模型名、provider、API 密钥或 endpoint，以及确切的 App 和只读工具白名单。然后运行 `README.md` 的 `are_smoke` 命令；必须显式传 `--acknowledge-model-cost`。该命令会调用真实模型，费用取决于所选服务和实际 token，当前未选择服务，不能可靠给出数值估算，也没有执行。真实运行会设置 `oracle=False`、`export=True`，官方 Validator 与轨迹导出保持在 `ScenarioRunner` 中。
 
 ## 尚未实现和下一阶段
 
