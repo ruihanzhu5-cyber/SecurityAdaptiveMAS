@@ -1,0 +1,19 @@
+# Reproducible project source lives in Git. Large upstream and runtime files stay beside it.
+.venv/
+python/
+work/
+results/
+outputs/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+.uv-cache/
+uv-cache/
+tmp/
+.pip-cache/
+setup.log
+git_metadata_probe/
+write_probe
+.env
+.env.*
+!.env.example
