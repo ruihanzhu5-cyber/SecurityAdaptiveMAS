@@ -1,4 +1,7 @@
-![任务需求、协作结构、历史风险共同决定下一阶段拓扑的研究示意图；概念设计，尚未实现](docs/assets/research-hero.svg)
+<picture>
+  <source media="(max-width: 600px)" srcset="https://github.com/ruihanzhu5-cyber/SecurityAdaptiveMAS/raw/main/docs/assets/research-hero-mobile.svg">
+  <img src="docs/assets/research-hero.svg" alt="任务需求、协作结构、历史风险共同决定下一阶段拓扑的研究示意图；概念设计，尚未实现">
+</picture>
 
 # SecurityAdaptiveMAS
 
@@ -36,7 +39,10 @@ Task-Driven Adaptive Topology with Temporal Information-Flow Safety Constraints
 
 ## 三图模型（拟议）
 
-![任务图 D_t、执行图 G_t、历史依赖图 H_t 共同进入下一阶段拓扑选择；图中箭头是研究语义，不是已完成的软件模块](docs/assets/three-graphs.svg)
+<picture>
+  <source media="(max-width: 600px)" srcset="https://github.com/ruihanzhu5-cyber/SecurityAdaptiveMAS/raw/main/docs/assets/three-graphs-mobile.svg">
+  <img src="docs/assets/three-graphs.svg" alt="任务图 D_t、执行图 G_t、历史依赖图 H_t 共同进入下一阶段拓扑选择；图中箭头是研究语义，不是已完成的软件模块">
+</picture>
 
 | 图 | 它记录什么 | 要回答的问题 |
 |---|---|---|
@@ -54,7 +60,10 @@ Task-Driven Adaptive Topology with Temporal Information-Flow Safety Constraints
 
 ## 全过程安全：T1–T5（拟议）
 
-![T1 预防、T2 限制传播、T3 恢复状态、T4 敏感动作边界、T5 最终状态检查的研究时间线；五项均是干预目标，不表示已实现](docs/assets/safety-timeline.svg)
+<picture>
+  <source media="(max-width: 600px)" srcset="https://github.com/ruihanzhu5-cyber/SecurityAdaptiveMAS/raw/main/docs/assets/safety-timeline-mobile.svg">
+  <img src="docs/assets/safety-timeline.svg" alt="T1 预防、T2 限制传播、T3 恢复状态、T4 敏感动作边界、T5 最终状态检查的研究时间线；五项均是干预目标，不表示已实现">
+</picture>
 
 | 时间点 | 希望干预什么 | 无法替代什么 |
 |---|---|---|
