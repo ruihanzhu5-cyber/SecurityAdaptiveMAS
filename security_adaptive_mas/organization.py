@@ -143,6 +143,8 @@ class OrganizationSelector:
 
 def communication_edges(spec) -> frozenset[tuple[str, str]]:
     group = spec.group(spec.root_group_id)
+    if group.pattern == "explicit":
+        return frozenset(spec.extra_edges)
     ids = group.member_ids
     if group.pattern == "singleton":
         edges = set()

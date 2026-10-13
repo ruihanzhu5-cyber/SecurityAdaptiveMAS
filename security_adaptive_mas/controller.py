@@ -44,6 +44,8 @@ class Controller:
         self.max_analysis_requests = max_analysis_requests
         self.analysis_requests = 0
         self.runtime_agent_instances = runtime_agent_instances
+        self.task_revision = 0
+        self.execution_contracts: dict[str, dict] = {}
         self.performance_monitor = PerformanceMonitor()
         self.pending_analysis = {}
         self.candidate_generator = TemplateCandidateGenerator(config.max_agents)
@@ -207,6 +209,10 @@ class Controller:
             if not {event.evidence_id for event in events} <= set(proposal.source_evidence_ids):
                 raise ValueError("Proposal does not account for every pending event")
             current = self.online_analyzer.apply_proposal(previous, proposal, observation)
+            known_ids = {task.task_id for task in current.subtasks}
+            for contract in proposal.execution_contracts:
+                if not set(contract["independent_of"]) <= known_ids:
+                    raise ValueError("Execution contract cites unknown independent task")
         except BudgetExceeded:
             return deferred("analysis_deferred_budget")
         except TaskProposalError:
@@ -218,6 +224,9 @@ class Controller:
         finally:
             self.analysis_requests = self.run_budget.task_analysis_requests
         self.task_analysis = current
+        for contract in proposal.execution_contracts:
+            self.execution_contracts[contract["task_id"]] = contract
+        self.task_revision += 1
         if proposal not in self.task_updates:
             self.task_updates.append(proposal)
         self.performance_monitor.mark_analyzed(events, observation.sequence)
@@ -238,6 +247,37 @@ class Controller:
                        analysis_succeeded=True,
                        requirements_changed=decision.action == TriggerAction.RECONSIDER)
         return decision
+
+    def select_runtime_patch(self, runtime, candidates, *, protected_targets=()):
+        """Executable v0.1 path; legacy online_candidates remains a planning API."""
+        from .graph_evaluation import coverage, project_risk
+        assessments = []
+        analysis = self._current_task_analysis(self.online_snapshot())
+        sources = {key for key, obj in runtime.objects.items() if obj["low_trust"]}
+        suspects = set(getattr(self, "suspect_instances", ()))
+        for patch in candidates:
+            graph = runtime.preview(patch)
+            inputs = coverage(analysis, graph, runtime.objects)
+            risk = project_risk(graph, runtime.objects, sources, suspects, protected_targets)
+            assessments.append({"candidate_id": patch.patch_id, "task_coverage": inputs,
+                "risk": risk, "valid": not inputs["known_missing"],
+                "estimated_savings": None, "cost_status": "unknown",
+                "planned_worker_requests": sum(op["op"] == "ASSIGN" and op["agent_id"] != "agent_0" for op in patch.operations)})
+        viable = [(patch, row) for patch, row in zip(candidates, assessments) if row["valid"]]
+        if not viable:
+            self.trace.log("runtime_decision_blocked", reason="no_task_covering_candidate", candidates=assessments)
+            raise RuntimeError("no_task_covering_candidate")
+        # No learned gain estimate: one bounded exploratory delegation per pair
+        # of explicit read-only independent task contracts, within runtime caps.
+        worker = next(((patch, row) for patch, row in viable if row["planned_worker_requests"]), None)
+        selected = worker or next(((patch, row) for patch, row in viable if patch.reason == "retire_output_available"), None) or viable[0]
+        patch, _ = selected
+        self.trace.log("controller_runtime_decision", candidate_id=patch.patch_id,
+                       decision_basis="bounded_exploration" if worker else "structural_rule",
+                       candidates=assessments, operations=patch.operations,
+                       evidence_ids=patch.evidence_ids, observation_sequence=patch.base_observation_sequence)
+        runtime.apply(patch)
+        return patch
 
     def performance_snapshot(self) -> PerformanceSignals:
         observation = self.online_snapshot()

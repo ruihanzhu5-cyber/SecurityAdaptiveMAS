@@ -139,6 +139,7 @@ class TaskUpdate:
     source_evidence_ids: tuple[str, ...] = ()
     as_of_sequence: int | None = None
     remove_dependencies: tuple[tuple[str, str], ...] = ()
+    execution_contracts: tuple[dict, ...] = ()
 
 
 class TaskAnalyzerProtocol(Protocol):

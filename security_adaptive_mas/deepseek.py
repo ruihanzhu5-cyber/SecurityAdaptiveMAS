@@ -49,12 +49,18 @@ class RunBudget:
         self.latency_seconds = 0.0
         self.task_analysis_requests = 0
         self.task_analysis_request_limit: int | None = None
+        self.requests_by_purpose: dict[str, int] = {}
+        self.unaccounted_usage_notes: list[dict] = []
+        self.unknown_cost_bound = 0.0
+        self.unknown_token_bound = 0
+        self.request_reservation = (0, 0.0)
 
     def before_request(self, messages: list[dict[str, Any]], max_output_tokens: int, *,
-                       purpose: str | None = None) -> None:
+                       purpose: str | None = None, tools=None, response_format=None) -> None:
         # DeepSeek's tokenizer is unavailable locally. UTF-8 byte count of the
         # text request is a conservative upper bound for text tokenization.
-        input_bound = len(json.dumps(messages, ensure_ascii=False).encode("utf-8"))
+        payload = {"messages": messages, "tools": tools, "response_format": response_format}
+        input_bound = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
         estimated_cost = (input_bound * PEAK_INPUT_USD_PER_TOKEN +
                           max_output_tokens * PEAK_OUTPUT_USD_PER_TOKEN)
         if (purpose == "task_analysis" and self.task_analysis_request_limit is not None and
@@ -62,13 +68,27 @@ class RunBudget:
             raise BudgetExceeded("DeepSeek task-analysis request limit exhausted")
         if self.requests >= self.max_requests:
             raise BudgetExceeded("DeepSeek request budget exhausted")
-        if self.input_tokens + self.output_tokens + input_bound + max_output_tokens > self.max_total_tokens:
+        if self.input_tokens + self.output_tokens + self.unknown_token_bound + input_bound + max_output_tokens > self.max_total_tokens:
             raise BudgetExceeded("DeepSeek token budget exhausted")
-        if self.peak_cost_estimate_usd + estimated_cost > self.max_cost_usd:
+        if self.peak_cost_estimate_usd + self.unknown_cost_bound + estimated_cost > self.max_cost_usd:
             raise BudgetExceeded("DeepSeek cost budget exhausted")
         self.requests += 1
+        label = purpose or "execution"
+        self.requests_by_purpose[label] = self.requests_by_purpose.get(label, 0) + 1
+        self.request_reservation = (input_bound + max_output_tokens, estimated_cost)
         if purpose == "task_analysis":
             self.task_analysis_requests += 1
+
+    def unknown_response(self, error, purpose):
+        tokens, cost = self.request_reservation
+        self.unknown_token_bound += tokens
+        self.unknown_cost_bound += cost
+        note = {"request": self.requests, "purpose": purpose,
+                "exception_type": type(error).__name__, "reserved_cost_bound": cost,
+                "billing_status": "unknown_not_actual_usage"}
+        self.unaccounted_usage_notes.append(note)
+        self.trace.log("model_usage_unknown", **note)
+        self.request_reservation = (0, 0.0)
 
     def after_response(self, usage: Any, latency: float, *, purpose: str | None = None) -> None:
         prompt = int(getattr(usage, "prompt_tokens", 0) or 0)
@@ -81,6 +101,7 @@ class RunBudget:
         self.peak_cost_estimate_usd += (
             prompt * PEAK_INPUT_USD_PER_TOKEN + completion * PEAK_OUTPUT_USD_PER_TOKEN
         )
+        self.request_reservation = (0, 0.0)
         self.trace.log("model_usage", mode=self.mode, model=MODEL, provider=PROVIDER,
                        prompt_tokens=prompt, completion_tokens=completion,
                        latency_seconds=latency,
@@ -117,14 +138,22 @@ class DeepSeekClient:
         if response_format is not None:
             kwargs["response_format"] = response_format
         from litellm.exceptions import RateLimitError, Timeout
+        if on_input is not None:
+            on_input(messages)
         for attempt in range(self.settings.max_attempts):
-            self.budget.before_request(messages, self.settings.max_output_tokens, purpose=purpose)
-            if on_input is not None:
-                on_input(messages)
+            try:
+                self.budget.before_request(messages, self.settings.max_output_tokens, purpose=purpose,
+                                           tools=tools, response_format=response_format)
+            except BudgetExceeded as error:
+                if "task-analysis" not in str(error):
+                    self.budget.trace.log("budget_exhausted", purpose=purpose, reason=str(error))
+                raise
             started = time.monotonic()
             try:
                 response = completion_fn(**kwargs)
+                self.budget.after_response(response.usage, time.monotonic() - started, purpose=purpose)
             except (RateLimitError, Timeout) as error:
+                self.budget.unknown_response(error, purpose)
                 self.budget.trace.log("model_retryable_error", model=MODEL,
                                       error_type=type(error).__name__, attempt=attempt + 1,
                                       **({"purpose": purpose} if purpose is not None else {}))
@@ -132,7 +161,9 @@ class DeepSeekClient:
                     raise
                 time.sleep(1)
                 continue
-            self.budget.after_response(response.usage, time.monotonic() - started, purpose=purpose)
+            except Exception as error:
+                self.budget.unknown_response(error, purpose)
+                raise
             return response
         raise RuntimeError("DeepSeek call did not return")
 
@@ -151,8 +182,9 @@ def parse_tool_calls(response: Any) -> list[tuple[str, str, dict[str, Any]]]:
 class DeepSeekEngineBuilder:
     """Supplies a bounded LiteLLMEngine to ARE's official AgentBuilder."""
 
-    def __init__(self, client: DeepSeekClient, on_input=None):
+    def __init__(self, client: DeepSeekClient, on_input=None, on_error=None):
         self.client, self.on_input = client, on_input
+        self.on_error = on_error
 
     def create_engine(self, engine_config, mock_responses=None):
         if mock_responses is not None:
@@ -162,12 +194,17 @@ class DeepSeekEngineBuilder:
             raise ValueError("ARE model must route only to the official DeepSeek endpoint")
         from are.simulation.agents.llm.litellm.litellm_engine import LiteLLMEngine, LiteLLMModelConfig
 
-        client, on_input = self.client, self.on_input
+        client, on_input, on_error = self.client, self.on_input, self.on_error
 
         class BoundedLiteLLMEngine(LiteLLMEngine):
             def chat_completion(self, messages, stop_sequences=None, **kwargs):
                 converted = [self._convert_message_to_litellm_format(item) for item in messages]
-                response = client.complete(converted, on_input=on_input)
+                try:
+                    response = client.complete(converted, on_input=on_input, purpose="coordinator")
+                except Exception as error:
+                    if on_error is not None:
+                        on_error(error)
+                    raise
                 content = response.choices[0].message.content
                 if content is None:
                     raise RuntimeError("DeepSeek returned no text for ARE JSON-action loop")

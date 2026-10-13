@@ -232,6 +232,70 @@ class ToolDefinition:
     function: Callable[..., Any]
 
 
+class UnsupportedTaskScope(PermissionError):
+    """A requested write has no implemented trusted authorization contract."""
+
+
+class TaskScopePolicy:
+    """Opt-in v0.1 policy. External data may fill data fields, never controls.
+
+    Structured scopes must arrive in an actual USER notification. Natural
+    language support is deliberately limited to an explicit absolute mkdir
+    command. Conditional calendar/contact/shopping authorization is OPEN.
+    """
+    allow_data_dependencies = True
+    version = "v0.1-explicit-scopes-1"
+
+    def __init__(self, provenance, trace):
+        self.provenance, self.trace = provenance, trace
+        self.user_ids = []
+        self.scopes = []
+
+    def register_user(self, evidence_id):
+        import re
+        from pathlib import PurePosixPath
+        evidence = self.provenance.items[evidence_id]
+        if evidence.trust != "trusted_task" or evidence.owner_agent is not None:
+            raise ValueError("scope_requires_delivered_user")
+        self.user_ids.append(evidence_id)
+        if evidence.text.lstrip().startswith('{'):
+            data = json.loads(evidence.text)
+            for scope in data.get("authorized_scopes", []):
+                if set(scope) != {"tool", "resource", "control_fields", "data_fields"}:
+                    raise ValueError("invalid_trusted_scope")
+                if not isinstance(scope["control_fields"], dict) or not isinstance(scope["data_fields"], list):
+                    raise ValueError("invalid_trusted_scope_fields")
+                if set(scope["control_fields"]) & set(scope["data_fields"]):
+                    raise ValueError("control_data_overlap")
+                self.scopes.append((evidence_id, scope))
+        for match in re.finditer(r'(?i)\b(?:mkdir|create (?:a )?(?:directory|folder))\s+(/[^\s"\x27,;]+)', evidence.text):
+            path = match.group(1).rstrip('.')
+            if '..' in PurePosixPath(path).parts or path == '/':
+                raise ValueError("invalid_user_output_path")
+            self.scopes.append((evidence_id, {"tool": "Files__mkdir", "resource": "Files",
+                "control_fields": {"path": path}, "data_fields": []}))
+        self.trace.log("trusted_scope_registered", evidence_id=evidence_id,
+                       scope_count=len(self.scopes), policy_version=self.version)
+
+    def permits(self, agent_id, version, tool_name, operation, resource, arguments, evidence_id):
+        if agent_id != "agent_0" or not self.user_ids:
+            return False
+        # A reply to the trusted user is a fixed system capability, never an
+        # authorization to email/message arbitrary external recipients.
+        if tool_name == "AgentUserInterface__send_message_to_user":
+            return set(arguments) <= {"content"} and isinstance(arguments.get("content", ""), str)
+        for source_id, scope in self.scopes:
+            if scope["tool"] != tool_name or scope["resource"] != resource:
+                continue
+            controls = scope["control_fields"]
+            if (set(arguments) <= set(controls) | set(scope["data_fields"]) and
+                    all(arguments.get(key) == value for key, value in controls.items())):
+                self.trace.log("task_scope_permitted", agent_id=agent_id, tool=tool_name,
+                               control_evidence_id=source_id, data_evidence_id=evidence_id)
+                return True
+        return False
+
+
 class ToolGateway:
     def __init__(self, provenance: ProvenanceStore, trace,
                  authorized_tools: frozenset[str], authorized_resources: frozenset[str],
@@ -290,14 +354,15 @@ class ToolGateway:
                 reason = "missing_provenance"
             elif not isinstance(arguments, dict):
                 reason = "invalid_arguments"
-            elif definition.mode == "write" and self.provenance.contains_low_trust(evidence_id):
+            elif definition.mode == "write" and not getattr(self.authorization, "allow_data_dependencies", False) and self.provenance.contains_low_trust(evidence_id):
                 reason = "low_trust_sensitive_write"
-            elif definition.mode == "write" and self.provenance.items[evidence_id].trust != "trusted_task":
+            elif definition.mode == "write" and not getattr(self.authorization, "allow_data_dependencies", False) and self.provenance.items[evidence_id].trust != "trusted_task":
                 reason = "write_requires_task_authorization"
             elif definition.mode == "write" and not self.authorization.permits(
                 agent_id, version, tool_name, definition.mode, resource, arguments, evidence_id
             ):
-                reason = "action_not_authorized"
+                reason = ("unsupported_task_scope" if isinstance(self.authorization, TaskScopePolicy)
+                          else "action_not_authorized")
         except (KeyError, TypeError):
             reason = "unknown_agent_or_tool"
         if reason:
@@ -308,6 +373,8 @@ class ToolGateway:
                 self.trace.log("risk_event", type="untrusted_input_to_write",
                                agent_id=agent_id, evidence_id=evidence_id,
                                tool=tool_name)
+            if reason == "unsupported_task_scope":
+                raise UnsupportedTaskScope(f"{reason}:{tool_name}")
             raise PermissionError(reason)
         definition = self.tools[tool_name]
         fingerprint = hashlib.sha256(json.dumps(

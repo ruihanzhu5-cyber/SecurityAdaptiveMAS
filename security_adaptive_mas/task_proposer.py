@@ -59,12 +59,13 @@ def _certainty(value) -> Certainty:
 
 class DeepSeekTaskProposer:
     def __init__(self, client: DeepSeekClient, read_evidence: Callable[[str], str], *,
-                 tool_excerpt_characters: int = 1500):
+                 tool_excerpt_characters: int = 1500, execution_tools: tuple[str, ...] | None = None):
         if tool_excerpt_characters < 1:
             raise ValueError("Tool excerpt limit must be positive")
         self.client, self.budget = client, client.budget
         self.read_evidence = read_evidence
         self.tool_excerpt_characters = tool_excerpt_characters
+        self.execution_tools = execution_tools
 
     def propose(self, observation: OnlineObservation, current: TaskAnalysis, *,
                 tool_evidence_ids: tuple[str, ...] = ()) -> TaskUpdate:
@@ -88,12 +89,29 @@ class DeepSeekTaskProposer:
             "tool_excerpts": excerpts,
             "current_tasks": current_tasks,
         }
+        prompt = TASK_PROPOSAL_PROMPT
+        if self.execution_tools is not None:
+            payload["read_tool_catalog"] = self.execution_tools
+            prompt = prompt.replace("No other keys.", "Optional execution_contracts is allowed.") + """
+For proposed read-only discovery subtasks, optionally include execution_contracts:
+[{task_id, read_only:true, required_tools:[exact catalog names],
+  input_evidence_ids:[delivered evidence IDs], independent_of:[other task IDs]}].
+Declare independence explicitly only when the two discovery tasks can be done
+without one another's results. Missing edges never prove independence. Do not
+include write actions in these worker contracts. A worker output is unverified
+evidence, not a completed task. Keep proposals small and use real available tools.
+"""
         response = self.client.complete(
-            [{"role": "system", "content": TASK_PROPOSAL_PROMPT},
+            [{"role": "system", "content": prompt},
              {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
             response_format={"type": "json_object"}, purpose="task_analysis")
         try:
-            update = self._parse(response.choices[0].message.content, observation.sequence)
+            update = self._parse(response.choices[0].message.content, observation.sequence,
+                                 allow_execution=self.execution_tools is not None)
+            for contract in update.execution_contracts:
+                if (not set(contract["required_tools"]) <= set(self.execution_tools or ()) or
+                        not set(contract["input_evidence_ids"]) <= set(observation.evidence_ids)):
+                    raise ValueError("Execution contract cites unavailable tool or input")
             OnlineTaskAnalyzer().apply_proposal(current, update, observation)
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as error:
             self.budget.trace.log("task_proposal_error", as_of_sequence=observation.sequence,
@@ -102,10 +120,11 @@ class DeepSeekTaskProposer:
         return update
 
     @staticmethod
-    def _parse(content: str, sequence: int) -> TaskUpdate:
+    def _parse(content: str, sequence: int, *, allow_execution=False) -> TaskUpdate:
         data = json.loads(content)
         required = {"source_evidence_ids", "subtasks", "dependencies", "information_requirements"}
-        if not isinstance(data, dict) or not required <= data.keys() or data.keys() - required - {"remove_dependencies"}:
+        optional = {"remove_dependencies"} | ({"execution_contracts"} if allow_execution else set())
+        if not isinstance(data, dict) or not required <= data.keys() or data.keys() - required - optional:
             raise ValueError("Invalid task proposal keys")
         source_ids = _strings(data["source_evidence_ids"])
         if not source_ids:
@@ -135,5 +154,19 @@ class DeepSeekTaskProposer:
         removed = data.get("remove_dependencies", [])
         if not isinstance(removed, list) or any(not isinstance(pair, list) or len(pair) != 2 for pair in removed):
             raise ValueError("Invalid dependency removal schema")
+        contracts = data.get("execution_contracts", [])
+        ids = {task.task_id for task in tasks}
+        if not isinstance(contracts, list):
+            raise ValueError("Invalid execution contracts")
+        for row in contracts:
+            if (not isinstance(row, dict) or set(row) != {"task_id", "read_only", "required_tools", "input_evidence_ids", "independent_of"}
+                    or row["task_id"] not in ids or row["read_only"] is not True):
+                raise ValueError("Invalid read-only execution contract")
+            for key in ("required_tools", "input_evidence_ids", "independent_of"):
+                _strings(row[key])
+            if not row["required_tools"] or not row["input_evidence_ids"]:
+                raise ValueError("Execution contract needs tools and inputs")
+        if len({row["task_id"] for row in contracts}) != len(contracts):
+            raise ValueError("Duplicate execution contract")
         return TaskUpdate(tasks, dependencies, requirements, source_ids, sequence,
-                          tuple((_text(pair[0]), _text(pair[1])) for pair in removed))
+                          tuple((_text(pair[0]), _text(pair[1])) for pair in removed), tuple(contracts))

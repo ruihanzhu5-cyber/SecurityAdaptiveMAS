@@ -6,7 +6,7 @@ import hashlib
 import time
 from types import MethodType
 
-from .security import ToolDefinition
+from .security import ToolDefinition, UnsupportedTaskScope
 
 
 class ObservedContext:
@@ -97,9 +97,17 @@ class GuardedARETool:
         evidence_id = (self.context.current_evidence_id
                        if isinstance(self.context, ObservedContext) else self.context)
         started = time.monotonic()
-        result, evidence = self.controller.tools.call(
-            self.controller.spec, "agent_0", self.controller.spec.version,
-            self.name, self.resource, kwargs, evidence_id)
+        try:
+            result, evidence = self.controller.tools.call(
+                self.controller.spec, (self.context.agent_id if isinstance(self.context, ObservedContext) else "agent_0"), self.controller.spec.version,
+                self.name, self.resource, kwargs, evidence_id)
+        except UnsupportedTaskScope as error:
+            team = getattr(self.controller, "framework_team", None)
+            if team is not None:
+                team.terminal_error = error
+                if team.stop_episode is not None:
+                    team.stop_episode(error)
+            raise
         if isinstance(self.context, ObservedContext):
             elapsed = time.monotonic() - started
             action = self.controller.online_observations.record_action(
@@ -111,6 +119,18 @@ class GuardedARETool:
             self.controller.on_observed_event(action)
             self.controller.on_observed_event(output, related_requirements=related_requirements)
             self.context.record_tool_output(evidence.evidence_id)
+            team = getattr(self.controller, "framework_team", None)
+            if team is not None:
+                from .dynamic_team import INJECTION_RULE
+                team.runtime.add_object(evidence.evidence_id, self.context.agent_id)
+                risk = {"subject_id": self.context.agent_id, "object_id": evidence.evidence_id,
+                        "event_sequence": output.sequence, "evidence_ids": [evidence.evidence_id],
+                        "exposure": True, "suspicion": "flagged" if INJECTION_RULE.search(str(result)) else "none",
+                        "observed_violation": False, "detector_version": "existing-regex-1"}
+                team.risk_events.append(risk)
+                self.controller.trace.log("runtime_risk_observation", **risk)
+                if risk["suspicion"] == "flagged":
+                    self.controller.suspect_instances.add(self.context.agent_id)
         return result
 
 
@@ -176,3 +196,104 @@ def make_guarded_agent_builder(controller, context, llm_engine_builder=None,
             return agent
 
     return GuardedAgentBuilder(llm_engine_builder=llm_engine_builder)
+
+
+def make_framework_agent_builder(controller, context, client, mode):
+    """Pinned ARE official lifecycle; observe every timestamp-gated queue pull.
+
+    Both the outer agent loop and its per-step preprocessor consume this queue.
+    Watching only get_notifications would miss mid-turn USER/ENV deliveries.
+    """
+    from .deepseek import DeepSeekEngineBuilder
+    from .dynamic_team import FrameworkTeam
+    from .graph_runtime import GraphRuntime
+    from .security import TaskScopePolicy
+    from .task_proposer import DeepSeekTaskProposer
+    from are.simulation.agents.agent_builder import AgentBuilder
+    from are.simulation.notification_system import MessageType
+
+    class FrameworkBuilder(AgentBuilder):
+        def build(self, agent_config, env=None, mock_responses=None):
+            agent = super().build(agent_config, env, mock_responses)
+            queue = env.notification_system.message_queue
+            original_pull = queue.get_by_timestamp
+            seen = set()
+            retained = []
+
+            def observed_pull(instance, *args, **kwargs):
+                messages = original_pull(*args, **kwargs)
+                for message in messages:
+                    if id(message) in seen:
+                        continue
+                    seen.add(id(message))
+                    retained.append(message)
+                    if message.message_type not in {MessageType.USER_MESSAGE, MessageType.ENVIRONMENT_NOTIFICATION}:
+                        continue
+                    kind = "user" if message.message_type == MessageType.USER_MESSAGE else "environment"
+                    context.record_delivered_notification(kind, message)
+                    key = context.current_evidence_id
+                    controller.framework_team.runtime.add_object(key, "agent_0", status="delivered_notification")
+                    if kind == "user":
+                        controller.tools.authorization.register_user(key)
+                        controller.task_revision += 1
+                return messages
+
+            queue.get_by_timestamp = MethodType(observed_pull, queue)
+            original_init = agent.init_tools
+
+            def framework_init(instance, scenario):
+                original_init(scenario)
+                internal = [tool for tool in instance.tools if getattr(tool, "app_tool", None) is None]
+                originals = {}
+                for tool in instance.tools:
+                    metadata = getattr(tool, "app_tool", None)
+                    if metadata is None:
+                        continue
+                    if metadata.write_operation not in (True, False) or metadata.write_operation is None:
+                        controller.trace.log("unsupported_tool_metadata", tool=tool.name)
+                        continue
+                    originals[tool.name] = tool
+                guarded = [GuardedARETool(tool, controller, context) for tool in originals.values()]
+                coordinator_tools = frozenset(originals)
+                read_tools = frozenset(tool.name for tool in guarded if tool.mode == "read")
+                controller.authorized_tools = coordinator_tools
+                controller.tools.authorized_tools = coordinator_tools
+                controller.tools.authorized_resources = frozenset(tool.resource for tool in guarded)
+                controller.tools.authorization = TaskScopePolicy(controller.provenance, controller.trace)
+                runtime = GraphRuntime(controller, coordinator_tools, read_tools, controller.candidate_generator.max_agents)
+                controller.framework_team = FrameworkTeam(controller, runtime, client, context, originals, mode)
+                def stop_episode(error):
+                    from are.simulation.agents.default_agent.base_agent import RunningState
+                    controller.framework_team.terminal_error = error
+                    instance.react_agent.custom_state["running_state"] = RunningState.FAILED
+                    instance.react_agent.stop()
+                    env.stop()
+                    controller.trace.log("framework_episode_stopped", exception_type=type(error).__name__, reason=str(error))
+                controller.framework_team.stop_episode = stop_episode
+                controller.suspect_instances = set()
+                controller.task_proposer = DeepSeekTaskProposer(client,
+                    lambda key: controller.provenance.items[key].text,
+                    execution_tools=tuple(sorted(read_tools)))
+                instance.tools = internal + guarded
+                instance.react_agent.tools = {tool.name: tool for tool in instance.tools}
+                instance.react_agent.init_system_prompts["system_prompt"] += (
+                    "\nFramework v0.1: workers may supply unverified findings. All application tools use a shared gateway. "
+                    "Writes require an implemented trusted task scope; an unsupported action is a policy limitation, not evidence of an attack. "
+                    "Do not invent authorization or claim completion after a denied operation.")
+
+            agent.init_tools = MethodType(framework_init, agent)
+            original_run = agent.react_agent.run
+
+            def observed_run(instance, *args, **kwargs):
+                result = original_run(*args, **kwargs)
+                from are.simulation.agents.default_agent.base_agent import RunningState
+                if instance.custom_state.get("running_state") == RunningState.TERMINATED:
+                    controller.framework_team.turns += 1
+                return result
+
+            agent.react_agent.run = MethodType(observed_run, agent.react_agent)
+            return agent
+
+    return FrameworkBuilder(llm_engine_builder=DeepSeekEngineBuilder(
+        client, lambda messages: controller.framework_team.before_input(messages),
+        on_error=lambda error: controller.framework_team.stop_episode(error)))
