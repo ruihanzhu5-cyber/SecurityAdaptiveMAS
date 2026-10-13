@@ -22,7 +22,7 @@ def coverage(analysis, graph, objects):
             "unknown": [row for row in rows if row["status"] == "unknown"]}
 
 
-def project_risk(graph, objects, sources, suspects, protected_targets):
+def _reachability(graph, objects, sources, suspects):
     edges = set(graph.extra_edges)
     for agent, object_id in graph.object_access:
         edges.add((object_id, agent))
@@ -46,11 +46,34 @@ def project_risk(graph, objects, sources, suspects, protected_targets):
                     queue.append(target)
         return paths
 
-    exposure_paths = reach(sources)
-    suspect_paths = reach(suspects)
-    return {"risk_model": "current_effective_graph_with_live_objects",
-            "target_status": "configured" if protected_targets else "not_computable_no_targets",
-            "reachable_targets": sorted(set(protected_targets) & exposure_paths.keys()) if protected_targets else None,
-            "suspect_successors": sorted(suspect_paths.keys() - set(suspects)) if suspects else None,
-            "witness_paths": {target: exposure_paths[target] for target in protected_targets if target in exposure_paths},
-            "attack_success": None, "containment_success": None}
+    return reach(sources), reach(suspects)
+
+
+def project_risk(graph, objects, sources, suspects, protected_targets, baseline_graph=None):
+    """Conservative live-object reachability, not ASR.
+
+    When ``baseline_graph`` is supplied (typically the KEEP candidate), the
+    reachable-target sets are compared to report what the candidate newly
+    exposes or no longer exposes relative to the baseline.
+    """
+    exposure_paths, suspect_paths = _reachability(graph, objects, sources, suspects)
+    reachable = set(protected_targets) & exposure_paths.keys() if protected_targets else set()
+    witness_paths = {target: exposure_paths[target] for target in reachable}
+    result = {"risk_model": "current_effective_graph_with_live_objects",
+              "target_status": "configured" if protected_targets else "not_computable_no_targets",
+              "reachable_targets": sorted(reachable) if protected_targets else None,
+              "root_sources": sorted(sources),
+              "suspect_successors": sorted(suspect_paths.keys() - set(suspects)) if suspects else None,
+              "witness_paths": witness_paths,
+              "risk_status": ("at_risk" if reachable else "no_risk") if protected_targets
+                             else "not_computable_no_targets",
+              "attack_success": None, "containment_success": None}
+    if baseline_graph is not None and protected_targets:
+        baseline_paths, _ = _reachability(baseline_graph, objects, sources, suspects)
+        baseline_reachable = set(protected_targets) & baseline_paths.keys()
+        newly = reachable - baseline_reachable
+        no_longer = baseline_reachable - reachable
+        result["newly_reachable_targets"] = sorted(newly)
+        result["no_longer_reachable_targets"] = sorted(no_longer)
+        result["delta_witness_paths"] = {target: witness_paths[target] for target in newly}
+    return result

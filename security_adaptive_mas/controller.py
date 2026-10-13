@@ -64,6 +64,8 @@ class Controller:
         self.quarantined: set[str] = set()
         self.messages.blocked_agents = self.quarantined
         self.tools.blocked_agents = self.quarantined
+        self.risk_aware_enabled = False
+        self.protected_targets: tuple[str, ...] = ()
 
     def quarantine(self, agent_id: str, mode: str = "full") -> None:
         if mode == "full":
@@ -249,16 +251,21 @@ class Controller:
         return decision
 
     def select_runtime_patch(self, runtime, candidates, *, protected_targets=()):
-        """Executable v0.1 path; legacy online_candidates remains a planning API."""
+        """Executable path. risk-aware=on compares each candidate's new
+        propagation to protected targets against the KEEP baseline."""
         from .graph_evaluation import coverage, project_risk
-        assessments = []
+        targets = tuple(protected_targets) or tuple(self.protected_targets)
         analysis = self._current_task_analysis(self.online_snapshot())
         sources = {key for key, obj in runtime.objects.items() if obj["low_trust"]}
         suspects = set(getattr(self, "suspect_instances", ()))
+        keep = next((patch for patch in candidates if patch.patch_id == "keep"), None)
+        baseline_graph = runtime.preview(keep) if keep is not None else None
+        assessments = []
         for patch in candidates:
             graph = runtime.preview(patch)
             inputs = coverage(analysis, graph, runtime.objects)
-            risk = project_risk(graph, runtime.objects, sources, suspects, protected_targets)
+            risk = project_risk(graph, runtime.objects, sources, suspects, targets,
+                                baseline_graph=baseline_graph)
             assessments.append({"candidate_id": patch.patch_id, "task_coverage": inputs,
                 "risk": risk, "valid": not inputs["known_missing"],
                 "estimated_savings": None, "cost_status": "unknown",
@@ -267,13 +274,46 @@ class Controller:
         if not viable:
             self.trace.log("runtime_decision_blocked", reason="no_task_covering_candidate", candidates=assessments)
             raise RuntimeError("no_task_covering_candidate")
-        # No learned gain estimate: one bounded exploratory delegation per pair
-        # of explicit read-only independent task contracts, within runtime caps.
+        risk_computable = bool(targets)
+        # No learned gain estimate: one bounded exploratory delegation per
+        # pair of explicit read-only independent task contracts, within caps.
         worker = next(((patch, row) for patch, row in viable if row["planned_worker_requests"]), None)
-        selected = worker or next(((patch, row) for patch, row in viable if patch.reason == "retire_output_available"), None) or viable[0]
-        patch, _ = selected
+        fallback = worker or next(((patch, row) for patch, row in viable if patch.reason == "retire_output_available"), None) or viable[0]
+        if self.risk_aware_enabled and risk_computable:
+            newly = {patch.patch_id: len(row["risk"].get("newly_reachable_targets", ()))
+                     for patch, row in zip(candidates, assessments)}
+            viable_newly = [newly[patch.patch_id] for patch, _ in viable]
+            if viable_newly and min(viable_newly) < max(viable_newly):
+                # A real risk difference exists: prefer the candidate that newly
+                # exposes the fewest protected targets; tie-break by KEEP / fewest ops.
+                floor = min(viable_newly)
+                safest = [(patch, row) for patch, row in viable if newly[patch.patch_id] == floor]
+                selected = min(safest, key=lambda item: (0 if item[0].patch_id == "keep" else len(item[0].operations)))
+                patch, row = selected
+                basis = "risk_aware_min_new_reachability"
+                trigger_reason = "risk_aware_with_protected_targets"
+            else:
+                patch, row = fallback
+                basis = "bounded_exploration" if worker else "structural_rule"
+                trigger_reason = "risk_aware_no_differentiating_delta"
+        else:
+            patch, row = fallback
+            basis = "bounded_exploration" if worker else "structural_rule"
+            trigger_reason = "risk_not_computable_no_protected_targets" if not risk_computable else "risk_aware_disabled"
+        rejected = {item[0].patch_id: item[1].get("valid") is False and "task_coverage_missing" or "higher_new_risk"
+                    for item in zip(candidates, assessments) if item[0].patch_id != patch.patch_id}
+        graph_version_before = runtime.graph.version
+        risk_status = row["risk"].get("risk_status")
+        reachability_delta = {"newly_reachable": row["risk"].get("newly_reachable_targets", []),
+                              "no_longer_reachable": row["risk"].get("no_longer_reachable_targets", [])}
         self.trace.log("controller_runtime_decision", candidate_id=patch.patch_id,
-                       decision_basis="bounded_exploration" if worker else "structural_rule",
+                       decision_basis=basis, trigger_reason=trigger_reason,
+                       risk_aware_enabled=self.risk_aware_enabled,
+                       risk_status=risk_status, reachability_delta=reachability_delta,
+                       candidate_decision=patch.patch_id, rejected_reason=rejected,
+                       selected_operations=patch.operations, task_coverage=row["task_coverage"],
+                       graph_version_before=graph_version_before,
+                       model_usage_by_purpose=getattr(self.run_budget, "requests_by_purpose", None),
                        candidates=assessments, operations=patch.operations,
                        evidence_ids=patch.evidence_ids, observation_sequence=patch.base_observation_sequence)
         runtime.apply(patch)

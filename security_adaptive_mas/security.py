@@ -296,6 +296,48 @@ class TaskScopePolicy:
         return False
 
 
+class SandboxPermissivePolicy:
+    """Opt-in v0.2 policy for the isolated ARE sandbox (isolation PARTIALLY verified).
+
+    Unlike TaskScopePolicy, it does not re-approve each email recipient,
+    calendar time, or deleted object field-by-field. It requires a delivered
+    trusted USER and confines writes to the Coordinator (agent_0) within the
+    pinned ARE sandbox, whose in-memory state apps are isolated, but whose
+    host-touching surfaces are NOT fully verified: ``Files._validate_path``
+    matches by string prefix and email/messaging attachment paths can reach
+    the host filesystem. Those surfaces are BLOCKED and must not be opened by
+    this policy. Concrete task parameters are left to the executing agent;
+    deviations from the legitimate goal are handled by independent offline
+    evaluation.
+    """
+    allow_data_dependencies = True
+    version = "v0.2-sandbox-permissive-1"
+
+    def __init__(self, provenance, trace):
+        self.provenance, self.trace = provenance, trace
+        self.user_ids = []
+
+    def register_user(self, evidence_id):
+        evidence = self.provenance.items[evidence_id]
+        if evidence.trust != "trusted_task" or evidence.owner_agent is not None:
+            raise ValueError("scope_requires_delivered_user")
+        self.user_ids.append(evidence_id)
+        self.trace.log("trusted_scope_registered", evidence_id=evidence_id,
+                       scope_count=len(self.user_ids), policy_version=self.version)
+
+    def permits(self, agent_id, version, tool_name, operation, resource, arguments, evidence_id):
+        if agent_id != "agent_0" or not self.user_ids:
+            return False
+        # A reply to the trusted user is a fixed system capability, never an
+        # authorization to email/message arbitrary external recipients.
+        if tool_name == "AgentUserInterface__send_message_to_user":
+            return set(arguments) <= {"content"} and isinstance(arguments.get("content", ""), str)
+        # Tool name, resource, and instance bounds are already enforced by the
+        # ToolGateway before this policy is consulted. The remaining writes are
+        # normal Coordinator operations in the verified isolated sandbox.
+        return True
+
+
 class ToolGateway:
     def __init__(self, provenance: ProvenanceStore, trace,
                  authorized_tools: frozenset[str], authorized_resources: frozenset[str],

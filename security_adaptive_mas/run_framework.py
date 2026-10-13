@@ -16,11 +16,12 @@ from uuid import uuid4
 
 from .are_adapter import import_official_scenario, official_runner
 from .are_bridge import ObservedContext, make_framework_agent_builder
+from .attack import evaluate_attack, load_attack_spec
 from .config import ROOT, load_config
 from .controller import Controller
 from .deepseek import (API_BASE, MODEL, PROVIDER, DeepSeekClient, DeepSeekSettings,
                        RunBudget, PEAK_INPUT_USD_PER_TOKEN, PEAK_OUTPUT_USD_PER_TOKEN)
-from .security import TaskScopePolicy, UnsupportedTaskScope
+from .security import SandboxPermissivePolicy, TaskScopePolicy, UnsupportedTaskScope
 from .trace import TraceLogger
 
 
@@ -49,10 +50,13 @@ def ledger_charge(path):
     return sum(row["cost_estimate_usd"] + row["unknown_cost_bound"] for row in latest.values())
 
 
-def run_case(args, config, scenario_id, batch_dir, frozen):
+def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
     if code_state() != frozen:
         raise RuntimeError("Code changed after batch freeze; do not mix revisions")
     record = config.select(scenario_id)
+    applies = attack_spec is not None and attack_spec.target_case == scenario_id
+    policy_version = (SandboxPermissivePolicy.version if args.task_scope_policy == "sandbox_permissive"
+                      else TaskScopePolicy.version)
     run_id = uuid4().hex[:12]
     out = batch_dir / scenario_id / run_id
     out.mkdir(parents=True, exist_ok=False)
@@ -63,13 +67,17 @@ def run_case(args, config, scenario_id, batch_dir, frozen):
     controller = Controller(config, trace, frozenset(), frozenset(),
                             monitor_enabled=True, task_llm_enabled=True, max_analysis_requests=3)
     controller.run_budget = budget
+    controller.risk_aware_enabled = args.risk_aware == "on"
+    if applies:
+        controller.protected_targets = attack_spec.protected_targets
     initial = controller.provenance.add("startup", "low_trust", "Waiting for actual delivered USER/ENV notifications")
     context = ObservedContext(controller, initial.evidence_id)
     source_versions = json.loads((ROOT / "configs/source_versions.json").read_text(encoding="utf-8"))
     run_config = {"scenario_id": scenario_id, "run_id": run_id, "split": "development",
-        "mode": args.mode, "attack_mode": "none", **frozen,
+        "mode": args.mode, "attack_mode": args.attack, "risk_aware": args.risk_aware,
+        "task_scope_policy": args.task_scope_policy, **frozen,
         "source_versions": source_versions, "scenario_hash": record.sha256,
-        "policy_version": TaskScopePolicy.version, "model_id": MODEL, "provider": PROVIDER,
+        "policy_version": policy_version, "model_id": MODEL, "provider": PROVIDER,
         "api_base": API_BASE, "settings": asdict(settings), "execution_mode": "sequential",
         "max_turns": args.max_turns, "max_requests": args.max_requests,
         "max_total_tokens": args.max_total_tokens, "max_cost_usd": args.max_cost_usd,
@@ -91,7 +99,8 @@ def run_case(args, config, scenario_id, batch_dir, frozen):
     with runner_log.open("a", encoding="utf-8") as stream, redirect_stdout(stream), redirect_stderr(stream):
         try:
             scenario = import_official_scenario(record, config.are_root)
-            builder = make_framework_agent_builder(controller, context, client, args.mode)
+            builder = make_framework_agent_builder(controller, context, client, args.mode,
+                task_scope_policy=args.task_scope_policy, attack_spec=attack_spec if applies else None)
             from are.simulation.scenarios.config import ScenarioRunnerConfig
             runner_config = ScenarioRunnerConfig(agent="default", model=MODEL, model_provider=PROVIDER,
                 endpoint=API_BASE, oracle=False, export=True, max_turns=args.max_turns,
@@ -138,7 +147,9 @@ def run_case(args, config, scenario_id, batch_dir, frozen):
         "patches_applied": runtime.applied if runtime else 0,
         "effective_reconfigurations": len({event["graph_version"] for event in events if event["kind"] == "worker_started"}),
         "dynamic_execution_observed": any(key.startswith("worker:") for key in budget.requests_by_purpose),
-        "modules_not_exercised": ["attack_injection", "attack_scoring", "temporal_projection", "reuse_worker"] + ([] if team and team.worker_steps else ["worker_execution", "retirement"]),
+        "modules_not_exercised": ["temporal_projection", "reuse_worker"]
+            + ([] if applies else ["attack_injection", "attack_scoring"])
+            + ([] if team and team.worker_steps else ["worker_execution", "retirement"]),
         "model_requests_total": budget.requests, "requests_by_purpose": budget.requests_by_purpose,
         "input_tokens_total": budget.input_tokens, "output_tokens_total": budget.output_tokens,
         "cost_estimate_usd": budget.peak_cost_estimate_usd, "unknown_cost_bound": budget.unknown_cost_bound,
@@ -150,6 +161,9 @@ def run_case(args, config, scenario_id, batch_dir, frozen):
         "trace_paths": {"framework": str(trace.path), "official": str(result.export_path) if result is not None else None, "runner": str(runner_log)},
         "official_trace_hashes": {path.relative_to(out).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
                                   for path in (out / "official_trace").rglob('*') if path.is_file()}}
+    if applies:
+        summary["attack_scoring"] = evaluate_attack(events, spec=attack_spec,
+            official_success=official_success, stop_reason=summary["stop_reason"])
     save(out / "summary.json", summary)
     return summary
 
@@ -160,7 +174,9 @@ def main():
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument("--suite", choices=("five",))
     selection.add_argument("--scenario")
-    parser.add_argument("--attack", choices=("none",), default="none")
+    parser.add_argument("--attack", choices=("none", "single_injection"), default="none")
+    parser.add_argument("--task-scope-policy", choices=("strict", "sandbox_permissive"), default="strict")
+    parser.add_argument("--risk-aware", choices=("off", "on"), default="off")
     parser.add_argument("--max-turns", type=int, default=20)
     parser.add_argument("--max-requests", type=int, default=100)
     parser.add_argument("--max-total-tokens", type=int, default=800000)
@@ -177,9 +193,14 @@ def main():
     ids = config.scenario_ids if args.suite else (args.scenario,)
     for scenario_id in ids:
         config.select(scenario_id)
+    attack_spec = None
+    if args.attack == "single_injection":
+        attack_spec = load_attack_spec(ROOT / "configs" / "attack_single_injection.json")
     frozen = code_state()
     if args.dry_run:
-        print(json.dumps({"dry_run": True, "case_ids": ids, "key_present": bool(os.environ.get("DEEPSEEK_API_KEY")), **frozen}, indent=2))
+        print(json.dumps({"dry_run": True, "case_ids": ids, "attack": args.attack,
+                          "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware,
+                          "key_present": bool(os.environ.get("DEEPSEEK_API_KEY")), **frozen}, indent=2))
         return
     if not args.acknowledge_model_cost or not os.environ.get("DEEPSEEK_API_KEY"):
         parser.error("Real runs require acknowledgment and DEEPSEEK_API_KEY in process environment")
@@ -196,10 +217,13 @@ def main():
         summaries = json.loads((batch_dir / "batch_results.json").read_text(encoding="utf-8"))
         for row in summaries:
             if (row["mode"] != args.mode or row["attack_mode"] != args.attack or
+                row.get("task_scope_policy", "strict") != args.task_scope_policy or
+                row.get("risk_aware", "off") != args.risk_aware or
                 row["max_turns"] != args.max_turns or row["max_requests"] != args.max_requests or
                 row["max_total_tokens"] != args.max_total_tokens or row["max_cost_usd"] != args.max_cost_usd):
                 raise RuntimeError("Resume requires identical policy and experiment settings")
-    save(batch_dir / "batch_config.json", {"case_ids": ids, "code": frozen, "batch_cap_usd": 5, "attack": "none"})
+    save(batch_dir / "batch_config.json", {"case_ids": ids, "code": frozen, "batch_cap_usd": 5,
+        "attack": args.attack, "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware})
     # A copy of each source fixes uncommitted and newly-added implementation too.
     for relative in frozen["source_file_hashes"]:
         dest = batch_dir / "code_snapshot" / relative
@@ -220,7 +244,7 @@ def main():
                 "cost_estimate_usd": args.max_cost_usd, "unknown_cost_bound": 0}) + '\n')
             stream.flush()
             os.fsync(stream.fileno())
-        summary = run_case(args, config, scenario_id, batch_dir, frozen)
+        summary = run_case(args, config, scenario_id, batch_dir, frozen, attack_spec)
         with ledger.open('a', encoding='utf-8') as stream:
             stream.write(json.dumps({"ledger_id": ledger_id, "status": "settled", "batch_id": batch_id, "run_id": summary["run_id"], "scenario_id": scenario_id,
                 "cost_estimate_usd": summary["cost_estimate_usd"], "unknown_cost_bound": summary["unknown_cost_bound"]}) + '\n')

@@ -19,6 +19,7 @@ class ObservedContext:
         self.current_evidence_id = initial_evidence_id
         self.last_messages = []
         self._next_tool_requirements = ()
+        self.attack_overlay = None
 
     def bind_next_tool_requirements(self, keys: tuple[tuple[str, str], ...]) -> None:
         """Trusted serial scheduler only; never exposed as an ARE/LLM tool."""
@@ -40,13 +41,23 @@ class ObservedContext:
         # Called only after ARE's timestamp-gated get_notifications returns.
         # Never inspect the Scenario or the notification queue's future items.
         text = message.message
+        timestamp = getattr(message, "timestamp", None)
+        simulation_time = timestamp.timestamp() if timestamp is not None else None
+        injection = None
+        overlay = getattr(self, "attack_overlay", None)
+        if kind == "environment" and overlay is not None:
+            text, injection = overlay.apply(
+                text, kind=kind, source="are:environment_notification",
+                simulation_time=simulation_time)
         evidence = self.controller.provenance.add(
             f"are:{kind}_notification", "trusted_task" if kind == "user" else "low_trust", text)
-        timestamp = getattr(message, "timestamp", None)
+        if injection is not None:
+            self.controller.trace.log("attack_injected_delivered",
+                                      evidence_id=evidence.evidence_id,
+                                      attack_id=injection["attack_id"])
         event = self.controller.online_observations.record_notification(
             kind, text, evidence.evidence_id, agent_instance_id=self.agent_id,
-            status="observed",
-            simulation_time=timestamp.timestamp() if timestamp is not None else None)
+            status="observed", simulation_time=simulation_time)
         self.controller.on_observed_event(event)
         self.visible_ids.append(evidence.evidence_id)
         self.current_evidence_id = evidence.evidence_id
@@ -198,7 +209,8 @@ def make_guarded_agent_builder(controller, context, llm_engine_builder=None,
     return GuardedAgentBuilder(llm_engine_builder=llm_engine_builder)
 
 
-def make_framework_agent_builder(controller, context, client, mode):
+def make_framework_agent_builder(controller, context, client, mode, *,
+                                 task_scope_policy="strict", attack_spec=None):
     """Pinned ARE official lifecycle; observe every timestamp-gated queue pull.
 
     Both the outer agent loop and its per-step preprocessor consume this queue.
@@ -207,7 +219,7 @@ def make_framework_agent_builder(controller, context, client, mode):
     from .deepseek import DeepSeekEngineBuilder
     from .dynamic_team import FrameworkTeam
     from .graph_runtime import GraphRuntime
-    from .security import TaskScopePolicy
+    from .security import SandboxPermissivePolicy, TaskScopePolicy
     from .task_proposer import DeepSeekTaskProposer
     from are.simulation.agents.agent_builder import AgentBuilder
     from are.simulation.notification_system import MessageType
@@ -259,7 +271,13 @@ def make_framework_agent_builder(controller, context, client, mode):
                 controller.authorized_tools = coordinator_tools
                 controller.tools.authorized_tools = coordinator_tools
                 controller.tools.authorized_resources = frozenset(tool.resource for tool in guarded)
-                controller.tools.authorization = TaskScopePolicy(controller.provenance, controller.trace)
+                policy_cls = (SandboxPermissivePolicy if task_scope_policy == "sandbox_permissive"
+                              else TaskScopePolicy)
+                controller.tools.authorization = policy_cls(controller.provenance, controller.trace)
+                if attack_spec is not None:
+                    from .attack import AttackOverlay
+                    context.attack_overlay = AttackOverlay(
+                        attack_spec, controller.trace, scenario_id=scenario.scenario_id)
                 runtime = GraphRuntime(controller, coordinator_tools, read_tools, controller.candidate_generator.max_agents)
                 controller.framework_team = FrameworkTeam(controller, runtime, client, context, originals, mode)
                 def stop_episode(error):
