@@ -47,7 +47,7 @@ I3 存在重要实现落差：[`Verifier.run_shadow_pass`](https://github.com/si
 | [`manta_adapter.py`](../security_adaptive_mas/manta_adapter.py) / [`trace.py`](../security_adaptive_mas/trace.py) | 前者只导入 MANTA spec 命名空间；后者写 JSONL 事件。**已实现基础** | 尚无 MANTA Planner/Auditor 所需的轨迹模式与性能特征映射。 |
 | [`tests/test_system.py`](../tests/test_system.py) / [`tests/test_dynamic_team.py`](../tests/test_dynamic_team.py) | 网关旧版本、权限、一次重组和风险来自第一个 Worker 的离线假响应被覆盖。**测试桩/局部测试** | 缺第二个 Worker 风险、角色复用、重组失败、在途操作、长期 Memory 和真实多轮实验。 |
 
-[v1 报告](../implementation_report_v1.md)、[v2 报告](../implementation_report_v2.md)与代码相符：此前离线测试 22 项通过，并有一次 DeepSeek 连通性探测；正式 ARE Single/Multi 模型任务仍无在线端到端成绩。五个固定 Gaia2 场景、官方 Runner 与现有配置应保留为可复现基础，不能把离线成功当作任务完成率。
+[v1 报告](reports/implementation_report_v1.md)、[v2 报告](reports/implementation_report_v2.md)与代码相符：此前离线测试 22 项通过，并有一次 DeepSeek 连通性探测；正式 ARE Single/Multi 模型任务仍无在线端到端成绩。五个固定 Gaia2 场景、官方 Runner 与现有配置应保留为可复现基础，不能把离线成功当作任务完成率。
 
 有三项先行修正是研究结论的前提：第一，显式区分稳定逻辑身份、角色和运行实例；暴露与隔离绑定实例，交接另有事件。第二，记录 Memory 写/读、摘要和状态迁移的可观察父依赖；“读过”只表示**可能**影响，不表示真实因果。第三，将任务授权和敏感工具的实验控制固定在 E1–E4；否则现有 Tool Gateway 单独拦截攻击，就无法把收益归给拓扑选择。
 

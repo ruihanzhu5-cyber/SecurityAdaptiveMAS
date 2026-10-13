@@ -20,7 +20,7 @@
   <img alt="研究原型" src="https://img.shields.io/badge/%E7%8A%B6%E6%80%81-%E7%A0%94%E7%A9%B6%E5%8E%9F%E5%9E%8B-D97706?style=flat-square" />
 </p>
 
-> **状态：研究原型。** 当前代码实现了三种基础组织结构、固定规则的选择器、有限的消息与工具检查，以及只读 ARE 入口。22 项离线测试与一次 DeepSeek 连通性请求曾通过；尚无在线 Gaia2 任务得分、在线多智能体结果或本页提出的联合优化实验。[实现报告](../implementation_report_v2.md)记录了已验证的范围。
+> **状态：研究原型。** 当前代码实现了三种基础组织结构、固定规则的选择器、有限的消息与工具检查，以及只读 ARE 入口。22 项离线测试与一次 DeepSeek 连通性请求曾通过；尚无在线 Gaia2 任务得分、在线多智能体结果或本页提出的联合优化实验。[实现报告](reports/implementation_report_v2.md)记录了已验证的范围。
 
 ## 研究定位
 
@@ -180,7 +180,7 @@ flowchart LR
 
 ## 快速开始
 
-需要 Windows PowerShell、Git、Python 3.12、`uv`、网络，以及下载上游源码和 Gaia2 数据的空间。完整的全新目录下载路径已有脚本，**尚未从空目录端到端验证**；现有 D 盘工作区通过了 `-SkipDownloads` 检查。详见[实现报告](../implementation_report_v2.md)。
+需要 Windows PowerShell、Git、Python 3.12、`uv`、网络，以及下载上游源码和 Gaia2 数据的空间。完整的全新目录下载路径已有脚本，**尚未从空目录端到端验证**；现有 D 盘工作区通过了 `-SkipDownloads` 检查。详见[实现报告](reports/implementation_report_v2.md)。
 
 ### 免费：安装并检查离线原型
 
@@ -216,6 +216,6 @@ $env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $key).Password
 .\.venv\Scripts\python.exe -m security_adaptive_mas.are_multi --scenario scenario_universe_22_0421h2 --allow-read-app Files --max-requests 12 --max-total-tokens 100000 --max-cost-usd 0.20 --acknowledge-model-cost
 ```
 
-两个入口都使用官方 ARE Runner 并导出轨迹，**目前都没有在线任务结果**。写工具仍关闭，需要修改应用状态的任务可能无法完成。本地费用估算不是服务商的账单保证。更多运行细节见[实现报告](../implementation_report_v2.md)。
+两个入口都使用官方 ARE Runner 并导出轨迹，**目前都没有在线任务结果**。写工具仍关闭，需要修改应用状态的任务可能无法完成。本地费用估算不是服务商的账单保证。更多运行细节见[实现报告](reports/implementation_report_v2.md)。
 
-继续阅读：[实现报告](../implementation_report_v2.md) · [五个固定场景](../configs/gaia2_v1_five.yaml) · [离线测试](../tests/)
+继续阅读：[实现报告](reports/implementation_report_v2.md) · [五个固定场景](../configs/gaia2_v1_five.yaml) · [离线测试](../tests/)
