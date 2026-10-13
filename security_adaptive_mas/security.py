@@ -305,17 +305,42 @@ class SandboxPermissivePolicy:
     pinned ARE sandbox, whose in-memory state apps are isolated, but whose
     host-touching surfaces are NOT fully verified: ``Files._validate_path``
     matches by string prefix and email/messaging attachment paths can reach
-    the host filesystem. Those surfaces are BLOCKED and must not be opened by
-    this policy. Concrete task parameters are left to the executing agent;
+    the host filesystem. Only the explicitly selected tools supplied by the
+    framework builder can be used. Concrete task parameters are left to the executing agent;
     deviations from the legitimate goal are handled by independent offline
     evaluation.
     """
     allow_data_dependencies = True
     version = "v0.2-sandbox-permissive-1"
+    # Exact pinned ARE application methods inspected for in-memory writes.
+    # Files and attachment transfer methods are absent while their host
+    # filesystem behavior remains unverified.
+    write_tools = frozenset({
+        "AgentUserInterface__send_message_to_user",
+        "Emails__delete_email", "Emails__send_email", "Emails__reply_to_email",
+        "Calendar__add_calendar_event", "Calendar__delete_calendar_event",
+        "Messages__send_message", "Messages__send_message_to_group_conversation",
+        "Chats__send_message", "Chats__send_message_to_group_conversation",
+        "Shopping__add_to_cart", "Shopping__checkout",
+    })
+    app_types = {
+        "AgentUserInterface": "AgentUserInterface", "Emails": "EmailClientV2",
+        "Calendar": "Calendar", "Contacts": "Contacts",
+        "InternalContacts": "InternalContacts", "Messages": "MessagingAppV2",
+        "Chats": "MessagingAppV2", "Shopping": "Shopping",
+    }
 
-    def __init__(self, provenance, trace):
+    @classmethod
+    def selected_tools(cls, originals):
+        return {name: tool for name, tool in originals.items()
+                if (tool.app_tool.app_name in cls.app_types and
+                    type(tool.app_tool.class_instance).__name__ == cls.app_types[tool.app_tool.app_name] and
+                    (tool.app_tool.write_operation is False or name in cls.write_tools))}
+
+    def __init__(self, provenance, trace, allowed_write_tools=frozenset()):
         self.provenance, self.trace = provenance, trace
         self.user_ids = []
+        self.allowed_write_tools = frozenset(allowed_write_tools)
 
     def register_user(self, evidence_id):
         evidence = self.provenance.items[evidence_id]
@@ -332,9 +357,13 @@ class SandboxPermissivePolicy:
         # authorization to email/message arbitrary external recipients.
         if tool_name == "AgentUserInterface__send_message_to_user":
             return set(arguments) <= {"content"} and isinstance(arguments.get("content", ""), str)
-        # Tool name, resource, and instance bounds are already enforced by the
-        # ToolGateway before this policy is consulted. The remaining writes are
-        # normal Coordinator operations in the verified isolated sandbox.
+        if tool_name not in self.allowed_write_tools:
+            return False
+        if tool_name in {"Emails__send_email", "Emails__reply_to_email"}:
+            return not arguments.get("attachment_paths")
+        if tool_name in {"Messages__send_message", "Messages__send_message_to_group_conversation",
+                         "Chats__send_message", "Chats__send_message_to_group_conversation"}:
+            return arguments.get("attachment_path") is None
         return True
 
 
@@ -374,7 +403,8 @@ class ToolGateway:
         self.tools[definition.name] = definition
 
     def call(self, spec, agent_id: str, version: int, tool_name: str,
-             resource: str, arguments: dict[str, Any], evidence_id: str):
+             resource: str, arguments: dict[str, Any], evidence_id: str,
+             result_transform=None):
         reason = None
         try:
             if spec is not self.current_spec:
@@ -410,7 +440,7 @@ class ToolGateway:
         if reason:
             self.trace.log("tool_denied", agent_id=agent_id, tool=tool_name,
                            resource=resource, version=version, reason=reason,
-                           evidence_id=evidence_id)
+                           evidence_id=evidence_id, arguments=arguments)
             if reason == "low_trust_sensitive_write":
                 self.trace.log("risk_event", type="untrusted_input_to_write",
                                agent_id=agent_id, evidence_id=evidence_id,
@@ -426,7 +456,7 @@ class ToolGateway:
             with self.lock:
                 if fingerprint in self.completed_writes or fingerprint in self.pending_writes:
                     self.trace.log("tool_denied", agent_id=agent_id, tool=tool_name,
-                                   resource=resource, reason="duplicate_write")
+                                   resource=resource, reason="duplicate_write", arguments=arguments)
                     raise PermissionError("duplicate_write")
                 self._journal(fingerprint, "started")
                 self.pending_writes.add(fingerprint)
@@ -435,6 +465,8 @@ class ToolGateway:
                        evidence_id=evidence_id, fingerprint=fingerprint)
         try:
             result = definition.function(**arguments)
+            if result_transform is not None:
+                result = result_transform(result, tool_name=tool_name, agent_id=agent_id)
         except Exception as error:
             # A failed remote call may have committed. Preserve fingerprint and
             # require reconciliation instead of retrying an ambiguous write.

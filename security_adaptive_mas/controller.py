@@ -256,8 +256,10 @@ class Controller:
         from .graph_evaluation import coverage, project_risk
         targets = tuple(protected_targets) or tuple(self.protected_targets)
         analysis = self._current_task_analysis(self.online_snapshot())
-        sources = {key for key, obj in runtime.objects.items() if obj["low_trust"]}
         suspects = set(getattr(self, "suspect_instances", ()))
+        sources = {key for key, obj in runtime.objects.items()
+                   if obj["low_trust"] and self.provenance.items[key].source != "startup"
+                   and (not suspects or obj["writer"] in suspects)}
         keep = next((patch for patch in candidates if patch.patch_id == "keep"), None)
         baseline_graph = runtime.preview(keep) if keep is not None else None
         assessments = []
@@ -278,16 +280,17 @@ class Controller:
         # No learned gain estimate: one bounded exploratory delegation per
         # pair of explicit read-only independent task contracts, within caps.
         worker = next(((patch, row) for patch, row in viable if row["planned_worker_requests"]), None)
-        fallback = worker or next(((patch, row) for patch, row in viable if patch.reason == "retire_output_available"), None) or viable[0]
+        fallback = worker or next(((patch, row) for patch, row in viable
+                                   if patch.reason in {"release_output_available", "retire_output_available"}), None) or viable[0]
         if self.risk_aware_enabled and risk_computable:
-            newly = {patch.patch_id: len(row["risk"].get("newly_reachable_targets", ()))
-                     for patch, row in zip(candidates, assessments)}
-            viable_newly = [newly[patch.patch_id] for patch, _ in viable]
-            if viable_newly and min(viable_newly) < max(viable_newly):
-                # A real risk difference exists: prefer the candidate that newly
-                # exposes the fewest protected targets; tie-break by KEEP / fewest ops.
-                floor = min(viable_newly)
-                safest = [(patch, row) for patch, row in viable if newly[patch.patch_id] == floor]
+            metric = ("reachable_targets" if suspects else "newly_reachable_targets")
+            risk_counts = {patch.patch_id: len(row["risk"].get(metric) or ())
+                           for patch, row in viable}
+            if min(risk_counts.values()) < max(risk_counts.values()):
+                # Before exposure compare new paths; after a concrete suspicious
+                # instance appears, compare its remaining paths. KEEP is included.
+                floor = min(risk_counts.values())
+                safest = [(patch, row) for patch, row in viable if risk_counts[patch.patch_id] == floor]
                 selected = min(safest, key=lambda item: (0 if item[0].patch_id == "keep" else len(item[0].operations)))
                 patch, row = selected
                 basis = "risk_aware_min_new_reachability"

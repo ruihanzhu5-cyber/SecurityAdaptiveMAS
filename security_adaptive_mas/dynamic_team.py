@@ -220,7 +220,7 @@ class FrameworkTeam:
             raise self.terminal_error
         if self.controller.pending_analysis and self.controller.online_snapshot().task_description:
             self.controller.process_pending_analysis()
-        if self.mode == "adaptive" and self.runtime.applied + 2 <= self.reconfiguration_limit:
+        if self.mode == "adaptive" and self.runtime.applied + 3 <= self.reconfiguration_limit:
             self.dispatch_ready_pair()
         if self.delivered_outputs:
             packets = [{"object_id": object_id,
@@ -296,18 +296,39 @@ class FrameworkTeam:
             worker_ids.append(worker_id)
             output_ids.append(self.run_worker(worker_id, task, contract))
             self.handled.add((task.task_id, task.description))
-        # Explicitly grant output access before retiring its producer. Objects
-        # survive retirement with their original provenance and risk labels.
-        finish = [{"op": "SET_OBJECT_ACCESS", "agent_id": "agent_0", "object_id": key, "allowed": True} for key in output_ids]
-        finish += [{"op": "RETIRE_WORKER", "agent_id": key} for key in worker_ids]
-        controller.select_runtime_patch(self.runtime, [self.patch("keep", [{"op": "KEEP"}], reason="keep_workers"),
-            self.patch(f"collect_{self.dispatches}", finish, reason="retire_output_available")])
-        self.delivered_outputs.extend(output_ids)
+        # Preview release before any Worker result crosses to Coordinator.
+        release = [{"op": "SET_OBJECT_ACCESS", "agent_id": "agent_0", "object_id": key,
+                    "allowed": True} for key in output_ids]
+        candidates = [self.patch("keep", [{"op": "KEEP"}], reason="keep_workers"),
+                      self.patch(f"release_{self.dispatches}", release,
+                                 reason="release_output_available")]
+        if controller.risk_aware_enabled and set(worker_ids) & controller.suspect_instances:
+            candidates.append(self.patch(f"contain_{self.dispatches}",
+                [{"op": "REMOVE_ROUTE", "source": key, "target": "agent_0"} for key in worker_ids] +
+                [{"op": "RETIRE_WORKER", "agent_id": key} for key in worker_ids],
+                reason="suspicious_worker_output_withheld"))
+        selected = controller.select_runtime_patch(self.runtime, candidates)
+        if selected.patch_id.startswith("release_"):
+            for worker_id, object_id in zip(worker_ids, output_ids):
+                evidence = controller.provenance.items[object_id]
+                message = Message(worker_id, "agent_0", self.runtime.graph.version,
+                                  object_id, evidence.text)
+                controller.messages.send(self.runtime.graph, message)
+                if message not in controller.messages.deliver(self.runtime.graph):
+                    raise PermissionError("worker_output_not_delivered")
+                self.delivered_outputs.append(object_id)
+            controller.select_runtime_patch(self.runtime, [self.patch(f"retire_{self.dispatches}",
+                [{"op": "RETIRE_WORKER", "agent_id": key} for key in worker_ids],
+                reason="retire_output_available")])
+        else:
+            controller.trace.log("worker_output_withheld", patch_id=selected.patch_id,
+                object_ids=output_ids, task_status="unverified_blocked_delivery")
 
     def run_worker(self, worker_id, task, contract):
         from .are_bridge import GuardedARETool
         controller = self.controller
         context = ObservedContext(controller, task.evidence_ids[0], worker_id)
+        context.attack_overlay = self.context.attack_overlay
         context.visible_ids = list(contract["input_evidence_ids"])
         delivered = [self.runtime.read_object(worker_id, key) for key in context.visible_ids]
         task_evidence = controller.provenance.add("runtime:dispatch", "derived", task.description,
@@ -364,10 +385,6 @@ class FrameworkTeam:
         event = controller.online_observations.record_tool_result("runtime:worker_output", evidence.evidence_id,
             agent_instance_id=worker_id, status=status)
         controller.pending_analysis[event.event_id] = event
-        message = Message(worker_id, "agent_0", self.runtime.graph.version, evidence.evidence_id, content)
-        controller.messages.send(self.runtime.graph, message)
-        if message not in controller.messages.deliver(self.runtime.graph):
-            raise PermissionError("worker_output_not_delivered")
-        controller.trace.log("worker_receipt", agent_id=worker_id, task_id=task.task_id,
+        controller.trace.log("worker_output_ready", agent_id=worker_id, task_id=task.task_id,
             output_object=evidence.evidence_id, status=status, task_completion="unverified")
         return evidence.evidence_id

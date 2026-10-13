@@ -189,7 +189,7 @@ def test_online_proposal_drives_worker_calls_and_retirement(monkeypatch):
     assert len(calls) == 4 and team.worker_steps == 4
     assert budget.requests_by_purpose == {'task_analysis': 1, 'worker:worker_1_1': 2, 'worker:worker_1_2': 2}
     assert len(runtime.graph.agents) == 1 and runtime.max_active == 3
-    assert runtime.applied == 2 and len(runtime.instances) == 3
+    assert runtime.applied == 3 and len(runtime.instances) == 3
     assert 'Worker outputs' in messages[-1]['content']
     parent_ids = controller.provenance.items[context.current_evidence_id].parent_ids
     assert all(key in parent_ids for key, obj in runtime.objects.items() if obj['task_id'] in {'a', 'b'})
