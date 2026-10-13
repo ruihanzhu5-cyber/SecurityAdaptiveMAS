@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from .organization import OrganizationSelector, TaskAnalyzer, TopologyPlanner
 from .online_observation import (Knowledge, ObservedEvent, OnlineObservation,
                                  OnlineObservationRecorder, RuntimeBudget)
-from .online_task import OnlineTaskAnalyzer, TaskAnalysis, TaskUpdate
+from .online_task import InformationRequirement, OnlineTaskAnalyzer, TaskAnalysis, TaskUpdate
 from .deepseek import BudgetExceeded
 from .performance_monitor import PerformanceMonitor, PerformanceSignals, TriggerAction, TriggerDecision
 from .task_proposer import TaskProposalError, TaskProposer
@@ -142,6 +142,13 @@ class Controller:
                               else self.online_analyzer.refresh(self.task_analysis, observation))
         return self.task_analysis
 
+    def validate_related_requirements(self, keys: tuple[tuple[str, str], ...]
+                                      ) -> tuple[InformationRequirement, ...]:
+        """For trusted scheduling callers; no relevance or completion inference."""
+        observation = self.online_snapshot()
+        return self.performance_monitor.validate_related_requirements(
+            keys, self._current_task_analysis(observation))
+
     def on_observed_event(self, event: ObservedEvent, *,
                           related_requirements: tuple[tuple[str, str], ...] = ()) -> TriggerDecision:
         """Cheap Shadow prefilter only. Never invokes a model or changes a spec."""
@@ -153,7 +160,9 @@ class Controller:
             related_requirements=related_requirements)
         if decision.action == TriggerAction.ANALYZE:
             self.pending_analysis[event.event_id] = event
-        self.trace.log("prefilter_decision", **asdict(decision))
+        self.trace.log("prefilter_decision", **asdict(decision), event_id=event.event_id,
+                       pending_analysis=event.event_id in self.pending_analysis,
+                       related_requirements=related_requirements)
         return decision
 
     def process_pending_analysis(self, *, tool_evidence_ids: tuple[str, ...] = ()) -> TriggerDecision:
@@ -161,11 +170,14 @@ class Controller:
         observation = self.online_snapshot()
         events = tuple(self.pending_analysis.values())
 
-        def deferred(reason, action=TriggerAction.ANALYZE):
+        def deferred(reason, action=TriggerAction.ANALYZE, *, analysis_succeeded=None):
             decision = TriggerDecision(action, observation.sequence, (reason,),
                                        tuple(event.evidence_id for event in events))
             if self.monitor_enabled:
-                self.trace.log("trigger_decision", **asdict(decision))
+                self.trace.log("trigger_decision", **asdict(decision),
+                               event_ids=[event.event_id for event in events],
+                               pending_analysis=bool(self.pending_analysis),
+                               analysis_succeeded=analysis_succeeded, requirements_changed=None)
             return decision
 
         if not self.monitor_enabled:
@@ -198,11 +210,11 @@ class Controller:
         except BudgetExceeded:
             return deferred("analysis_deferred_budget")
         except TaskProposalError:
-            return deferred("task_proposal_failed")
+            return deferred("task_proposal_failed", analysis_succeeded=False)
         except ValueError as error:
             self.trace.log("task_proposal_error", as_of_sequence=observation.sequence,
                            error_type=type(error).__name__, reason=str(error))
-            return deferred("task_proposal_failed")
+            return deferred("task_proposal_failed", analysis_succeeded=False)
         finally:
             self.analysis_requests = self.run_budget.task_analysis_requests
         self.task_analysis = current
@@ -216,9 +228,15 @@ class Controller:
         decision = self.performance_monitor.reconsider(previous, current, signals)
         self.trace.log("task_proposal_validated", as_of_sequence=observation.sequence,
                        task_ids=[task.task_id for task in proposal.subtasks],
-                       source_evidence_ids=proposal.source_evidence_ids)
+                       source_evidence_ids=proposal.source_evidence_ids,
+                       event_ids=[event.event_id for event in events],
+                       analysis_succeeded=True, proposal_status="proposed_unverified",
+                       requirements_changed=decision.action == TriggerAction.RECONSIDER)
         self.trace.log("performance_signals", as_of_sequence=observation.sequence, **asdict(signals))
-        self.trace.log("trigger_decision", **asdict(decision))
+        self.trace.log("trigger_decision", **asdict(decision),
+                       event_ids=[event.event_id for event in events], pending_analysis=False,
+                       analysis_succeeded=True,
+                       requirements_changed=decision.action == TriggerAction.RECONSIDER)
         return decision
 
     def performance_snapshot(self) -> PerformanceSignals:

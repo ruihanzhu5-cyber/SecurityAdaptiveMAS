@@ -166,11 +166,11 @@ class OnlineTaskAnalyzer:
         tasks = {task.task_id: task for task in previous.subtasks}
         user_ids = tuple(event.evidence_id for event in observation.user_events)
         old = tasks.get("root")
-        if observation.task_description and (old is None or not set(user_ids) <= set(old.evidence_ids)):
+        if observation.task_description:
             tasks["root"] = Subtask(
                 "root", observation.task_description,
                 old.status if old else TaskStatus.PENDING,
-                tuple(dict.fromkeys((*(old.evidence_ids if old else ()), *user_ids))),
+                user_ids,
                 old.suggested_status if old else None,
                 old.certainty if old else Certainty.INFERRED,
             )
@@ -180,6 +180,8 @@ class OnlineTaskAnalyzer:
     def apply_proposal(self, previous: TaskAnalysis, proposal: TaskUpdate,
                        observation: OnlineObservation) -> TaskAnalysis:
         """Upsert by stable IDs; evidence visibility is not semantic confirmation."""
+        if any(item.task_id == "root" for item in proposal.subtasks):
+            raise ValueError("root_requires_delivered_user_notification")
         previous = self.refresh(previous, observation)
         if proposal.as_of_sequence is not None and proposal.as_of_sequence != observation.sequence:
             raise ValueError("Task proposal does not match the observation sequence")

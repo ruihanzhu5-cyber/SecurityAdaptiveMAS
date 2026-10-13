@@ -1,5 +1,7 @@
 # P1：任务增量分析与轻量性能触发接口
 
+> 下文保留原 P1 的实施记录。当前 P1.1 修订以文末 [P1.1 Review Amendments](#p11-review-amendments) 为准，尤其是 root 来源保护、一次性工具关联和状态口径。
+
 实施日期：2026-10-13。修改前本地 HEAD 为 `66989aa737ae0e49d6e9e2571613df38a25dc27b`，与实施指令的参考版本一致；工作区当时无未提交修改。接口版本标记为 `p1-shadow-interfaces-2026-10-13`，用于代码与接口审查。
 
 本轮交付的是默认关闭的 Shadow 接口：已交付事件 → Python 预筛 → 显式请求任务提案 → 证据和结构校验 → 增量需求 → P/D/C/W 诊断及可解释判定。`RECONSIDER` 仅表示值得后续比较组织候选，不应用拓扑。**未做离线回放、未重新运行五例、未发起新的付费 DeepSeek 请求、未做攻击实验、未验证真实 TaskProposer API 行为，尚无自动 G_t 执行或性能改善结论。**
@@ -179,3 +181,112 @@ $env:HF_HUB_OFFLINE='1'
 ## 接入真实运行与 P2 的最小依赖
 
 先审查以上安全时点、被动 hook 和完成事实语义，再明确同意真实任务分析请求与预算；随后才能验证在线事件顺序、默认 Agent 行为等价及真实 JSON 提案。P2 还需要实际组织执行接缝、可信任务收益/通信成本估计、已知依赖与运行实例身份。当前 TaskAnalysis 与 RECONSIDER 理由可作为只读输入，但候选比较和应用不在本轮。
+
+## P1.1 Review Amendments
+
+修订日期：2026-10-13。审查基线与修改前本地 HEAD 均为 `b4bfbf5e2c34ce4dab22b8bf3df36671e8344888`；工作区当时干净。本轮仅修订已确认的接口契约，版本标记为 `p1.1-shadow-interfaces-2026-10-13`，供下一轮 Review。原 P1 的 38 项测试记录是历史记录，本轮测试结果见 C 节。
+
+### A. 修改摘要
+
+| 文件 | 实际改动 | 必要性 |
+|---|---|---|
+| [online_task.py](../security_adaptive_mas/online_task.py) | 普通 TaskUpdate 一律不能包含 root 子任务；refresh 每次从可见 USER 描述及 USER 证据同步 root，保留已有实际状态 | 证据可见不等于有权改写用户目标；ENV/TOOL/LLM 提案不得覆盖根目标 |
+| [task_proposer.py](../security_adaptive_mas/task_proposer.py) | Prompt 明确禁止在 subtasks 输出 root；JSON 继续经过分析器硬性校验 | Prompt 只提供指引，实际拒绝规则由 Python 执行；未改 JSON Schema 或预算 |
+| [performance_monitor.py](../security_adaptive_mas/performance_monitor.py) | 未关联工具结果使用 tool_result_unlinked；复用一个小型关联键校验方法，核对类型、明确 requirement_id 和当前登记项 | KEEP 只表示没有已验证的重分析触发；合法关联才允许 ANALYZE；无 ID 的旧需求不能用描述冒充稳定 ID |
+| [are_bridge.py](../security_adaptive_mas/are_bridge.py) | ObservedContext 增加显式一次性绑定/消费；GuardedARETool 在调用前消费，成功结果透传关联键 | 保留受信任串行调度代码的可选接缝；失败时不记录成功结果，也不把关联泄漏到下次调用 |
+| [controller.py](../security_adaptive_mas/controller.py) | 提供当前需求校验入口；既有日志追加事件 ID、待分析、分析成功及结构变化字段 | 明确区分 observed、pending、proposed/unverified；不增加冗余原文日志或自动 LLM 调度 |
+| [test_performance_monitor.py](../tests/test_performance_monitor.py) | 修订旧 root upsert 测试；扩展注入提案拒绝；新增工具一次性绑定及空提案状态两个回归 | 验证本次真实接口边界；不将响应注入视为 Gaia2 或 DeepSeek 实验成绩 |
+| 本文 | 追加当前修订、测试与待决台账，保留原 P1 历史 | 避免用旧接口描述覆盖当前行为或改写旧实验结果 |
+
+没有新增生产模块，没有修改 online_observation 的事件模型。
+
+### B. 接口调用路径
+
+```text
+真实已交付 USER -> Recorder -> analyze / refresh(root)
+                              root 描述与证据只取 USER；原实际状态保留
+
+已交付 ENV / 成功 TOOL -> 已有受限 Bridge -> on_observed_event -> Python prefilter
+                                                               |
+可信串行调度调用方 --显式绑定一次--> ObservedContext --消费绑定-----+
+  （当前没有官方 default 自动调用方）                              |
+                                                         Pending Analysis
+                                                               |
+                          调用方手动选择边界 -> TaskProposer -> Python 校验
+                                                               |
+                                      root 提案拒绝；非 root 保持 INFERRED/UNKNOWN
+                                                               |
+                                      KEEP / ANALYZE / RECONSIDER；不 apply G_t
+```
+
+**已接通：**受限 Bridge 已交付通知、成功工具结果进入 Python 观察回调；可选关联由 GuardedARETool 成功结果传给 Controller。**仅提供接口、未自动接入：**真实调度方如何知道该次调用关联哪个需求、官方 default 如何提供 task/requirement/call 上下文，以及何时自动处理待分析。没有在现有运行器中自动调用绑定方法或 process_pending_analysis。
+
+根任务规则：`apply_proposal()` 在普通子任务 upsert 之前拒绝任何 `task_id="root"`，包括原描述不变的提案，报 `root_requires_delivered_user_notification`。`refresh()` 采用 Recorder 当前可见的 USER 汇总描述和 USER evidence_ids，同步同一个 root；不将 ENV 证据保留为根目标来源。实际 status 仍由原记录保留，模型不能写入完成事实。
+
+一次性关联接口：
+
+```python
+context.bind_next_tool_requirements(((task_id, requirement_id),)) -> None
+context.consume_tool_requirements() -> tuple[tuple[str, str], ...]
+controller.validate_related_requirements(keys) -> tuple[InformationRequirement, ...]
+```
+
+- 仅供受信任的串行执行调度代码调用，未注册为 ARE 工具，也不解析邮件或模型文本来设置关联。当前没有自动绑定调用方。
+- 绑定保存当前已登记需求的不可变记录；键必须是非空字符串组成的二元 tuple，引用明确的 requirement_id。绑定时与消费时均核对当前需求。记录在两次检查间发生变化则报 `stale_information_requirement_binding`，不存在或格式非法也明确报错。
+- 新绑定替换待消费绑定；设置非法绑定会先清空旧绑定并报错。调用前消费意味着原工具/Gateway 失败、参数拒绝或绑定过期都不会把它带到下一次调用。原执行异常继续传播，没有新增 catch/fallback；失败不产生 completed tool_result。
+- 默认空绑定不做需求映射。Monitor 开启时普通结果为 `KEEP/tool_result_unlinked`，不宣称语义无关；合法关联为 `ANALYZE/registered_information_result`。两者都不会确认需求满足或写任务完成。
+- 关联只表明值得分析。后续手动处理若需要工具原文，调用方仍须通过 `process_pending_analysis(tool_evidence_ids=(... ,))` 选择对应可见摘录；没有自动相关性判断器。
+
+状态与 ID 口径：
+
+| 记录 | 当前精确含义 |
+|---|---|
+| ObservedEvent.event_id | 本次实际观察的事件身份；不冒充上游 call_id |
+| pending_analysis | 按 event_id 保存被预筛选出、尚未成功完成提案流程的事件 |
+| analyzed_event_ids | 按 event_id 标记合法提案流程已成功；不表示内容可信或工作已完成 |
+| TaskAnalysis.unresolved_event_ids | 兼容保留 ENV evidence_id；表示尚未被任务条目证据引用，不是“未完成任务”或“模型没看过”的同义词 |
+| actual_status / suggested_status | 原实际状态与模型建议分开；本轮没有可信执行完成写入接口 |
+| RECONSIDER | P1 仅比较需求结构变化，表示值得以后比较候选；signals 参数未参与真实成本判断 |
+
+合法结构提案的三个数组全部为空时，仍可记录 analysis_succeeded=true、proposal_status=proposed_unverified、requirements_changed=false，并移出待分析队列；未被任务条目引用的 ENV 证据仍可留在 unresolved_event_ids。KEEP 的理由仍含 insufficient_evidence，不升级成“不相关”。裸 JSON 数组 `[]` 不符合现有提案 Schema，仍明确拒绝。
+
+既有 trace 追加少量字段：prefilter_decision 包含 event_id、pending_analysis、related_requirements；trigger_decision 包含 event_ids、analysis_succeeded、requirements_changed。未运行分析或因预算延迟时 analysis_succeeded=None；提案失败时 False；合法提案流程成功时 True。performance_signals 继续保留各指标的 UNKNOWN/NA，不复制工具原文。
+
+P/D/C/W 算法本轮未变：P 与 ready 数缺事实时 UNKNOWN；D 保留关系与未知提供方；C 只有整份实际输入的重复字符代理量；W 明确单实例时 NA，否则 UNKNOWN。**这不是 P/D/C/W 联合优化或净收益决策。**
+
+### C. 最小测试结果
+
+实际命令：
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE='1'
+$env:LITELLM_LOCAL_MODEL_COST_MAP='True'
+$env:HF_HUB_OFFLINE='1'
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests
+git diff --check
+```
+
+实测 **40 passed，1 warning，29.16 秒**；唯一警告是原有上游 Pydantic class-based config 弃用警告。测试输出保存在本机 `work/test_logs/performance_monitor_phase1_1_2026-10-13.txt`。
+
+本轮修订原有根任务测试，验证任意 root 提案拒绝、原实际状态保持、新 USER 刷新且不复制根；扩展注入 JSON 提案测试验证 Python 硬拒绝 root。新增两个测试分别核对：显式合法关联、无绑定原因、错误/过期键拒绝、消费一次、工具失败不产生成功事实且不泄漏绑定；以及空提案的 pending/analyzed/unverified 状态与 ID 区分。已有 Shadow 断言继续核对 Spec、消息/工具网关及授权阶段保持原值。
+
+验证只使用针对性工具函数与 completion_fn 响应注入，没有真实场景运行、离线轨迹回放、攻击评测或付费模型请求；未验证真实 TaskProposer API、官方 default 被动 hook 或并发调度。
+
+### D. OPEN / BLOCKED 台账
+
+| 状态 | 位置 → 缺失事实/接口 | 最小 A / B 选项 → 本轮影响 |
+|---|---|---|
+| **OPEN** | `are_bridge.py:bind_next_tool_requirements`；官方 default 无可靠 task_id/requirement_id 调度调用方和真实 call_id | A：受信任串行调度代码显式提供已登记键（本轮仅接口）；B：核验官方执行上下文后再接入。阻塞自动关联，不阻塞可选契约；不能用工具名或文本猜配 |
+| **OPEN** | `GuardedARETool.__call__` 的既有 Gateway 调用固定 agent_0；共享 Context 的并发、可重入及执行中需求变动未验证 | A：仅在当前串行 coordinator 上下文使用可选接口；B：先核验真实调用/实例身份，再设计明确按调用关联。当前只测 A；未改变旧执行身份或网关权限，多实例/并发接入仍阻塞 |
+| **BLOCKED** | `controller.py:process_pending_analysis` / 上游 agent_loop；额外模型调用的无副作用时点不明确 | A：继续手动调用；B：先核验官方暂停/恢复与计时政策。当前 A；不自动在工具回调调用模型 |
+| **BLOCKED** | `are_bridge.py:make_guarded_agent_builder` 替换工具集合，与官方 default 五例能力不同 | A：保留分离；B：独立验证被动 hook。当前 A；不能宣称 P1.1 已接入原 5/5 基线 |
+| **BLOCKED** | `online_task.py:apply_proposal`；没有证明需求已满足、工作已完成的可信运行记录 | A：未来执行器提供可核验的任务完成事件；B：明确人工可信事实入口。当前均未实现；关联/模型建议不提升完成状态 |
+| **OPEN** | `online_task.py:refresh`；新 USER 改变目标后，旧 root 生命周期事实如何对应新目标版本尚未定义 | A：以后定义根目标版本与执行事实绑定；B：保留历史实际状态，等待可信执行器更新（当前）。不阻塞来源保护，但不能把旧 COMPLETED 当作新目标也已完成；未自动撤销或重开状态 |
+| **OPEN** | `online_task.py:apply_proposal` / task_proposer；证据可见不等于支持语义，外部内容何时可形成新子任务未有完整确认政策 | A：限定规则复核；B：人工确认。当前非 root 仍 INFERRED/UNKNOWN，网关授权不随提案变化；不新增 LLM Judge |
+| **OPEN** | `performance_monitor.py:signals/reconsider`；缺时长、独立性、协作等待窗口及真实候选成本 | A：未来采集可信信号；B：保留 UNKNOWN/NA 与结构变化建议（当前）。阻塞性能收益结论，不阻塞本轮诊断接口 |
+
+### E. 守住的边界
+
+默认 monitor_enabled=False、task_llm_enabled=False 保持不变。没有新增生产模块、事件字段、预算或自动调度器；没有修改 DeepSeek 模型、API Base、temperature/thinking、ARE 上游、Gateway 授权、旧组织选择模块或实际拓扑。可选绑定无调用方时为空；没有伪造 Worker、call_id、需求满足或任务完成事实。
+
+五个 Case、manifest、数据划分/哈希和此前 5/5 报告未改，未重跑。原成绩来自此前官方 default 单 Agent 开发基线，与本轮 P1.1 无因果关系。代码及文档随 `p1.1-shadow-interfaces-2026-10-13` 版本提交供 Review；本轮没有进入 P2。

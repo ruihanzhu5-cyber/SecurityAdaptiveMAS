@@ -18,6 +18,23 @@ class ObservedContext:
         self.visible_ids = [initial_evidence_id]
         self.current_evidence_id = initial_evidence_id
         self.last_messages = []
+        self._next_tool_requirements = ()
+
+    def bind_next_tool_requirements(self, keys: tuple[tuple[str, str], ...]) -> None:
+        """Trusted serial scheduler only; never exposed as an ARE/LLM tool."""
+        self._next_tool_requirements = ()
+        self._next_tool_requirements = self.controller.validate_related_requirements(keys)
+
+    def consume_tool_requirements(self) -> tuple[tuple[str, str], ...]:
+        """Consume before execution, including when validation or the tool fails."""
+        bound = self._next_tool_requirements
+        self._next_tool_requirements = ()
+        if not bound:
+            return ()
+        keys = tuple((item.task_id, item.requirement_id) for item in bound)
+        if self.controller.validate_related_requirements(keys) != bound:
+            raise ValueError("stale_information_requirement_binding")
+        return keys
 
     def record_delivered_notification(self, kind: str, message) -> None:
         # Called only after ARE's timestamp-gated get_notifications returns.
@@ -73,6 +90,8 @@ class GuardedARETool:
             self.name, self.mode, frozenset({self.resource}), original))
 
     def __call__(self, *args, **kwargs):
+        related_requirements = (self.context.consume_tool_requirements()
+                                if isinstance(self.context, ObservedContext) else ())
         if args:
             raise PermissionError("ARE positional tool arguments require explicit adapter")
         evidence_id = (self.context.current_evidence_id
@@ -90,7 +109,7 @@ class GuardedARETool:
                 self.name, evidence.evidence_id, agent_instance_id=self.context.agent_id,
                 status="completed", elapsed_seconds=elapsed)
             self.controller.on_observed_event(action)
-            self.controller.on_observed_event(output)
+            self.controller.on_observed_event(output, related_requirements=related_requirements)
             self.context.record_tool_output(evidence.evidence_id)
         return result
 

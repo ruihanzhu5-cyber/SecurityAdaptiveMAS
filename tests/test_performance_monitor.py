@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from security_adaptive_mas.are_bridge import ObservedContext
+from security_adaptive_mas.are_bridge import ObservedContext, guard_are_toolset
 from security_adaptive_mas.config import load_config
 from security_adaptive_mas.controller import Controller
 from security_adaptive_mas.deepseek import DeepSeekClient, DeepSeekSettings, RunBudget
@@ -64,31 +64,44 @@ def test_prefilter_delivered_events_and_ordinary_result_do_not_call_model(tmp_pa
     assert controller.on_observed_event(user).action == TriggerAction.ANALYZE
     assert controller.on_observed_event(env).action == TriggerAction.ANALYZE
     assert controller.on_observed_event(ordinary).action == TriggerAction.KEEP
+    assert controller.on_observed_event(ordinary).reasons == ("tool_result_unlinked",)
     controller.on_observed_event(user)
     assert len(controller.pending_analysis) == 2
     assert controller.process_pending_analysis().reasons == ("analysis_deferred_disabled",)
     assert controller.analysis_requests == 0 and controller.run_budget is None
 
 
-def test_task_upsert_preserves_actual_status_and_original_sources():
+def test_task_upsert_preserves_actual_status_and_protects_user_root():
     recorder = OnlineObservationRecorder()
     recorder.record_notification("user", "first request", "ev_1")
     analyzer = OnlineTaskAnalyzer()
     first = analyzer.analyze(recorder.snapshot())
-    first = replace(first, subtasks=(replace(first.subtasks[0], status=TaskStatus.RUNNING),))
+    first = analyzer.apply_proposal(first, TaskUpdate(subtasks=(
+        Subtask("child", "Original work", TaskStatus.PENDING, ("ev_1",)),)), recorder.snapshot())
+    first = replace(first, subtasks=(replace(first.subtasks[0], status=TaskStatus.COMPLETED),
+                                     replace(first.subtasks[1], status=TaskStatus.RUNNING)))
     recorder.record_notification("environment", "changed requirement", "ev_2")
     snapshot = recorder.snapshot()
-    update = TaskUpdate(subtasks=(Subtask("root", "Updated request", TaskStatus.COMPLETED, ("ev_2",)),))
+    for description, evidence in (("Changed root from ENV", "ev_2"), ("first request", "ev_1")):
+        with pytest.raises(ValueError, match="root_requires_delivered_user_notification"):
+            analyzer.apply_proposal(first, TaskUpdate(subtasks=(
+                Subtask("root", description, TaskStatus.COMPLETED, (evidence,)),)), snapshot)
+    assert first.subtasks[0].description == "first request"
+    assert first.subtasks[0].actual_status == TaskStatus.COMPLETED
+    update = TaskUpdate(subtasks=(Subtask("child", "Updated work", TaskStatus.COMPLETED, ("ev_2",)),))
     second = analyzer.apply_proposal(first, update, snapshot)
     repeated = analyzer.apply_proposal(second, update, snapshot)
-    assert repeated == second and len(second.subtasks) == 1
-    root = second.subtasks[0]
-    assert root.actual_status == TaskStatus.RUNNING
-    assert root.suggested_status == TaskStatus.COMPLETED
-    assert root.evidence_ids == ("ev_1", "ev_2")
+    assert repeated == second and len(second.subtasks) == 2
+    child = second.subtasks[1]
+    assert child.actual_status == TaskStatus.RUNNING
+    assert child.suggested_status == TaskStatus.COMPLETED
+    assert child.evidence_ids == ("ev_1", "ev_2")
     recorder.record_notification("user", "additional request", "ev_3")
     refreshed = analyzer.refresh(second, recorder.snapshot())
-    assert len(refreshed.subtasks) == 1 and refreshed.subtasks[0].actual_status == TaskStatus.RUNNING
+    assert sum(task.task_id == "root" for task in refreshed.subtasks) == 1
+    assert refreshed.subtasks[0].description == "first request\nadditional request"
+    assert refreshed.subtasks[0].evidence_ids == ("ev_1", "ev_3")
+    assert refreshed.subtasks[0].actual_status == TaskStatus.COMPLETED
 
 
 def test_proposal_evidence_dependency_upsert_and_removal():
@@ -166,10 +179,101 @@ def test_task_proposer_bad_json_is_an_explicit_failure(tmp_path, monkeypatch):
     recorder = OnlineObservationRecorder()
     recorder.record_notification("user", "work", "ev_1")
     trace = TraceLogger(tmp_path / "usage.jsonl")
-    proposer = DeepSeekTaskProposer(client_for(trace, lambda **_: response("not JSON")), lambda _: "unused")
+    contents = iter(("not JSON", json.dumps(proposal(("ev_1",), task_id="root"))))
+    proposer = DeepSeekTaskProposer(client_for(trace, lambda **_: response(next(contents))), lambda _: "unused")
     with pytest.raises(TaskProposalError):
         proposer.propose(recorder.snapshot(), OnlineTaskAnalyzer().analyze(recorder.snapshot()))
     assert "task_proposal_error" in trace.path.read_text(encoding="utf-8")
+    with pytest.raises(TaskProposalError, match="root_requires_delivered_user_notification"):
+        proposer.propose(recorder.snapshot(), OnlineTaskAnalyzer().analyze(recorder.snapshot()))
+
+
+def test_one_shot_tool_requirement_binding_and_failure_cleanup(tmp_path):
+    controller = Controller(load_config(), TraceLogger(tmp_path / "trace.jsonl"),
+                            frozenset({"read"}), frozenset({"MockApp"}), monitor_enabled=True)
+    task = controller.provenance.add("user", "trusted_task", "Read requested information")
+    controller.online_observations.record_notification("user", task.text, task.evidence_id)
+    controller.add_task_update(TaskUpdate(information_requirements=(
+        InformationRequirement("root", "Read result", Certainty.INFERRED,
+                               (task.evidence_id,), "need_1"),)))
+    controller.update(task.text, (), "intake")
+    spec, phase = controller.spec, controller.authorization.phase
+    context = ObservedContext(controller, task.evidence_id)
+    calls = []
+
+    def original(**kwargs):
+        calls.append(kwargs)
+        if kwargs.get("fail"):
+            raise LookupError("original tool failure")
+        return "read result"
+
+    original.name, original.description, original.inputs, original.output_type = "read", "read", {}, "any"
+    original.app_tool = SimpleNamespace(app_name="MockApp", write_operation=False)
+    tool = guard_are_toolset(controller, (original,), context)[0]
+    keys = (("root", "need_1"),)
+    context.bind_next_tool_requirements(keys)
+    assert tool() == "read result"
+    linked = controller.online_snapshot().tool_results[-1]
+    assert controller.pending_analysis == {linked.event_id: linked}
+    assert tool() == "read result"
+    logs = [json.loads(line) for line in controller.trace.path.read_text(encoding="utf-8").splitlines()]
+    decisions = [row for row in logs if row["kind"] == "prefilter_decision"]
+    assert decisions[-1]["reasons"] == ["tool_result_unlinked"]
+    assert decisions[-1]["pending_analysis"] is False
+    assert decisions[-3]["reasons"] == ["registered_information_result"]
+    assert decisions[-3]["event_id"] == linked.event_id
+    with pytest.raises(ValueError, match="not_registered"):
+        context.bind_next_tool_requirements((("root", "missing"),))
+    with pytest.raises(ValueError, match="pairs"):
+        context.bind_next_tool_requirements(("root", "need_1"))
+
+    context.bind_next_tool_requirements(keys)
+    controller.add_task_update(TaskUpdate(information_requirements=(
+        InformationRequirement("root", "Changed need", Certainty.INFERRED,
+                               (task.evidence_id,), "need_1"),)))
+    call_count = len(calls)
+    with pytest.raises(ValueError, match="stale_information_requirement_binding"):
+        tool()
+    assert len(calls) == call_count
+    assert tool() == "read result"  # stale binding was consumed
+    context.bind_next_tool_requirements(keys)
+    completed_count = len(controller.online_snapshot().tool_results)
+    with pytest.raises(LookupError, match="original tool failure"):
+        tool(fail=True)
+    assert len(controller.online_snapshot().tool_results) == completed_count
+    assert tool() == "read result"  # failed call did not leak its binding
+    logs = [json.loads(line) for line in controller.trace.path.read_text(encoding="utf-8").splitlines()]
+    assert logs[-1]["reasons"] == ["tool_result_unlinked"]
+    assert controller.task_analysis.subtasks[0].actual_status == TaskStatus.PENDING
+    assert controller.spec is spec and controller.tools.current_spec is spec
+    assert controller.messages.current_spec is spec and controller.authorization.phase == phase
+    assert all(event.call_id is None for event in controller.online_snapshot().tool_results)
+
+
+def test_empty_proposal_is_analyzed_but_remains_unverified(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    controller = make_controller(tmp_path, monitor_enabled=True, task_llm_enabled=True)
+    recorder = controller.online_observations
+    user = recorder.record_notification("user", "work", "ev_1")
+    env = recorder.record_notification("environment", "new fact", "ev_2")
+    controller.on_observed_event(user)
+    controller.on_observed_event(env)
+    data = {"source_evidence_ids": ["ev_1", "ev_2"], "subtasks": [],
+            "dependencies": [], "information_requirements": []}
+    client = client_for(controller.trace, lambda **_: response(json.dumps(data)))
+    controller.run_budget = client.budget
+    controller.task_proposer = DeepSeekTaskProposer(client, lambda _: "unused")
+    decision = controller.process_pending_analysis()
+    assert decision.action == TriggerAction.KEEP and "insufficient_evidence" in decision.reasons
+    assert controller.pending_analysis == {}
+    assert controller.performance_monitor.analyzed_event_ids == {user.event_id, env.event_id}
+    assert controller.task_analysis.unresolved_event_ids == (env.evidence_id,)
+    assert controller.task_analysis.subtasks[0].actual_status == TaskStatus.PENDING
+    logs = [json.loads(line) for line in controller.trace.path.read_text(encoding="utf-8").splitlines()]
+    assert logs[-1]["event_ids"] == [user.event_id, env.event_id]
+    assert logs[-1]["analysis_succeeded"] is True and logs[-1]["requirements_changed"] is False
+    validated = next(row for row in logs if row["kind"] == "task_proposal_validated")
+    assert validated["proposal_status"] == "proposed_unverified"
 
 
 def test_controller_shadow_manual_boundary_dedup_and_episode_request_limit(tmp_path, monkeypatch):

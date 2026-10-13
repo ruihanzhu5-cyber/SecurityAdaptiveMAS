@@ -44,6 +44,20 @@ class PerformanceMonitor:
         self.last_analyzed_sequence = 0
         self.analyzed_event_ids: set[str] = set()
 
+    @staticmethod
+    def validate_related_requirements(keys: tuple[tuple[str, str], ...],
+                                      analysis: TaskAnalysis) -> tuple[InformationRequirement, ...]:
+        """Validate explicit stable keys, not semantic relevance or fulfillment."""
+        if not isinstance(keys, tuple) or any(
+                not isinstance(key, tuple) or len(key) != 2 or
+                any(not isinstance(value, str) or not value for value in key) for key in keys):
+            raise ValueError("related_requirements_requires_task_and_requirement_id_pairs")
+        registered = {(item.task_id, item.requirement_id): item
+                      for item in analysis.information_requirements if item.requirement_id is not None}
+        if any(key not in registered for key in keys):
+            raise ValueError("related_requirement_not_registered")
+        return tuple(registered[key] for key in keys)
+
     def prefilter(self, event: ObservedEvent, snapshot: OnlineObservation,
                   analysis: TaskAnalysis, *,
                   related_requirements: tuple[tuple[str, str], ...] = ()) -> TriggerDecision:
@@ -51,7 +65,10 @@ class PerformanceMonitor:
             raise ValueError("Prefilter event is not in the visible snapshot")
         if event.event_id is None:
             raise ValueError("Prefilter requires a stable event ID")
-        reason = "ordinary_runtime_event"
+        self.validate_related_requirements(related_requirements, analysis)
+        if related_requirements and (event.kind != "tool_result" or event.status != "completed"):
+            raise ValueError("Information-result link requires a completed tool result")
+        reason = "tool_result_unlinked" if event.kind == "tool_result" else "ordinary_runtime_event"
         action = TriggerAction.KEEP
         if event.event_id in self.analyzed_event_ids:
             reason = "event_already_analyzed"
@@ -59,10 +76,6 @@ class PerformanceMonitor:
             action = TriggerAction.ANALYZE
             reason = "delivered_user_task" if event.kind == "user" else "delivered_environment_notification"
         elif related_requirements:
-            registered = {item.key for item in analysis.information_requirements}
-            if (event.kind != "tool_result" or event.status != "completed" or
-                    not set(related_requirements) <= registered):
-                raise ValueError("Information-result link requires a completed result and registered need")
             # Caller supplies the link; this does not confirm that the need is fulfilled.
             action, reason = TriggerAction.ANALYZE, "registered_information_result"
         return TriggerDecision(action, snapshot.sequence, (reason,), (event.evidence_id,))
