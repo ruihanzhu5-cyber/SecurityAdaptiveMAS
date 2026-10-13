@@ -30,6 +30,10 @@ class DeepSeekSettings:
             raise ValueError("Invalid DeepSeek request limits")
 
 
+class BudgetExceeded(RuntimeError):
+    """The existing episode budget refused a request before it was sent."""
+
+
 class RunBudget:
     def __init__(self, trace, max_requests: int = 4, max_total_tokens: int = 100_000,
                  max_cost_usd: float = 0.05, mode: str = "real_are_single"):
@@ -43,22 +47,30 @@ class RunBudget:
         self.output_tokens = 0
         self.peak_cost_estimate_usd = 0.0
         self.latency_seconds = 0.0
+        self.task_analysis_requests = 0
+        self.task_analysis_request_limit: int | None = None
 
-    def before_request(self, messages: list[dict[str, Any]], max_output_tokens: int) -> None:
+    def before_request(self, messages: list[dict[str, Any]], max_output_tokens: int, *,
+                       purpose: str | None = None) -> None:
         # DeepSeek's tokenizer is unavailable locally. UTF-8 byte count of the
         # text request is a conservative upper bound for text tokenization.
         input_bound = len(json.dumps(messages, ensure_ascii=False).encode("utf-8"))
         estimated_cost = (input_bound * PEAK_INPUT_USD_PER_TOKEN +
                           max_output_tokens * PEAK_OUTPUT_USD_PER_TOKEN)
+        if (purpose == "task_analysis" and self.task_analysis_request_limit is not None and
+                self.task_analysis_requests >= self.task_analysis_request_limit):
+            raise BudgetExceeded("DeepSeek task-analysis request limit exhausted")
         if self.requests >= self.max_requests:
-            raise RuntimeError("DeepSeek request budget exhausted")
+            raise BudgetExceeded("DeepSeek request budget exhausted")
         if self.input_tokens + self.output_tokens + input_bound + max_output_tokens > self.max_total_tokens:
-            raise RuntimeError("DeepSeek token budget exhausted")
+            raise BudgetExceeded("DeepSeek token budget exhausted")
         if self.peak_cost_estimate_usd + estimated_cost > self.max_cost_usd:
-            raise RuntimeError("DeepSeek cost budget exhausted")
+            raise BudgetExceeded("DeepSeek cost budget exhausted")
         self.requests += 1
+        if purpose == "task_analysis":
+            self.task_analysis_requests += 1
 
-    def after_response(self, usage: Any, latency: float) -> None:
+    def after_response(self, usage: Any, latency: float, *, purpose: str | None = None) -> None:
         prompt = int(getattr(usage, "prompt_tokens", 0) or 0)
         completion = int(getattr(usage, "completion_tokens", 0) or 0)
         if prompt == 0 and completion == 0:
@@ -73,7 +85,8 @@ class RunBudget:
                        prompt_tokens=prompt, completion_tokens=completion,
                        latency_seconds=latency,
                        peak_cost_estimate_usd=self.peak_cost_estimate_usd,
-                       request_count=self.requests)
+                       request_count=self.requests,
+                       **({"purpose": purpose} if purpose is not None else {}))
 
 
 class DeepSeekClient:
@@ -83,7 +96,8 @@ class DeepSeekClient:
         self.completion_fn = completion_fn
 
     def complete(self, messages: list[dict[str, Any]], *, tools=None,
-                 response_format=None, on_input: Callable[[list[dict[str, Any]]], None] | None = None):
+                 response_format=None, on_input: Callable[[list[dict[str, Any]]], None] | None = None,
+                 purpose: str | None = None):
         api_key = os.environ.get("DEEPSEEK_API_KEY")
         if not api_key:
             raise EnvironmentError("DEEPSEEK_API_KEY is not set")
@@ -104,7 +118,7 @@ class DeepSeekClient:
             kwargs["response_format"] = response_format
         from litellm.exceptions import RateLimitError, Timeout
         for attempt in range(self.settings.max_attempts):
-            self.budget.before_request(messages, self.settings.max_output_tokens)
+            self.budget.before_request(messages, self.settings.max_output_tokens, purpose=purpose)
             if on_input is not None:
                 on_input(messages)
             started = time.monotonic()
@@ -112,12 +126,13 @@ class DeepSeekClient:
                 response = completion_fn(**kwargs)
             except (RateLimitError, Timeout) as error:
                 self.budget.trace.log("model_retryable_error", model=MODEL,
-                                      error_type=type(error).__name__, attempt=attempt + 1)
+                                      error_type=type(error).__name__, attempt=attempt + 1,
+                                      **({"purpose": purpose} if purpose is not None else {}))
                 if attempt + 1 == self.settings.max_attempts:
                     raise
                 time.sleep(1)
                 continue
-            self.budget.after_response(response.usage, time.monotonic() - started)
+            self.budget.after_response(response.usage, time.monotonic() - started, purpose=purpose)
             return response
         raise RuntimeError("DeepSeek call did not return")
 

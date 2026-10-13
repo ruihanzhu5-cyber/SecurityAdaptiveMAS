@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import time
 from types import MethodType
 
 from .security import ToolDefinition
@@ -23,7 +25,12 @@ class ObservedContext:
         text = message.message
         evidence = self.controller.provenance.add(
             f"are:{kind}_notification", "trusted_task" if kind == "user" else "low_trust", text)
-        self.controller.online_observations.record_notification(kind, text, evidence.evidence_id)
+        timestamp = getattr(message, "timestamp", None)
+        event = self.controller.online_observations.record_notification(
+            kind, text, evidence.evidence_id, agent_instance_id=self.agent_id,
+            status="observed",
+            simulation_time=timestamp.timestamp() if timestamp is not None else None)
+        self.controller.on_observed_event(event)
         self.visible_ids.append(evidence.evidence_id)
         self.current_evidence_id = evidence.evidence_id
 
@@ -38,6 +45,11 @@ class ObservedContext:
         self.controller.trace.log("model_input_observed", agent_id=self.agent_id,
                                   evidence_id=evidence.evidence_id,
                                   parent_ids=evidence.parent_ids)
+        if self.controller.monitor_enabled:
+            event = self.controller.online_observations.record_model_input(
+                evidence.evidence_id, hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                len(text), agent_instance_id=self.agent_id)
+            self.controller.on_observed_event(event)
 
     def record_tool_output(self, evidence_id: str):
         self.visible_ids.append(evidence_id)
@@ -65,12 +77,20 @@ class GuardedARETool:
             raise PermissionError("ARE positional tool arguments require explicit adapter")
         evidence_id = (self.context.current_evidence_id
                        if isinstance(self.context, ObservedContext) else self.context)
+        started = time.monotonic()
         result, evidence = self.controller.tools.call(
             self.controller.spec, "agent_0", self.controller.spec.version,
             self.name, self.resource, kwargs, evidence_id)
         if isinstance(self.context, ObservedContext):
-            self.controller.online_observations.record_action(self.name, evidence_id)
-            self.controller.online_observations.record_tool_result(self.name, evidence.evidence_id)
+            elapsed = time.monotonic() - started
+            action = self.controller.online_observations.record_action(
+                self.name, evidence_id, agent_instance_id=self.context.agent_id,
+                status="completed", elapsed_seconds=elapsed)
+            output = self.controller.online_observations.record_tool_result(
+                self.name, evidence.evidence_id, agent_instance_id=self.context.agent_id,
+                status="completed", elapsed_seconds=elapsed)
+            self.controller.on_observed_event(action)
+            self.controller.on_observed_event(output)
             self.context.record_tool_output(evidence.evidence_id)
         return result
 

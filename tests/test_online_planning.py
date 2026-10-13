@@ -96,6 +96,7 @@ def test_are_builder_records_only_notifications_returned_by_runtime(monkeypatch)
     monkeypatch.setattr(AgentBuilder, "build", lambda self, agent_config, env=None,
                         mock_responses=None: FakeAgent())
     controller = make_controller()
+    controller.monitor_enabled = True
     seed = controller.provenance.add("startup", "low_trust", "waiting")
     context = ObservedContext(controller, seed.evidence_id)
     builder = make_guarded_agent_builder(controller, context)
@@ -105,6 +106,9 @@ def test_are_builder_records_only_notifications_returned_by_runtime(monkeypatch)
     assert environment[0].message == "delivered env"
     snapshot = controller.online_snapshot()
     assert [event.kind for event in snapshot.events] == ["user", "environment"]
+    assert len(controller.pending_analysis) == 2
+    assert controller.process_pending_analysis().reasons == ("analysis_deferred_disabled",)
+    assert controller.run_budget is None
 
 
 def test_new_delivered_event_can_update_d_t_with_explicit_evidence():

@@ -1,7 +1,7 @@
 """Evidence-linked online task graph contract; extraction is replaceable."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Protocol
 
@@ -15,6 +15,7 @@ class Certainty(str, Enum):
 
 
 class TaskStatus(str, Enum):
+    UNKNOWN = "unknown"
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -26,6 +27,13 @@ class Subtask:
     description: str
     status: TaskStatus
     evidence_ids: tuple[str, ...]
+    suggested_status: TaskStatus | None = None
+    certainty: Certainty = Certainty.INFERRED
+
+    @property
+    def actual_status(self) -> TaskStatus:
+        """Compatibility: the original status field remains the factual status."""
+        return self.status
 
 
 @dataclass(frozen=True)
@@ -42,6 +50,12 @@ class InformationRequirement:
     description: str
     certainty: Certainty
     evidence_ids: tuple[str, ...]
+    requirement_id: str | None = None
+    provider_task_id: str | None = None
+
+    @property
+    def key(self) -> tuple[str, str]:
+        return self.task_id, self.requirement_id or self.description
 
 
 @dataclass(frozen=True)
@@ -71,13 +85,29 @@ class TaskAnalysis:
         for task in self.subtasks:
             if not task.task_id or not task.description or not task.evidence_ids or not set(task.evidence_ids) <= visible:
                 raise ValueError("Subtask lacks visible evidence")
+            if not isinstance(task.status, TaskStatus) or not isinstance(task.certainty, Certainty):
+                raise ValueError("Invalid task state or certainty")
+            if task.suggested_status is not None and not isinstance(task.suggested_status, TaskStatus):
+                raise ValueError("Invalid suggested task status")
+        if len({item.key for item in self.information_requirements}) != len(self.information_requirements):
+            raise ValueError("Duplicate information requirement")
         for requirement in self.information_requirements:
+            if not isinstance(requirement.certainty, Certainty):
+                raise ValueError("Invalid information requirement certainty")
             if requirement.task_id not in ids or not requirement.evidence_ids or not set(requirement.evidence_ids) <= visible:
                 raise ValueError("Information requirement lacks visible task/evidence")
+            if requirement.provider_task_id is not None and requirement.provider_task_id not in ids:
+                raise ValueError("Information provider refers to invalid task")
+        if len({(e.predecessor_id, e.successor_id) for e in self.dependencies}) != len(self.dependencies):
+            raise ValueError("Duplicate task dependency")
         for edge in self.dependencies:
             if edge.predecessor_id not in ids or edge.successor_id not in ids or edge.predecessor_id == edge.successor_id:
                 raise ValueError("Dependency refers to invalid task")
-            if edge.certainty != Certainty.UNKNOWN and (not edge.evidence_ids or not set(edge.evidence_ids) <= visible):
+            if not set(edge.evidence_ids) <= visible:
+                raise ValueError("Dependency cites unseen evidence")
+            if not isinstance(edge.certainty, Certainty):
+                raise ValueError("Invalid dependency certainty")
+            if edge.certainty != Certainty.UNKNOWN and not edge.evidence_ids:
                 raise ValueError("Known dependency lacks visible evidence")
         graph = {task_id: [] for task_id in ids}
         for edge in self.dependencies:
@@ -106,6 +136,9 @@ class TaskUpdate:
     subtasks: tuple[Subtask, ...] = ()
     dependencies: tuple[TaskDependency, ...] = ()
     information_requirements: tuple[InformationRequirement, ...] = ()
+    source_evidence_ids: tuple[str, ...] = ()
+    as_of_sequence: int | None = None
+    remove_dependencies: tuple[tuple[str, str], ...] = ()
 
 
 class TaskAnalyzerProtocol(Protocol):
@@ -114,16 +147,97 @@ class TaskAnalyzerProtocol(Protocol):
 
 
 class OnlineTaskAnalyzer:
-    """Conservative baseline: no automatic task inference from ENV prose."""
+    """Incremental requirements; proposals never write execution facts."""
 
     def analyze(self, observation: OnlineObservation,
                 updates: tuple[TaskUpdate, ...] = ()) -> TaskAnalysis:
         user_ids = tuple(event.evidence_id for event in observation.user_events)
         root = ((Subtask("root", observation.task_description, TaskStatus.PENDING, user_ids),)
                 if observation.task_description else ())
-        tasks = root + tuple(task for update in updates for task in update.subtasks)
-        dependencies = tuple(edge for update in updates for edge in update.dependencies)
-        requirements = tuple(item for update in updates for item in update.information_requirements)
+        analysis = self._assemble(observation, root, (), ())
+        for update in updates:
+            analysis = self.apply_proposal(analysis, update, observation)
+        return analysis
+
+    def refresh(self, previous: TaskAnalysis, observation: OnlineObservation) -> TaskAnalysis:
+        """Advance visibility and the one root without re-inferring existing work."""
+        if previous.as_of_sequence > observation.sequence:
+            raise ValueError("Cannot refresh task state from an older observation")
+        tasks = {task.task_id: task for task in previous.subtasks}
+        user_ids = tuple(event.evidence_id for event in observation.user_events)
+        old = tasks.get("root")
+        if observation.task_description and (old is None or not set(user_ids) <= set(old.evidence_ids)):
+            tasks["root"] = Subtask(
+                "root", observation.task_description,
+                old.status if old else TaskStatus.PENDING,
+                tuple(dict.fromkeys((*(old.evidence_ids if old else ()), *user_ids))),
+                old.suggested_status if old else None,
+                old.certainty if old else Certainty.INFERRED,
+            )
+        return self._assemble(observation, tuple(tasks.values()), previous.dependencies,
+                              previous.information_requirements)
+
+    def apply_proposal(self, previous: TaskAnalysis, proposal: TaskUpdate,
+                       observation: OnlineObservation) -> TaskAnalysis:
+        """Upsert by stable IDs; evidence visibility is not semantic confirmation."""
+        previous = self.refresh(previous, observation)
+        if proposal.as_of_sequence is not None and proposal.as_of_sequence != observation.sequence:
+            raise ValueError("Task proposal does not match the observation sequence")
+        visible = set(observation.evidence_ids)
+        if not set(proposal.source_evidence_ids) <= visible:
+            raise ValueError("Task proposal cites unseen evidence")
+        if len({task.task_id for task in proposal.subtasks}) != len(proposal.subtasks):
+            raise ValueError("Duplicate task ID in proposal")
+        tasks = {task.task_id: task for task in previous.subtasks}
+        for item in proposal.subtasks:
+            if not isinstance(item.certainty, Certainty):
+                raise ValueError("Invalid proposal task certainty")
+            if not item.evidence_ids or not set(item.evidence_ids) <= visible:
+                raise ValueError("Task proposal cites unseen evidence or lacks evidence")
+            old = tasks.get(item.task_id)
+            if old is None and any(t.description == item.description and
+                                   t.evidence_ids == item.evidence_ids for t in tasks.values()):
+                raise ValueError("Repeated work must reuse its existing task ID")
+            tasks[item.task_id] = replace(
+                item, status=old.status if old else TaskStatus.PENDING,
+                evidence_ids=tuple(dict.fromkeys((*(old.evidence_ids if old else ()), *item.evidence_ids))),
+                suggested_status=item.suggested_status or item.status,
+                certainty=Certainty.UNKNOWN if item.certainty == Certainty.UNKNOWN else Certainty.INFERRED,
+            )
+        dependencies = {(e.predecessor_id, e.successor_id): e for e in previous.dependencies}
+        if proposal.remove_dependencies and not proposal.source_evidence_ids:
+            raise ValueError("Dependency removal requires visible source evidence")
+        for key in proposal.remove_dependencies:
+            if key not in dependencies:
+                raise ValueError("Cannot remove an unregistered dependency")
+            del dependencies[key]
+        for edge in proposal.dependencies:
+            if not isinstance(edge.certainty, Certainty):
+                raise ValueError("Invalid proposal dependency certainty")
+            if not set(edge.evidence_ids) <= visible:
+                raise ValueError("Task proposal cites unseen evidence")
+            key = edge.predecessor_id, edge.successor_id
+            old = dependencies.get(key)
+            dependencies[key] = replace(
+                edge, certainty=Certainty.UNKNOWN if edge.certainty == Certainty.UNKNOWN else Certainty.INFERRED,
+                evidence_ids=tuple(dict.fromkeys((*(old.evidence_ids if old else ()), *edge.evidence_ids))),
+            )
+        requirements = {item.key: item for item in previous.information_requirements}
+        for item in proposal.information_requirements:
+            if not isinstance(item.certainty, Certainty):
+                raise ValueError("Invalid proposal information certainty")
+            if not item.evidence_ids or not set(item.evidence_ids) <= visible:
+                raise ValueError("Task proposal cites unseen evidence or lacks evidence")
+            old = requirements.get(item.key)
+            requirements[item.key] = replace(
+                item, certainty=Certainty.UNKNOWN if item.certainty == Certainty.UNKNOWN else Certainty.INFERRED,
+                evidence_ids=tuple(dict.fromkeys((*(old.evidence_ids if old else ()), *item.evidence_ids))),
+            )
+        return self._assemble(observation, tuple(tasks.values()), tuple(dependencies.values()),
+                              tuple(requirements.values()))
+
+    @staticmethod
+    def _assemble(observation, tasks, dependencies, requirements) -> TaskAnalysis:
         referenced = tuple(e for task in tasks for e in task.evidence_ids) + tuple(
             e for edge in dependencies for e in edge.evidence_ids) + tuple(
             e for item in requirements for e in item.evidence_ids)

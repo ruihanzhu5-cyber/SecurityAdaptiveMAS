@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from .organization import OrganizationSelector, TaskAnalyzer, TopologyPlanner
-from .online_observation import Knowledge, OnlineObservationRecorder, RuntimeBudget
-from .online_task import OnlineTaskAnalyzer, TaskUpdate
+from .online_observation import (Knowledge, ObservedEvent, OnlineObservation,
+                                 OnlineObservationRecorder, RuntimeBudget)
+from .online_task import OnlineTaskAnalyzer, TaskAnalysis, TaskUpdate
+from .deepseek import BudgetExceeded
+from .performance_monitor import PerformanceMonitor, PerformanceSignals, TriggerAction, TriggerDecision
+from .task_proposer import TaskProposalError, TaskProposer
 from .topology_candidates import (BaselinePerformanceEvaluator, TemplateCandidateGenerator,
                                   TopologyValidator)
 from .security import MessageGateway, ProvenanceStore, TaskAuthorizationPolicy, ToolGateway
@@ -20,7 +24,12 @@ class OrganizationSnapshot:
 
 class Controller:
     def __init__(self, config, trace, authorized_tools: frozenset[str],
-                 authorized_resources: frozenset[str]):
+                 authorized_resources: frozenset[str], *, monitor_enabled: bool = False,
+                 task_llm_enabled: bool = False, task_proposer: TaskProposer | None = None,
+                 max_analysis_requests: int = 3,
+                 runtime_agent_instances: tuple[str, ...] | None = None):
+        if max_analysis_requests < 1:
+            raise ValueError("Analysis request limit must be positive")
         self.trace = trace
         self.authorized_tools = authorized_tools
         self.analyzer = TaskAnalyzer()
@@ -28,6 +37,15 @@ class Controller:
         self.run_budget = None
         self.online_analyzer = OnlineTaskAnalyzer()
         self.task_updates: list[TaskUpdate] = []
+        self.task_analysis = None
+        self.monitor_enabled = monitor_enabled
+        self.task_llm_enabled = task_llm_enabled
+        self.task_proposer = task_proposer
+        self.max_analysis_requests = max_analysis_requests
+        self.analysis_requests = 0
+        self.runtime_agent_instances = runtime_agent_instances
+        self.performance_monitor = PerformanceMonitor()
+        self.pending_analysis = {}
         self.candidate_generator = TemplateCandidateGenerator(config.max_agents)
         self.candidate_validator = TopologyValidator(config.max_agents, authorized_tools)
         self.performance_evaluator = BaselinePerformanceEvaluator()
@@ -88,7 +106,7 @@ class Controller:
                                     tuple(n.agent_id for n in self.spec.agents),
                                     dict(self.assignments))
 
-    def online_snapshot(self):
+    def online_snapshot(self) -> OnlineObservation:
         """Planning view from delivered runtime facts; never from Scenario."""
         if self.run_budget is not None:
             budget = self.run_budget
@@ -103,7 +121,7 @@ class Controller:
     def online_candidates(self):
         """Structural proposals only; this does not switch the ARE runtime."""
         observation = self.online_snapshot()
-        analysis = self.online_analyzer.analyze(observation, tuple(self.task_updates))
+        analysis = self._current_task_analysis(observation)
         candidates = self.candidate_generator.generate(analysis)
         for candidate in candidates:
             self.candidate_validator.validate(candidate, analysis)
@@ -114,8 +132,100 @@ class Controller:
     def add_task_update(self, update: TaskUpdate) -> None:
         """Accept a proposed task change only if its evidence is online-visible."""
         snapshot = self.online_snapshot()
-        self.online_analyzer.analyze(snapshot, (*self.task_updates, update))
-        self.task_updates.append(update)
+        previous = self._current_task_analysis(snapshot)
+        self.task_analysis = self.online_analyzer.apply_proposal(previous, update, snapshot)
+        if update not in self.task_updates:
+            self.task_updates.append(update)
+
+    def _current_task_analysis(self, observation: OnlineObservation) -> TaskAnalysis:
+        self.task_analysis = (self.online_analyzer.analyze(observation) if self.task_analysis is None
+                              else self.online_analyzer.refresh(self.task_analysis, observation))
+        return self.task_analysis
+
+    def on_observed_event(self, event: ObservedEvent, *,
+                          related_requirements: tuple[tuple[str, str], ...] = ()) -> TriggerDecision:
+        """Cheap Shadow prefilter only. Never invokes a model or changes a spec."""
+        if not self.monitor_enabled:
+            return TriggerDecision(TriggerAction.KEEP, event.sequence, ("monitor_disabled",), ())
+        observation = self.online_snapshot()
+        decision = self.performance_monitor.prefilter(
+            event, observation, self._current_task_analysis(observation),
+            related_requirements=related_requirements)
+        if decision.action == TriggerAction.ANALYZE:
+            self.pending_analysis[event.event_id] = event
+        self.trace.log("prefilter_decision", **asdict(decision))
+        return decision
+
+    def process_pending_analysis(self, *, tool_evidence_ids: tuple[str, ...] = ()) -> TriggerDecision:
+        """Explicit caller-chosen boundary; no automatic ARE scheduling in P1."""
+        observation = self.online_snapshot()
+        events = tuple(self.pending_analysis.values())
+
+        def deferred(reason, action=TriggerAction.ANALYZE):
+            decision = TriggerDecision(action, observation.sequence, (reason,),
+                                       tuple(event.evidence_id for event in events))
+            if self.monitor_enabled:
+                self.trace.log("trigger_decision", **asdict(decision))
+            return decision
+
+        if not self.monitor_enabled:
+            return deferred("monitor_disabled", TriggerAction.KEEP)
+        if not events:
+            return deferred("no_pending_analysis", TriggerAction.KEEP)
+        if not self.task_llm_enabled:
+            return deferred("analysis_deferred_disabled")
+        if self.analysis_requests >= self.max_analysis_requests:
+            return deferred("analysis_deferred_budget")
+        if self.task_proposer is None:
+            return deferred("task_proposer_unavailable")
+        if self.run_budget is None or self.task_proposer.budget is not self.run_budget:
+            return deferred("shared_episode_budget_unavailable")
+        limit = self.run_budget.task_analysis_request_limit
+        self.run_budget.task_analysis_request_limit = (
+            self.max_analysis_requests if limit is None else min(limit, self.max_analysis_requests))
+        self.analysis_requests = self.run_budget.task_analysis_requests
+        if self.analysis_requests >= self.run_budget.task_analysis_request_limit:
+            return deferred("analysis_deferred_budget")
+        if self.run_budget.requests >= self.run_budget.max_requests:
+            return deferred("analysis_deferred_budget")
+        previous = self._current_task_analysis(observation)
+        try:
+            proposal = self.task_proposer.propose(observation, previous,
+                                                  tool_evidence_ids=tool_evidence_ids)
+            if not {event.evidence_id for event in events} <= set(proposal.source_evidence_ids):
+                raise ValueError("Proposal does not account for every pending event")
+            current = self.online_analyzer.apply_proposal(previous, proposal, observation)
+        except BudgetExceeded:
+            return deferred("analysis_deferred_budget")
+        except TaskProposalError:
+            return deferred("task_proposal_failed")
+        except ValueError as error:
+            self.trace.log("task_proposal_error", as_of_sequence=observation.sequence,
+                           error_type=type(error).__name__, reason=str(error))
+            return deferred("task_proposal_failed")
+        finally:
+            self.analysis_requests = self.run_budget.task_analysis_requests
+        self.task_analysis = current
+        if proposal not in self.task_updates:
+            self.task_updates.append(proposal)
+        self.performance_monitor.mark_analyzed(events, observation.sequence)
+        for event in events:
+            del self.pending_analysis[event.event_id]
+        signals = self.performance_monitor.signals(
+            observation, current, runtime_agent_instances=self.runtime_agent_instances)
+        decision = self.performance_monitor.reconsider(previous, current, signals)
+        self.trace.log("task_proposal_validated", as_of_sequence=observation.sequence,
+                       task_ids=[task.task_id for task in proposal.subtasks],
+                       source_evidence_ids=proposal.source_evidence_ids)
+        self.trace.log("performance_signals", as_of_sequence=observation.sequence, **asdict(signals))
+        self.trace.log("trigger_decision", **asdict(decision))
+        return decision
+
+    def performance_snapshot(self) -> PerformanceSignals:
+        observation = self.online_snapshot()
+        return self.performance_monitor.signals(
+            observation, self._current_task_analysis(observation),
+            runtime_agent_instances=self.runtime_agent_instances)
 
     def safe_reconfigure(self, task_text: str, pending_subtasks: tuple[str, ...],
                          observed_tool_calls: int = 0) -> OrganizationSnapshot:

@@ -21,6 +21,14 @@ class ObservedEvent:
     evidence_id: str
     text: str | None = None
     tool_name: str | None = None
+    event_id: str | None = None
+    agent_instance_id: str | None = None
+    call_id: str | None = None
+    status: str | None = None
+    simulation_time: float | None = None
+    elapsed_seconds: float | None = None
+    input_fingerprint: str | None = None
+    input_characters: int | None = None
 
 
 @dataclass(frozen=True)
@@ -79,25 +87,37 @@ class OnlineObservationRecorder:
         self._work = WorkState()
         self._budget = RuntimeBudget()
 
-    def record_notification(self, kind: str, text: str, evidence_id: str) -> ObservedEvent:
+    def record_notification(self, kind: str, text: str, evidence_id: str,
+                            **metadata) -> ObservedEvent:
         if kind not in {"user", "environment"}:
             raise ValueError("Only delivered USER/ENV notifications are observable")
         if not evidence_id:
             raise ValueError("Notification requires provenance evidence")
-        if kind == "user":
+        before = len(self._events)
+        event = self._append(kind, evidence_id, text=text, **metadata)
+        if kind == "user" and len(self._events) > before:
             self._task_description = (self._task_description + "\n" if self._task_description else "") + text
-        return self._append(kind, evidence_id, text=text)
+        return event
 
-    def record_action(self, tool_name: str, evidence_id: str) -> ObservedEvent:
+    def record_action(self, tool_name: str, evidence_id: str, **metadata) -> ObservedEvent:
         if not tool_name or not evidence_id:
             raise ValueError("Action requires a tool and evidence ID")
-        return self._append("action", evidence_id, tool_name=tool_name)
+        return self._append("action", evidence_id, tool_name=tool_name, **metadata)
 
-    def record_tool_result(self, tool_name: str, evidence_id: str) -> ObservedEvent:
+    def record_tool_result(self, tool_name: str, evidence_id: str, **metadata) -> ObservedEvent:
         if not tool_name or not evidence_id:
             raise ValueError("Tool result requires a tool and evidence ID")
         # Raw tool output stays in ProvenanceStore; the planning view has its ID.
-        return self._append("tool_result", evidence_id, tool_name=tool_name)
+        return self._append("tool_result", evidence_id, tool_name=tool_name, **metadata)
+
+    def record_model_input(self, evidence_id: str, fingerprint: str, characters: int,
+                           *, agent_instance_id: str) -> ObservedEvent:
+        """Exact whole-request measurement, not per-evidence token attribution."""
+        if not evidence_id or not fingerprint or characters < 0:
+            raise ValueError("Model input requires evidence and a measured payload")
+        return self._append("model_input", evidence_id, status="observed",
+                            agent_instance_id=agent_instance_id,
+                            input_fingerprint=fingerprint, input_characters=characters)
 
     def record_work(self, work: WorkState) -> None:
         self._work = work
@@ -114,7 +134,20 @@ class OnlineObservationRecorder:
         )
 
     def _append(self, kind: str, evidence_id: str, *, text: str | None = None,
-                tool_name: str | None = None) -> ObservedEvent:
-        event = ObservedEvent(len(self._events) + 1, kind, evidence_id, text, tool_name)
+                tool_name: str | None = None, **metadata) -> ObservedEvent:
+        event_id = metadata.pop("event_id", None)
+        if event_id is not None:
+            for previous in self._events:
+                if previous.event_id == event_id:
+                    repeated = ObservedEvent(previous.sequence, kind, evidence_id, text,
+                                             tool_name, event_id=event_id, **metadata)
+                    if repeated != previous:
+                        raise ValueError("Event ID reused for different facts")
+                    return previous
+        sequence = len(self._events) + 1
+        if event_id is None and any(old.event_id == f"event_{sequence}" for old in self._events):
+            raise ValueError("Generated event ID conflicts with a caller-supplied ID")
+        event = ObservedEvent(sequence, kind, evidence_id, text, tool_name,
+                              event_id=event_id or f"event_{sequence}", **metadata)
         self._events.append(event)
         return event
