@@ -8,23 +8,23 @@
 **面向长程多智能体任务的拓扑自适应与全过程信息流安全约束**<br>
 Task-Driven Adaptive Topology with Temporal Information-Flow Safety Constraints
 
-> **当前阶段：系统建模与问题定义** · **Last Updated: 2026-10-12**<br>
+> **当前阶段：系统建模与问题定义** · **Last Updated: 2026-10-13**<br>
 > 这里记录正在形成的研究问题。三图模型、时间性可达性和联合选择方法均为**拟议研究**；仓库里的工程原型还没有实现这些机制或验证其效果。
 
 [当前看板](#当前研究看板) · [核心问题](#核心问题) · [三图模型](#三图模型拟议) · [最新进展](#最新进展) · [待解决问题](#待解决问题) · [路线图](#研究路线图) · [研究日志](#研究日志) · [现有原型](#现有原型与技术文档)
 
 ## 当前研究看板
 
-| 现在在哪一步 | 2026-10-12 的进展 | 紧接着要解决 |
+| 现在在哪一步 | 最新进展 | 紧接着要解决 |
 |---|---|---|
-| **System Model & Problem Formulation · 进行中** | 把任务依赖 `D_t`、执行拓扑 `G_t`、历史信息依赖 `H_t` 分开；提出 T1–T5 的干预边界 | 定义 Agent/实例、Memory、Capability 和三图的精确时间语义；明确可强制执行的约束 |
+| **System Model & Problem Formulation · 进行中** | 区分 `D_t / G_t / H_t`，提出 T1–T5；新增 DeepSeek Flash 单 Agent 五场 Development 基线（ARE 5/5） | 定义 Agent/实例、Memory、Capability 和三图的精确时间语义；明确可强制执行的约束 |
 
 | 研究线索 | 当前判断 | 证据状态 |
 |---|---|---|
 | **性能** | 任务依赖、并行机会、关键路径和共享需求应驱动组织变化 | 问题已提出；收益模型待建立 |
 | **安全** | 旧内容可经新 Memory、消息或工具路径影响后续阶段 | 威胁范围初步限定；传播与行为关系待验证 |
 | **Controller** | 在任务收益、风险、通信和重组成本之间选择下一阶段拓扑 | 闭环问题已提出；算法未完成 |
-| **实验** | 要把拓扑收益与 Tool Gateway、额外核验的收益分开 | 对照与假设已列出；没有正式对比结果 |
+| **实验** | 要把拓扑收益与 Tool Gateway、额外核验的收益分开 | 已有单 Agent 五场基线；尚无多 Agent 或安全—性能对照 |
 
 **15 秒摘要：**研究对象是长任务中持续变化的多智能体团队。即使没有攻击，任务也可能需要从单人探索转到并行协作、再转到验证；如果早期读入了不可信内容，新拓扑还可能打开过去不存在的信息路径。我们要研究怎样在**继续完成合法任务**时约束这些路径，而不是把接触不可信内容等同于攻击成功。
 
@@ -75,9 +75,9 @@ Task-Driven Adaptive Topology with Temporal Information-Flow Safety Constraints
 
 ## 最新进展
 
-**2026-10-12 · 从框架设想推进到系统建模。** 区分 `D_t / G_t / H_t`，提出拓扑重组可能把旧暴露连接到未来敏感能力，并把干预目标拆为 T1–T5。初步写出 Controller 的状态、可控动作和 H1–H3。工程上新增了[仅记录已交付事件的在线观察接口与结构化拓扑候选](docs/online_task_to_topology_phase1.md)；它们尚未接成真正的 ARE 自适应执行。仓库另有一份[Controller 源码审查与集成方案](docs/controller_integration_plan.md)，明确哪些上游机制可复用、哪些只是研究设计。严格图语义、效用估计、选择算法和正式实验仍未完成。[阅读当日记录](docs/research-log/2026-10-12.md)。
+**2026-10-13 · 完成五场单 Agent 基线。** 使用 ARE 官方 `default` Agent 和 DeepSeek Flash，在五个固定 Development 场景上得到 ARE 验证 **5/5 通过**。这不是自适应多 Agent 或安全收益结果；三场日志含 Agent 最大迭代异常，需继续核查验证范围。[阅读当日实验报告与结果清单](docs/research-log/2026-10-13.md)。
 
-**2026-10-11 · 初步研究设想。** 提出 RQ1–RQ4，把任务驱动的组队与外部注入风险放在同一研究问题中；梳理候选 Benchmark、Baseline 和性能—安全—成本对照方向。当日没有得出正式实验结果。[阅读当日记录](docs/research-log/2026-10-11.md)。
+**2026-10-12 · 从框架设想推进到系统建模。** 区分 `D_t / G_t / H_t`，提出拓扑重组可能把旧暴露连接到未来敏感能力，并把干预目标拆为 T1–T5。初步写出 Controller 的状态、可控动作和 H1–H3。工程上新增了[仅记录已交付事件的在线观察接口与结构化拓扑候选](docs/online_task_to_topology_phase1.md)；它们尚未接成真正的 ARE 自适应执行。仓库另有一份[Controller 源码审查与集成方案](docs/controller_integration_plan.md)，明确哪些上游机制可复用、哪些只是研究设计。严格图语义、效用估计、选择算法和正式实验仍未完成。[阅读当日记录](docs/research-log/2026-10-12.md)。
 
 ## 待解决问题
 
@@ -116,14 +116,14 @@ Task-Driven Adaptive Topology with Temporal Information-Flow Safety Constraints
 
 | 日期 | 当日研究记录 | 链接 |
 |---|---|---|
+| **2026-10-13** | DeepSeek Flash 单 Agent 五场 Gaia2 基线；ARE 5/5 与异常记录 | [查看报告](docs/research-log/2026-10-13.md) |
 | **2026-10-12** | 三图语义、跨时间风险、T1–T5、Controller 边界与待验证假设 | [查看](docs/research-log/2026-10-12.md) |
-| **2026-10-11** | 初版问题、性能与安全动机、Benchmark 和 Baseline 候选 | [查看](docs/research-log/2026-10-11.md) |
 
 完整索引：[研究日志目录](docs/research-log/README.md) · [新日志模板](docs/research-log/TEMPLATE.md)。旧日志保留当天判断；后续证据若推翻它，应在新日期的日志里说明，不回写成“当时已经知道”。
 
 ## 现有原型与技术文档
 
-研究模型与当前工程能力需分开读。现有代码有 Singleton / Star / Chain、固定规则选择、部分 MANTA 结构接口、来源记录和消息/工具网关，以及 ARE 的只读角色路径。根据[2026-10-12 实施报告](implementation_report_v2.md)，曾有 **22 项离线测试**和**一次 DeepSeek 连通性请求**；真实 Gaia2 Single / Multi 任务尚无在线端到端结果。没有完整三图实现、时间性风险优化、污染恢复或正式安全—性能实验。
+研究模型与当前工程能力需分开读。现有代码有 Singleton / Star / Chain、固定规则选择、部分 MANTA 结构接口、来源记录和消息/工具网关，以及 ARE 的只读角色路径。根据[2026-10-12 实施报告](implementation_report_v2.md)，曾有 **22 项离线测试**和**一次 DeepSeek 连通性请求**；现已增加五场 DeepSeek Flash + ARE 默认单 Agent 的在线 Development 基线；仍无多 Agent、拓扑自适应或安全—性能对照结果。没有完整三图实现、时间性风险优化或污染恢复。
 
 - [技术概览、复现命令与详细 Related Work](docs/technical-overview.md)：保存此前 README 的技术内容。
 - [Controller 集成与研究方案](docs/controller_integration_plan.md)：源码审查、候选方法、强对照、边界和实施顺序。
