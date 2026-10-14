@@ -447,7 +447,10 @@ class FrameworkTeam:
                     task_description=next(t.description for t in c.task_analysis.subtasks if t.task_id == role.task_id))
                 for slot in ("result",*role.output_contract):
                     self.runtime.bind_output(role.task_id,slot,evidence.evidence_id,
-                        {"status":"passed","checker":"artifact_schema_not_semantic_truth",
+                        {"status":"artifact_schema_valid","artifact_schema_valid":True,
+                         "semantic_verified":"unknown","legitimate_task_completed":"unknown",
+                         "validation_status":"UNVERIFIED",
+                         "checker":"artifact_schema_not_semantic_truth",
                          "evidence_ids":output["evidence_ids"]})
                 history.append({"role":"assistant","content":content})
                 context.visible_ids.append(evidence.evidence_id)

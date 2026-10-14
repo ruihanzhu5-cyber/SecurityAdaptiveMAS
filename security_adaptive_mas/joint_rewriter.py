@@ -361,7 +361,7 @@ def generate_rewrite_plans(controller, runtime, roles):
                 consumer = owners.get(need.consumer_task_id,"agent_0")
                 for provider in need.provider_alternatives:
                     object_id = runtime.bindings.get((provider["task_id"],provider["output_slot"]))
-                    if object_id is None or runtime.checks[object_id]["status"] != "passed":
+                    if object_id is None or runtime.checks[object_id].get("artifact_schema_valid") is not True:
                         continue
                     obj = runtime.objects[object_id]
                     description = next(t.description for t in analysis.subtasks if t.task_id == provider["task_id"])
@@ -445,45 +445,59 @@ def select_rewrite_plan(controller, runtime, plans):
         risk = temporal_plan_risk(runtime,plan,graph,controller.protected_targets)
         cost = assess_cost(plan,runtime,design)
         rows.append({"plan":replace(plan,cost_assessment=cost,risk_assessment=risk),
-            "needs":needs,"risk_count":len(risk["projected_future_flow"]),
-            "unsupported_needs":[n for n in needs if n["status"] == "unsatisfied"],
-            "support":sum(n["status"] in {"satisfied","planned"} for n in needs),
-            "protocol_support":len(plan.existing_object_deliveries) if plan.activations and
-                plan.protocol_spec["name"] in {"one_round_exchange","bounded_review"} else 0,
+            "needs":needs,"risk_count":len(risk["suspected_source_reachability"])
+                if risk["comparison_status"] == "comparable_registered_sources" else None,
+            "unsupported_needs":[n for n in needs if n["status"] not in {"satisfied","planned"}],
+            "satisfied_need_count":sum(n["status"] == "satisfied" for n in needs),
+            "planned_need_count":sum(n["status"] == "planned" for n in needs),
+            "unknown_need_count":sum(n["status"] == "unknown" for n in needs),
             "cost":cost,"risk":risk})
     keep = next(row for row in rows if row["plan"].plan_id == "keep")
     feasible = [row for row in rows if not row["unsupported_needs"]]
     method = design["method"]
+    risk_unknown = method in {"joint","fixed_security","task_plus_filter"} and (
+        keep["risk_count"] is None or any(row["risk_count"] is None for row in feasible))
+    if risk_unknown:
+        controller.trace.log("rewrite_blocked",status="UNDECIDABLE_RISK_COMPARISON",
+                             reason="protected_targets_not_registered",alternatives=[r["risk"] for r in rows])
+        raise RuntimeError("UNDECIDABLE_risk_comparison_no_protected_targets")
     if method in {"joint","fixed_security"}:
-        feasible = [row for row in feasible if row["risk_count"] <= keep["risk_count"]]
+        feasible = [row for row in feasible if row["risk_count"] is not None and
+                    keep["risk_count"] is not None and row["risk_count"] <= keep["risk_count"]]
     if method == "reactive_isolation" and controller.suspect_instances:
-        feasible = [row for row in rows if row["plan"].intervention == "risk"]
+        feasible = [row for row in feasible if row["plan"].intervention == "risk"]
     if not feasible:
         controller.trace.log("rewrite_blocked",status="NO_SUPPORTED_PROVIDER",needs=[r["needs"] for r in rows])
         raise RuntimeError("NO_SUPPORTED_PROVIDER_or_no_feasible_rewrite")
-    def dimensions(row):
+    def ordering(row):
         cost = row["cost"]
         amount = (cost["predicted_remaining_tokens"] if design["cost_mode"] == "empirical"
                   else cost["remaining_declared_model_steps_upper_bound"])
-        return (-row["support"],-row["protocol_support"],row["risk_count"] if method in {"joint","fixed_security","reactive_isolation"} else 0,
-                amount,cost["declared_input_characters"])
-    frontier = [row for row in feasible if not any(
-        all(a <= b for a,b in zip(dimensions(other),dimensions(row))) and
-        any(a < b for a,b in zip(dimensions(other),dimensions(row))) for other in feasible)]
-    # Explicit declared-work exploration applies only at a new task/risk boundary.
-    explored = [row for row in frontier if row["plan"].activations]
-    chosen = min(explored or frontier,key=lambda row:(dimensions(row),row["plan"].plan_id))
-    if method == "task_plus_filter" and chosen["risk_count"] > keep["risk_count"]:
-        filtered = [row for row in feasible if row["risk_count"] <= keep["risk_count"]]
+        # Counts are diagnostics, not utility: extra deliveries/rounds earn no reward.
+        # Prefer actual available required inputs to a future acquisition plan.
+        risk = row["risk_count"] if method in {"joint","fixed_security","reactive_isolation"} else 0
+        return (bool(row["planned_need_count"]),risk is None,risk or 0,
+                amount,cost["declared_input_characters"],row["plan"].plan_id != "keep",
+                row["plan"].plan_id)
+    chosen = min(feasible,key=ordering)
+    if method == "task_plus_filter" and (chosen["risk_count"] is None or keep["risk_count"] is None or
+                                          chosen["risk_count"] > keep["risk_count"]):
+        filtered = [row for row in feasible if row["risk_count"] is not None and
+                    keep["risk_count"] is not None and row["risk_count"] <= keep["risk_count"]]
         if not filtered:
             raise RuntimeError("posthoc_filter_has_no_task_supported_plan")
-        chosen = min(filtered,key=lambda row:(dimensions(row),row["plan"].plan_id))
-    controller.trace.log("joint_decision",design_version="v0.4",candidate_id=chosen["plan"].plan_id,
+        chosen = min(filtered,key=ordering)
+    controller.trace.log("joint_decision",design_version="v0.5",candidate_id=chosen["plan"].plan_id,
         trigger_reasons=trigger.reasons,
         observation_sequence=chosen["plan"].base_observation_sequence,
         task_revision=controller.task_revision,organization_policy=method,
-        selected_reason="explicit_declared_work_exploration" if design["cost_mode"] == "declared_work" else "empirical_pareto",
-        pareto_ids=[row["plan"].plan_id for row in frontier],
+        selected_reason="executable_required_inputs_risk_then_cost_stable_order",
+        selection_order=["executable_authorized","required_inputs_available_or_executable_plan",
+                         "available_before_planned","comparable_suspected_source_reachability",
+                         "declared_work_proxy" if design["cost_mode"] == "declared_work" else "empirical_estimate",
+                         "stable_keep_then_plan_id"],
+        risk=chosen["risk"],
+        risk_comparison_scope="registered_sources_and_targets_only_unknown_semantic_effects",
         alternatives=[{key:value for key,value in row.items() if key != "plan"} for row in rows],
         rewrite_plan=asdict(chosen["plan"]))
     controller.trace.log("rewrite_selection_cost",selection_wall_seconds=time.monotonic()-started,

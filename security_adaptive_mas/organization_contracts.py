@@ -174,6 +174,10 @@ class RewritePlan:
 
 def load_design(path: Path):
     design = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return load_design_value(design)
+
+
+def load_design_value(design):
     required = {"version", "method", "max_agents", "max_candidates", "search_depth", "topologies",
                 "topology_parameters", "protocol", "rounds", "role_step_limit", "reconfiguration_limit",
                 "cost_mode", "calibration_file", "scheduling", "capability_mode", "delegable_tools",
@@ -214,7 +218,8 @@ def load_design(path: Path):
         raise ValueError("invalid_topology_families")
     if any(type(limit) is not int or not 1 <= limit <= 100 for limit in design["subbudgets"].values()):
         raise ValueError("invalid_model_subbudgets")
-    if not Path(design["data_manifest"]).is_file():
+    from .config import ROOT
+    if not (ROOT / design["data_manifest"]).is_file():
         raise FileNotFoundError("research_data_manifest_missing")
     if design["attack_protocol"] not in {"fixed_transfer", "blackbox"} or set(design["attack_attempt_budgets"]) != {1, 4, 16}:
         raise ValueError("invalid_attack_protocol")

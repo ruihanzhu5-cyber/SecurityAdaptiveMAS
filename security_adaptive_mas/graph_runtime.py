@@ -251,6 +251,12 @@ class GraphRuntime:
     def bind_output(self, task_id, slot, object_id, check):
         if object_id not in self.objects or self.objects[object_id]["task_id"] != task_id:
             raise ValueError("output_binding_requires_actual_producer")
+        if check["checker"] == "artifact_schema_not_semantic_truth":
+            if check.get("artifact_schema_valid") is not True:
+                raise ValueError("output_binding_requires_explicit_schema_check")
+            if (check.get("semantic_verified") != "unknown" or
+                    check.get("legitimate_task_completed") != "unknown"):
+                raise ValueError("schema_checker_cannot_assert_semantic_or_task_completion")
         self.bindings[(task_id, slot)] = object_id
         self.checks[object_id] = check
         self.record_flow("output_checked", object_id=object_id, task_id=task_id,

@@ -25,7 +25,7 @@ def plan_need_status(controller, runtime, plan, graph=None):
                 fields = need.acceptance_contract["required_fields"]
                 independent = all(not controller.provenance.derived_from(object_id, root)
                                   for root in need.acceptance_contract["independent_from"])
-                if check and check["status"] == "passed" and independent and set(fields) <= set(obj["fields"] or {}):
+                if check and check.get("artifact_schema_valid") is True and independent and set(fields) <= set(obj["fields"] or {}):
                     alternatives.append(object_id)
                     consumer = dict(plan.assignments).get(need.consumer_task_id,"agent_0")
                     if (consumer,object_id) in graph.object_access or (consumer,object_id) in plan.existing_object_deliveries:
@@ -39,7 +39,10 @@ def plan_need_status(controller, runtime, plan, graph=None):
                       for binding in plan.future_output_bindings)
         status = "satisfied" if readable else "planned" if planned else "unsatisfied" if need.provider_alternatives else "unknown"
         rows.append({"need_id":need.need_id,"consumer_task_id":need.consumer_task_id,
-                     "status":status,"status_evidence_ids":readable,"qualified_alternatives":alternatives})
+                     "status":status,"information_available":bool(readable),
+                     "semantic_verified":"unknown","legitimate_task_completed":"unknown",
+                     "validation_status":"UNVERIFIED",
+                     "status_evidence_ids":readable,"qualified_alternatives":alternatives})
     return rows
 
 
@@ -92,9 +95,17 @@ def temporal_plan_risk(runtime, plan, graph, protected_targets):
                     paths[target] = paths[node]+[target]; queue.append(target)
         return {target:paths[target] for target in protected_targets if target in paths}
     history = [dict(row) for row in runtime.flow_events]
+    suspected_reach = reach(suspected)
+    low_trust_reach = reach(external)
     return {"risk_model":"activation_ordered_history_and_future_projection",
-            "observed_information_flow":history,"projected_future_flow":reach(suspected),
-            "external_source_reachability":reach(external),"suspected_roots":sorted(suspected),
+            "observed_information_flow":history,"projected_future_flow":suspected_reach,
+            "external_source_reachability":low_trust_reach,
+            "low_trust_potential_reachability":low_trust_reach,
+            "suspected_source_reachability":suspected_reach,"suspected_roots":sorted(suspected),
+            "selection_metric":"suspected_source_reachability",
+            "comparison_status":"comparable_registered_sources" if protected_targets else "unknown_no_protected_targets",
+            "interpretation":"structural_projection_not_attack_success_or_absolute_safety",
+            "detection_status":"suspected_sources_registered" if suspected else "no_suspected_source_registered_not_zero_risk",
             "semantic_adoption":"unknown","state_effect":"unknown",
             "instruction_source_semantics":"declared_derivation_not_raw_text_exposure",
             "scope_gaps":["shared_application_state_not_bound_to_versioned_objects",

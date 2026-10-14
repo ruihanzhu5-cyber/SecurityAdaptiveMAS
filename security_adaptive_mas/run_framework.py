@@ -178,6 +178,8 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         "wall_time_seconds": time.monotonic() - start,
         "scenario_success": official_success if validation_available else None,
         "official_runner_success": official_success, "validation_available": validation_available,
+        "validation_status": "UNVERIFIED",
+        "legitimate_task_completed": "unknown", "semantic_verified": "unknown",
         "exception_type": error_type,
         "stop_reason": "unsupported_task_scope" if unsupported else "budget_exhausted" if exhausted else "runner_exception" if error_type else "official_episode_end",
         "agent_turns": team.turns if team else 0, "worker_steps": team.worker_steps if team else 0,
@@ -190,12 +192,13 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         "effective_graph_patches": sum(event["graph_version"] != event["previous_version"]
             for event in events if event["kind"] == "topology_patch_applied"),
         "dynamic_execution_observed": any(key.startswith("worker:") for key in budget.requests_by_purpose),
-        "modules_not_exercised": ["temporal_projection", "reuse_worker"]
+        "modules_not_exercised": ([] if args.design and joint_decisions else ["temporal_projection"]) + ["reuse_worker"]
             + ([] if any(event["kind"] == "attack_injected_delivered" for event in events)
                else ["attack_injection"])
             + ([] if applies else ["attack_scoring"])
             + ([] if team and team.worker_steps else ["worker_execution", "retirement"]),
         "model_requests_total": budget.requests, "requests_by_purpose": budget.requests_by_purpose,
+        "model_requests_submitted": sum(event["kind"] == "model_request_submitted" for event in events),
         "actual_usage_by_purpose": budget.actual_usage_by_purpose,
         "input_tokens_total": budget.input_tokens, "output_tokens_total": budget.output_tokens,
         "cost_estimate_usd": budget.peak_cost_estimate_usd, "unknown_cost_bound": budget.unknown_cost_bound,
@@ -224,7 +227,13 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         summary["target_achieved"] = summary["attack_scoring"]["target_achieved"]
         summary["gateway_blocked"] = summary["attack_scoring"]["blocked_by_gateway"]
         summary["exposure_count"] = len(summary["attack_scoring"]["exposed_instances"])
+    outcome = summary.get("target_achieved")
+    summary["attack_target_achieved"] = (True if outcome is True or outcome == "true" else
+                                         False if outcome is False or outcome == "false" else "unknown")
     save(out / "summary.json", summary)
+    save(out / "evaluation.json", {key:summary.get(key, "unknown") for key in (
+        "official_runner_success", "validation_available", "validation_status", "stop_reason",
+        "legitimate_task_completed", "semantic_verified", "attack_scoring")})
     return summary
 
 
@@ -235,7 +244,7 @@ def email_final_state(scenario):
             "trash_email_ids": [row["email_id"] for row in folders["TRASH"]["emails"]]}
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("single", "adaptive"), default="adaptive")
     selection = parser.add_mutually_exclusive_group(required=True)
@@ -260,20 +269,31 @@ def main():
     parser.add_argument("--acknowledge-model-cost", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume-batch", type=Path, help="Reuse inspected first-case results only with identical code and run limits")
-    args = parser.parse_args()
+    parser.add_argument("--batch-cap-usd", type=float, default=5.0,
+                        help="Shared output-ledger cap; does not replace per-episode limits")
+    return parser
+
+
+def main(argv=None, *, design_override=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
     args.design, args.design_hash = None, None
     args.design_manifest, args.design_manifest_hash = None, None
     if args.design_config:
         from .organization_contracts import load_design
         args.design = load_design(args.design_config)
-        args.design_hash = hashlib.sha256(args.design_config.read_bytes()).hexdigest()
+        if design_override is not None:
+            from .organization_contracts import load_design_value
+            args.design = load_design_value(design_override)
+        args.design_hash = hashlib.sha256(json.dumps(args.design,sort_keys=True).encode()).hexdigest()
         manifest_path = ROOT/args.design["data_manifest"]
         args.design_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         args.design_manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
         if args.organization_policy is not None or args.risk_aware != "off":
             parser.error("v0.4 method is declared in --design-config; do not mix legacy policy flags")
     if not (1 <= args.max_turns <= 20 and 1 <= args.max_requests <= 100 and
-            1 <= args.max_total_tokens <= 800000 and 0 < args.max_cost_usd <= 1):
+            1 <= args.max_total_tokens <= 800000 and 0 < args.max_cost_usd <= 1 and
+            0 < args.batch_cap_usd <= 5):
         parser.error("v0.1 limits: 20 turns, 100 requests, 800000 tokens, 1 USD per episode")
     config = load_config()
     if args.design:
@@ -309,18 +329,23 @@ def main():
             parser.error("single_injection requires its one declared --scenario")
     frozen = code_state()
     if args.dry_run:
-        print(json.dumps({"dry_run": True, "case_ids": ids, "attack": args.attack,
+        effective_policy = args.design["method"] if args.design else args.organization_policy or (
+            "joint" if args.risk_aware == "on" else "task_only")
+        preview = {"dry_run": True, "case_ids": ids, "attack": args.attack,
                           "design":args.design,"design_hash":args.design_hash,
                           "dataset_category": args.dataset_category,
                           "dataset_row_index_zero_based": args.dataset_row_index,
                           "attack_spec_hash": attack_spec.payload_hash if attack_spec else None,
                           "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware,
-                          "effective_risk_selection": (args.organization_policy or (
-                              "joint" if args.risk_aware == "on" else "task_only")) != "task_only",
-                          "organization_policy": args.organization_policy or (
-                              "joint" if args.risk_aware == "on" else "task_only"),
-                          "key_present": bool(os.environ.get("DEEPSEEK_API_KEY")), **frozen}, indent=2))
-        return
+                          "effective_risk_selection": effective_policy in {"joint","fixed_security","reactive_isolation","task_plus_filter"},
+                          "organization_policy": effective_policy,
+                          "model_id":MODEL,"mode":args.mode,
+                          "max_turns":args.max_turns,"max_requests":args.max_requests,
+                          "max_total_tokens":args.max_total_tokens,"max_cost_usd":args.max_cost_usd,
+                          "batch_cap_usd":args.batch_cap_usd,
+                          "key_present": bool(os.environ.get("DEEPSEEK_API_KEY")), **frozen}
+        print(json.dumps(preview,indent=2))
+        return preview
     if not args.acknowledge_model_cost or not os.environ.get("DEEPSEEK_API_KEY"):
         parser.error("Real runs require acknowledgment and DEEPSEEK_API_KEY in process environment")
     output = args.output_dir.resolve()
@@ -346,7 +371,7 @@ def main():
                 row["max_turns"] != args.max_turns or row["max_requests"] != args.max_requests or
                 row["max_total_tokens"] != args.max_total_tokens or row["max_cost_usd"] != args.max_cost_usd):
                 raise RuntimeError("Resume requires identical policy and experiment settings")
-    save(batch_dir / "batch_config.json", {"case_ids": ids, "code": frozen, "batch_cap_usd": 5,
+    save(batch_dir / "batch_config.json", {"case_ids": ids, "code": frozen, "batch_cap_usd": args.batch_cap_usd,
         "dataset_category": args.dataset_category,
         "design_hash":args.design_hash,"data_manifest_hash":args.design_manifest_hash,
         "attack": args.attack, "attack_payload_hash": attack_spec.payload_hash if attack_spec else None,
@@ -362,7 +387,7 @@ def main():
         if any(row["scenario_id"] == scenario_id for row in summaries):
             print("REUSE_INSPECTED", scenario_id, flush=True)
             continue
-        if ledger_charge(ledger) + args.max_cost_usd > 5:
+        if ledger_charge(ledger) + args.max_cost_usd > args.batch_cap_usd:
             save(batch_dir / (scenario_id + "_not_run.json"), {"scenario_id": scenario_id, "status": "blocked_batch_budget"})
             print(scenario_id, "BLOCKED batch budget", flush=True)
             continue
@@ -386,6 +411,7 @@ def main():
         print("FINISH", scenario_id, "success=", summary["scenario_success"], "stop=", summary["stop_reason"],
               "requests=", summary["model_requests_total"], "cost=", summary["cost_estimate_usd"], flush=True)
     print("BATCH_RESULTS", batch_dir / "batch_results.json", flush=True)
+    return {"batch_dir":str(batch_dir),"summaries":summaries,"ledger":str(ledger)}
 
 
 if __name__ == "__main__":

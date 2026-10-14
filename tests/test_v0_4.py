@@ -71,9 +71,26 @@ def test_each_topology_compiles_and_executes_actual_role_delivery(tmp_path,famil
         team.dispatch_roles()
         assert not team.client.calls  # official Coordinator continuation, no simulated singleton worker
         return
+    # v0.5 no longer dispatches merely to reward more agents/deliveries.
+    # Register a concrete output need on a real direct route to the Coordinator.
+    members = tuple(f"fixture_{i}" for i in range(len(roles))) + ("agent_0",)
+    edges = generate_edges(family,members,assignments={r.task_id:members[i] for i,r in enumerate(roles)},
+                           dependencies=(),parameters=c.design["topology_parameters"],seed=c.design["seed"])
+    provider = next(a for a,b in edges if b == "agent_0")
+    index = members.index(provider)
+    c.need_specs["topology_result"] = NeedContract("topology_result","root","proposed_plan",(user.evidence_id,),
+        ({"task_id":roles[index].task_id,"output_slot":"result"},),
+        {"required_fields":[f"field{index}"],"independent_from":[]})
+    if family == "directed_chain":
+        for i in (1,2):
+            c.need_specs[f"chain_{i}"] = NeedContract(f"chain_{i}",f"task_{i}","proposed_plan",(user.evidence_id,),
+                ({"task_id":f"task_{i-1}","output_slot":"result"},),
+                {"required_fields":[f"field{i-1}"],"independent_from":[]})
+        c.add_task_update(TaskUpdate(dependencies=tuple(TaskDependency(f"task_{i-1}",f"task_{i}",
+            Certainty.INFERRED,(user.evidence_id,)) for i in (1,2)),source_evidence_ids=(user.evidence_id,)))
     team.dispatch_roles()
     assert team.client.calls
-    assert len(runtime.objects) >= 7
+    assert len(runtime.objects) >= 4  # compact one-round plan may now beat two rounds
     assert runtime.flow_events
     if family == "directed_chain":
         received = [e for e in runtime.flow_events if e["flow_kind"]=="object_delivered"

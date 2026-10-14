@@ -9,7 +9,7 @@ import shutil
 import subprocess
 
 
-ROOT = Path(__file__).resolve().parents[1]
+from .config import ROOT
 VERSIONS = ROOT / "configs" / "source_versions.json"
 
 

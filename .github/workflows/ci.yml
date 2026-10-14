@@ -1,0 +1,22 @@
+name: Offline engineering checks
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  portable:
+    runs-on: windows-latest
+    env:
+      DEEPSEEK_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m compileall -q security_adaptive_mas scripts
+      - run: security-mas --help
+      - run: python -m security_adaptive_mas --help
+      - run: security-mas doctor --config configs/research_v0_4.yaml
+      - run: security-mas run --design-config configs/research_v0_4.yaml --mode adaptive --scenario scenario_universe_22_kb5ah9 --dry-run
+      # No full dataset, ARE or MANTA checkout is assumed. Full local suite is separate.
+      - run: python -m pytest -q -p no:cacheprovider tests/test_v0_5.py -k "unified_dry_run or plan_and_refusals or total_ledger or report_preserves"
+      - run: python scripts/check_docs.py
+      - run: python -m ruff check security_adaptive_mas/api.py security_adaptive_mas/__main__.py security_adaptive_mas/cli scripts tests/test_v0_5.py

@@ -62,4 +62,4 @@
 4. 校准未来成本区间，检查 prompt 重复究竟来自历史、工具/schema 还是重复对象；目前为 `UNKNOWN`。
 5. 做固定场景与预算的无攻击／有攻击成对实验，以及同时间点额外重估的 placebo；当前 `NOT_MEASURED`。
 
-历史真实诊断见 [v0.2 单次付费运行报告](reports/framework_v0_2_paid_22_kb5ah9_2026-10-14.md)。那次运行没有使用 v0.3。
+历史真实诊断见 [v0.2 单次付费运行报告](../../reports/framework_v0_2_paid_22_kb5ah9_2026-10-14.md)。那次运行没有使用 v0.3。

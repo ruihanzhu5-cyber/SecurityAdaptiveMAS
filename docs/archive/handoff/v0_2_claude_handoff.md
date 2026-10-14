@@ -32,8 +32,8 @@
 - 本地 HEAD：`42f11aa434be445148fc53d7527fb0464c208230`。
 - 本轮已通过 `git ls-remote origin refs/heads/main` 核对：当时 GitHub main 与本地一致。接手时重新核对。
 - 主指令：`D:/SecurityAdaptiveMAS_v0_2_%E5%AE%8C%E6%95%B4%E7%89%88_Codex%E5%AE%9E%E6%96%BD%E6%8C%87%E4%BB%A4_%E5%90%AB%E6%94%BB%E5%87%BB%E9%93%BE%E9%AA%8C%E6%94%B6_2026-10-13.md`。文件已完整阅读；本交接不替代原指令。
-- 当前已有报告：[v0.1 实现与五例记录](framework_v0_1_five_case_report.md)。
-- 当前已有汇总：[v0.1 结果 JSON](data/framework_v0_1_results.json)。
+- 当前已有报告：[v0.1 实现与五例记录](../../reports/framework_v0_1_five_case_report.md)。
+- 当前已有汇总：[v0.1 结果 JSON](../../reports/data/framework_v0_1_results.json)。
 
 ### 用户最新约束
 
