@@ -21,6 +21,7 @@ class ObservedContext:
         self.last_messages = []
         self._next_tool_requirements = ()
         self.attack_overlay = None
+        self._prepared_object_versions = set()
 
     def bind_next_tool_requirements(self, keys: tuple[tuple[str, str], ...]) -> None:
         """Trusted serial scheduler only; never exposed as an ARE/LLM tool."""
@@ -67,6 +68,32 @@ class ObservedContext:
     def record_model_input(self, messages):
         self.last_messages = messages
         text = json.dumps(messages, ensure_ascii=False, default=str)
+        objects = getattr(getattr(self.controller, "framework_team", None), "runtime", None)
+        objects = {} if objects is None else objects.objects
+        included = []
+        repeated_chars = 0
+        for object_id, obj in objects.items():
+            if obj["status"] != "output_available" or object_id not in self.visible_ids:
+                continue
+            item_text = self.controller.provenance.items[object_id].text
+            if not item_text or item_text not in text:
+                continue
+            key = object_id, obj["version"]
+            included.append({"object_id": object_id, "version": obj["version"],
+                             "characters": len(item_text)})
+            if key in self._prepared_object_versions:
+                repeated_chars += len(item_text)
+            self._prepared_object_versions.add(key)
+        self.controller.trace.log("model_input_components", agent_id=self.agent_id,
+                                  role_characters=[{"role": item.get("role"),
+                                                    "characters": len(str(item.get("content") or ""))}
+                                                   for item in messages],
+                                  serialized_characters=len(text),
+                                  serialized_utf8_bytes=len(text.encode("utf-8")),
+                                  included_objects=included,
+                                  repeated_object_characters=repeated_chars,
+                                  measurement="prepared_text_proxy_not_tokens")
+        self.controller.observed_repeated_object_chars += repeated_chars
         evidence = self.controller.provenance.add(
             "runtime:model_input", "derived", text,
             parents=tuple(dict.fromkeys(self.visible_ids)), owner_agent=self.agent_id)
@@ -285,6 +312,9 @@ def make_framework_agent_builder(controller, context, client, mode, *,
                 guarded = [GuardedARETool(tool, controller, context) for tool in originals.values()]
                 coordinator_tools = frozenset(originals)
                 read_tools = frozenset(tool.name for tool in guarded if tool.mode == "read")
+                controller.protected_targets = tuple(sorted(
+                    "tool:" + tool.name for tool in guarded if tool.mode == "write"
+                    and tool.name != "AgentUserInterface__send_message_to_user"))
                 controller.authorized_tools = coordinator_tools
                 controller.tools.authorized_tools = coordinator_tools
                 controller.tools.authorized_resources = frozenset(tool.resource for tool in guarded)

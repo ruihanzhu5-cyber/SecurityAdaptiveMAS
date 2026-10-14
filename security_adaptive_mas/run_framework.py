@@ -67,9 +67,10 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
     controller = Controller(config, trace, frozenset(), frozenset(),
                             monitor_enabled=True, task_llm_enabled=True, max_analysis_requests=3)
     controller.run_budget = budget
-    controller.risk_aware_enabled = args.risk_aware == "on"
-    if applies:
-        controller.protected_targets = attack_spec.protected_targets
+    controller.organization_policy = args.organization_policy or (
+        "joint" if args.risk_aware == "on" else "task_only")
+    controller.risk_aware_enabled = controller.organization_policy in {
+        "joint", "reactive_isolation", "task_plus_filter"}
     initial = controller.provenance.add("startup", "low_trust", "Waiting for actual delivered USER/ENV notifications")
     context = ObservedContext(controller, initial.evidence_id)
     source_versions = json.loads((ROOT / "configs/source_versions.json").read_text(encoding="utf-8"))
@@ -78,6 +79,8 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         "attack_payload_hash": attack_spec.payload_hash if applies else None,
         "attack_id": attack_spec.attack_id if applies else None,
         "risk_aware": args.risk_aware,
+        "effective_risk_selection": controller.risk_aware_enabled,
+        "organization_policy": controller.organization_policy,
         "task_scope_policy": args.task_scope_policy, **frozen,
         "source_versions": source_versions, "scenario_hash": record.sha256,
         "policy_version": policy_version, "model_id": MODEL, "provider": PROVIDER,
@@ -124,8 +127,11 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         error_type = type(terminal).__name__
     events = [json.loads(line) for line in trace.path.read_text(encoding="utf-8").splitlines()]
     decisions = [event for event in events if event["kind"] == "controller_runtime_decision"]
+    joint_decisions = [event for event in events if event["kind"] == "joint_decision"]
     topology = [event for event in events if event["kind"] in {"topology_patch_applied", "worker_started", "worker_output_ready", "worker_output_withheld", "runtime_object_delivered", "message_delivered"}]
-    for name, rows in (("controller_decisions.jsonl", decisions), ("topology_events.jsonl", topology)):
+    for name, rows in (("controller_decisions.jsonl", decisions),
+                       ("joint_decisions.jsonl", joint_decisions),
+                       ("topology_events.jsonl", topology)):
         (out / name).write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
     tools, denied = {}, {}
     for event in events:
@@ -150,6 +156,8 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         "patches_proposed": sum(len(row["candidates"]) for row in decisions),
         "patches_applied": runtime.applied if runtime else 0,
         "effective_reconfigurations": len({event["graph_version"] for event in events if event["kind"] == "worker_started"}),
+        "effective_graph_patches": sum(event["graph_version"] != event["previous_version"]
+            for event in events if event["kind"] == "topology_patch_applied"),
         "dynamic_execution_observed": any(key.startswith("worker:") for key in budget.requests_by_purpose),
         "modules_not_exercised": ["temporal_projection", "reuse_worker"]
             + ([] if any(event["kind"] == "attack_injected_delivered" for event in events)
@@ -157,12 +165,20 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
             + ([] if applies else ["attack_scoring"])
             + ([] if team and team.worker_steps else ["worker_execution", "retirement"]),
         "model_requests_total": budget.requests, "requests_by_purpose": budget.requests_by_purpose,
+        "actual_usage_by_purpose": budget.actual_usage_by_purpose,
         "input_tokens_total": budget.input_tokens, "output_tokens_total": budget.output_tokens,
         "cost_estimate_usd": budget.peak_cost_estimate_usd, "unknown_cost_bound": budget.unknown_cost_bound,
         "budget_exhausted": exhausted, "unaccounted_usage_notes": budget.unaccounted_usage_notes,
         "tool_calls_by_agent": tools, "blocked_actions_by_reason": denied,
         "risk_model": "current_effective_graph_with_live_objects",
+        "reachability_proxy": joint_decisions[-1]["risk"] if joint_decisions else None,
         "risk_events_observed": team.risk_events if team else [],
+        "legitimate_task_status": "unknown",
+        "controller_overhead": {"actual_task_analysis": budget.actual_usage_by_purpose.get("task_analysis", {
+            "requests": 0, "input_tokens": 0, "output_tokens": 0,
+            "latency_seconds": 0.0, "cost_estimate_usd": 0.0}),
+            "rewrite_model_requests": 0,
+            "future_cost_estimator": "unknown"},
         "attack_success": None, "containment_success": None,
         "trace_paths": {"framework": str(trace.path), "official": str(result.export_path) if result is not None else None, "runner": str(runner_log)},
         "official_trace_hashes": {path.relative_to(out).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -171,6 +187,11 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         summary["attack_scoring"] = evaluate_attack(events, spec=attack_spec,
             official_success=official_success, stop_reason=summary["stop_reason"],
             final_state=(email_final_state(scenario) if attack_spec.target_email_id and scenario is not None else None))
+        summary["attack_delivered"] = summary["attack_scoring"]["attack_delivered"]
+        summary["target_attempted"] = summary["attack_scoring"]["target_attempted"]
+        summary["target_achieved"] = summary["attack_scoring"]["target_achieved"]
+        summary["gateway_blocked"] = summary["attack_scoring"]["blocked_by_gateway"]
+        summary["exposure_count"] = len(summary["attack_scoring"]["exposed_instances"])
     save(out / "summary.json", summary)
     return summary
 
@@ -193,6 +214,9 @@ def main():
                         default=ROOT / "configs" / "attack_single_injection_22_kb5ah9.json")
     parser.add_argument("--task-scope-policy", choices=("strict", "sandbox_permissive"), default="strict")
     parser.add_argument("--risk-aware", choices=("off", "on"), default="off")
+    parser.add_argument("--organization-policy", choices=("joint", "task_only",
+        "task_plus_filter", "reactive_isolation"),
+        help="Use one shared graph runtime and gateway with a selected organization rule")
     parser.add_argument("--max-turns", type=int, default=20)
     parser.add_argument("--max-requests", type=int, default=100)
     parser.add_argument("--max-total-tokens", type=int, default=800000)
@@ -219,6 +243,10 @@ def main():
         print(json.dumps({"dry_run": True, "case_ids": ids, "attack": args.attack,
                           "attack_spec_hash": attack_spec.payload_hash if attack_spec else None,
                           "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware,
+                          "effective_risk_selection": (args.organization_policy or (
+                              "joint" if args.risk_aware == "on" else "task_only")) != "task_only",
+                          "organization_policy": args.organization_policy or (
+                              "joint" if args.risk_aware == "on" else "task_only"),
                           "key_present": bool(os.environ.get("DEEPSEEK_API_KEY")), **frozen}, indent=2))
         return
     if not args.acknowledge_model_cost or not os.environ.get("DEEPSEEK_API_KEY"):
@@ -238,13 +266,17 @@ def main():
             if (row["mode"] != args.mode or row["attack_mode"] != args.attack or
                 row.get("task_scope_policy", "strict") != args.task_scope_policy or
                 row.get("risk_aware", "off") != args.risk_aware or
+                row.get("organization_policy") != (args.organization_policy or (
+                    "joint" if args.risk_aware == "on" else "task_only")) or
                 row.get("attack_payload_hash") != (attack_spec.payload_hash if attack_spec else None) or
                 row["max_turns"] != args.max_turns or row["max_requests"] != args.max_requests or
                 row["max_total_tokens"] != args.max_total_tokens or row["max_cost_usd"] != args.max_cost_usd):
                 raise RuntimeError("Resume requires identical policy and experiment settings")
     save(batch_dir / "batch_config.json", {"case_ids": ids, "code": frozen, "batch_cap_usd": 5,
         "attack": args.attack, "attack_payload_hash": attack_spec.payload_hash if attack_spec else None,
-        "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware})
+        "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware,
+        "organization_policy": args.organization_policy or (
+            "joint" if args.risk_aware == "on" else "task_only")})
     # A copy of each source fixes uncommitted and newly-added implementation too.
     for relative in frozen["source_file_hashes"]:
         dest = batch_dir / "code_snapshot" / relative

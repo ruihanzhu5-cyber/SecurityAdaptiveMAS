@@ -66,12 +66,14 @@ class AttackOverlay:
     surface changes one Worker-visible tool return, without changing app state.
     """
 
-    def __init__(self, spec: AttackSpec, trace, *, scenario_id: str):
+    def __init__(self, spec: AttackSpec, trace, *, scenario_id: str,
+                 receiver_agent_id: str | None = None):
         if spec.target_case != scenario_id:
             raise ValueError("attack_target_case_does_not_match_scenario")
         self.spec = spec
         self.trace = trace
         self.scenario_id = scenario_id
+        self.receiver_agent_id = receiver_agent_id
         self.applied = False
         self.record = None
 
@@ -99,7 +101,9 @@ class AttackOverlay:
     def apply_tool_result(self, result, *, tool_name: str, agent_id: str):
         """Copy one Email.content in a real returned ARE value; never mutate app state."""
         if (self.spec.surface != "tool_result_email_content" or self.applied or
-                tool_name != "Emails__list_emails" or not agent_id.startswith("worker_")):
+                tool_name != "Emails__list_emails" or
+                (agent_id != self.receiver_agent_id if self.receiver_agent_id is not None
+                 else not agent_id.startswith("worker_"))):
             return result
         if not self.spec.source_selector.startswith("email_id:"):
             raise ValueError("unsupported_email_source_selector")
