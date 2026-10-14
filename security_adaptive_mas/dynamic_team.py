@@ -188,7 +188,7 @@ def make_dynamic_team_tool(controller, coordinator_context: ObservedContext,
 
 
 class FrameworkTeam:
-    """Repeatable, sequential v0.1 dispatch from validated online contracts.
+    """Repeatable, sequential dispatch from validated online read contracts.
 
     No worker receives the coordinator history or a second environment.
     Output receipts confirm an available artifact, not semantic task completion.
@@ -206,6 +206,7 @@ class FrameworkTeam:
         self.stop_episode = None
         self.delivered_outputs = []
         self.risk_events = []
+        self.last_dispatch_signature = None
         self.turns = 0
 
     def patch(self, name, operations, **kwargs):
@@ -259,11 +260,19 @@ class FrameworkTeam:
                      if b["task_id"] in a["independent_of"] and a["task_id"] in b["independent_of"]
                      and not linked(a["task_id"], b["task_id"]) and not linked(b["task_id"], a["task_id"])), None)
         if pair is None:
-            controller.select_runtime_patch(self.runtime, [self.patch("keep", [{"op": "KEEP"}], reason="no_supported_independent_pair")])
+            pair = (ready[0],) if ready else ()
+        if not pair:
             return
+        signature = (controller.task_revision, self.runtime.graph.version,
+                     tuple((row["task_id"], tasks[row["task_id"]].description,
+                            tuple(row["input_evidence_ids"])) for row in pair),
+                     len(self.risk_events), controller.observed_repeated_object_chars)
+        if signature == self.last_dispatch_signature:
+            return
+        self.last_dispatch_signature = signature
         # Reserve enough request slots for bounded workers and the coordinator.
         budget = self.client.budget
-        if budget.max_requests - budget.requests < 2 * self.worker_step_limit + 1:
+        if budget.max_requests - budget.requests < len(pair) * self.worker_step_limit + 1:
             controller.trace.log("worker_dispatch_deferred", reason="shared_request_budget")
             return
         self.dispatches += 1
@@ -284,7 +293,8 @@ class FrameworkTeam:
                 operations.append({"op": "SET_OBJECT_ACCESS", "agent_id": worker_id, "object_id": object_id, "allowed": True})
                 plans.append((worker_id, object_id))
         keep = self.patch("keep", [{"op": "KEEP"}], reason="continue_coordinator")
-        candidate = self.patch(f"dispatch_{self.dispatches}", operations, delivery_plans=tuple(plans), reason="explicit_independent_read_contracts")
+        candidate = self.patch(f"dispatch_{self.dispatches}", operations, delivery_plans=tuple(plans),
+                               reason="explicit_read_contracts")
         selected = controller.select_runtime_patch(self.runtime, [keep, candidate])
         if selected.patch_id == "keep":
             return
@@ -301,6 +311,7 @@ class FrameworkTeam:
                     "allowed": True} for key in output_ids]
         candidates = [self.patch("keep", [{"op": "KEEP"}], reason="keep_workers"),
                       self.patch(f"release_{self.dispatches}", release,
+                                 delivery_plans=tuple(("agent_0", key) for key in output_ids),
                                  reason="release_output_available")]
         if controller.risk_aware_enabled and set(worker_ids) & controller.suspect_instances:
             candidates.append(self.patch(f"contain_{self.dispatches}",
@@ -308,19 +319,27 @@ class FrameworkTeam:
                 [{"op": "RETIRE_WORKER", "agent_id": key} for key in worker_ids],
                 reason="suspicious_worker_output_withheld"))
         selected = controller.select_runtime_patch(self.runtime, candidates)
-        if selected.patch_id.startswith("release_"):
-            for worker_id, object_id in zip(worker_ids, output_ids):
+        if selected.delivery_plans:
+            for consumer, object_id in selected.delivery_plans:
+                if consumer != "agent_0":
+                    raise ValueError("unsupported_delivery_consumer")
                 evidence = controller.provenance.items[object_id]
-                message = Message(worker_id, "agent_0", self.runtime.graph.version,
-                                  object_id, evidence.text)
-                controller.messages.send(self.runtime.graph, message)
-                if message not in controller.messages.deliver(self.runtime.graph):
-                    raise PermissionError("worker_output_not_delivered")
+                writer = self.runtime.objects[object_id]["writer"]
+                if writer != "agent_0":
+                    message = Message(writer, "agent_0", self.runtime.graph.version,
+                                      object_id, evidence.text)
+                    controller.messages.send(self.runtime.graph, message)
+                    if message not in controller.messages.deliver(self.runtime.graph):
+                        raise PermissionError("worker_output_not_delivered")
+                self.runtime.read_object("agent_0", object_id)
                 self.delivered_outputs.append(object_id)
+        active_workers = {agent.agent_id for agent in self.runtime.graph.agents}
+        to_retire = [key for key in worker_ids if key in active_workers]
+        if selected.delivery_plans and to_retire:
             controller.select_runtime_patch(self.runtime, [self.patch(f"retire_{self.dispatches}",
-                [{"op": "RETIRE_WORKER", "agent_id": key} for key in worker_ids],
+                [{"op": "RETIRE_WORKER", "agent_id": key} for key in to_retire],
                 reason="retire_output_available")])
-        else:
+        elif not selected.delivery_plans:
             controller.trace.log("worker_output_withheld", patch_id=selected.patch_id,
                 object_ids=output_ids, task_status="unverified_blocked_delivery")
 

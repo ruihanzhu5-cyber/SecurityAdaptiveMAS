@@ -59,6 +59,51 @@ class InformationRequirement:
 
 
 @dataclass(frozen=True)
+class TaskNeed:
+    """A visible information need; completion is never inferred from prose."""
+    task_id: str
+    need_id: str
+    required_kind: str
+    required_fields: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    provider_task_id: str | None
+    prerequisites: tuple[str, ...]
+    owner_instance_id: str
+    status: str
+    status_evidence_ids: tuple[str, ...]
+
+
+def task_need_snapshot(analysis: "TaskAnalysis", graph, objects) -> tuple[TaskNeed, ...]:
+    """Derive statuses from current objects and executable graph relationships."""
+    needs = []
+    for requirement in analysis.information_requirements:
+        provider = requirement.provider_task_id
+        consumer = graph.assignments.get(requirement.task_id, "agent_0")
+        available = [obj for obj in objects.values()
+                     if provider is not None and obj["task_id"] == provider
+                     and obj["status"] == "output_available"]
+        readable = [obj for obj in available
+                    if (consumer, obj["object_id"]) in graph.object_access]
+        if readable:
+            status = "available"  # Not satisfied: content has no field-level validator.
+        elif available:
+            status = "blocked"
+        elif provider in graph.assignments:
+            producer = graph.assignments[provider]
+            status = "producible" if producer == consumer or (producer, consumer) in graph.extra_edges else "blocked"
+        else:
+            status = "unknown"
+        needs.append(TaskNeed(requirement.task_id,
+                              requirement.requirement_id or requirement.description,
+                              "information", (), requirement.evidence_ids, provider,
+                              tuple(edge.predecessor_id for edge in analysis.dependencies
+                                    if edge.successor_id == requirement.task_id),
+                              consumer, status,
+                              tuple(obj["object_id"] for obj in readable)))
+    return tuple(needs)
+
+
+@dataclass(frozen=True)
 class TaskAnalysis:
     as_of_sequence: int
     subtasks: tuple[Subtask, ...]

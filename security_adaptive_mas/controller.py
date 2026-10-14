@@ -66,6 +66,12 @@ class Controller:
         self.tools.blocked_agents = self.quarantined
         self.risk_aware_enabled = False
         self.protected_targets: tuple[str, ...] = ()
+        self.organization_policy = "legacy"
+        self.observed_repeated_object_chars = 0
+        self.last_cost_reconsidered_chars = 0
+        self.last_joint_task_revision = -1
+        self.last_joint_observation_sequence = 0
+        self.last_joint_risk_event_count = 0
 
     def quarantine(self, agent_id: str, mode: str = "full") -> None:
         if mode == "full":
@@ -251,6 +257,81 @@ class Controller:
         return decision
 
     def select_runtime_patch(self, runtime, candidates, *, protected_targets=()):
+        if self.organization_policy != "legacy":
+            return self._select_joint_runtime_patch(runtime, candidates)
+        return self._select_runtime_patch_legacy(runtime, candidates,
+                                                 protected_targets=protected_targets)
+
+    def _select_joint_runtime_patch(self, runtime, candidates):
+        from .joint_rewriter import evaluate_candidates, joint_trigger, select_candidate
+        observation = self.online_snapshot()
+        analysis = self._current_task_analysis(observation)
+        risk_events = getattr(getattr(self, "framework_team", None), "risk_events", ())
+        cost_delta = self.observed_repeated_object_chars - self.last_cost_reconsidered_chars
+        output_arrived = (observation.sequence > self.last_joint_observation_sequence
+                          and any(patch.reason == "release_output_available"
+                                  for patch in candidates))
+        trigger = joint_trigger(
+            observation, analysis, runtime,
+            task_delta=self.task_revision != self.last_joint_task_revision,
+            output_arrived=output_arrived,
+            risk_events=risk_events[self.last_joint_risk_event_count:],
+            cost_opportunity=cost_delta if cost_delta > 0 else None,
+            lifecycle_completion=all(patch.reason == "retire_output_available"
+                                     for patch in candidates))
+        if not trigger.reconsider:
+            keep = next((patch for patch in candidates if patch.patch_id == "keep"), None)
+            self.trace.log("joint_reconsideration_deferred",
+                           observation_sequence=observation.sequence,
+                           graph_version=runtime.graph.version,
+                           task_revision=self.task_revision,
+                           reason="no_new_task_risk_or_cost_evidence")
+            if keep is None:
+                raise RuntimeError("joint_reconsideration_without_keep_candidate")
+            return keep
+        rows = evaluate_candidates(self, runtime, candidates,
+                                   policy=self.organization_policy,
+                                   protected_targets=self.protected_targets)
+        try:
+            selected, reason = select_candidate(rows, policy=self.organization_policy)
+        except RuntimeError:
+            self.trace.log("runtime_decision_blocked", reason="no_task_covering_candidate",
+                           candidates=[{key: value for key, value in row.items() if key != "patch"}
+                                       for row in rows])
+            raise
+        patch = selected["patch"]
+        candidates_log = [{key: value for key, value in row.items() if key != "patch"}
+                          for row in rows]
+        before = runtime.graph.version
+        runtime.apply(patch)
+        self.trace.log("joint_decision", observation_sequence=observation.sequence,
+                       graph_version_before=before, task_revision=self.task_revision,
+                       graph_version_after=runtime.graph.version,
+                       trigger_reasons=trigger.reasons, affected_task_need_ids=trigger.affected_need_ids,
+                       affected_agent_ids=trigger.affected_agent_ids,
+                       evidence_ids=patch.evidence_ids, organization_policy=self.organization_policy,
+                       candidate_id=patch.patch_id, operations=patch.operations,
+                       delivery_plan=patch.delivery_plans,
+                       task_coverage=selected["task_coverage"], risk=selected["risk"],
+                       cost=selected["cost"], selected_reason=reason,
+                       alternatives=candidates_log, risk_scope="current_live_objects_incomplete")
+        self.trace.log("controller_runtime_decision", candidate_id=patch.patch_id,
+                       candidate_decision=patch.patch_id, decision_basis=reason,
+                       organization_policy=self.organization_policy,
+                       trigger_reason=trigger.reasons,
+                       risk_status=selected["risk"]["risk_status"],
+                       task_coverage=selected["task_coverage"],
+                       cost_status=selected["cost"]["cost_status"],
+                       graph_version_before=before, candidates=candidates_log,
+                       selected_operations=patch.operations, evidence_ids=patch.evidence_ids,
+                       observation_sequence=observation.sequence)
+        self.last_cost_reconsidered_chars = self.observed_repeated_object_chars
+        self.last_joint_task_revision = self.task_revision
+        self.last_joint_observation_sequence = observation.sequence
+        self.last_joint_risk_event_count = len(risk_events)
+        return patch
+
+    def _select_runtime_patch_legacy(self, runtime, candidates, *, protected_targets=()):
         """Executable path. risk-aware=on compares each candidate's new
         propagation to protected targets against the KEEP baseline."""
         from .graph_evaluation import coverage, project_risk

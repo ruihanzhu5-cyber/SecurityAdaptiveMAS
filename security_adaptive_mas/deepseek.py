@@ -50,6 +50,7 @@ class RunBudget:
         self.task_analysis_requests = 0
         self.task_analysis_request_limit: int | None = None
         self.requests_by_purpose: dict[str, int] = {}
+        self.actual_usage_by_purpose: dict[str, dict[str, float | int]] = {}
         self.unaccounted_usage_notes: list[dict] = []
         self.unknown_cost_bound = 0.0
         self.unknown_token_bound = 0
@@ -63,15 +64,24 @@ class RunBudget:
         input_bound = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
         estimated_cost = (input_bound * PEAK_INPUT_USD_PER_TOKEN +
                           max_output_tokens * PEAK_OUTPUT_USD_PER_TOKEN)
+        rejection = None
         if (purpose == "task_analysis" and self.task_analysis_request_limit is not None and
                 self.task_analysis_requests >= self.task_analysis_request_limit):
-            raise BudgetExceeded("DeepSeek task-analysis request limit exhausted")
-        if self.requests >= self.max_requests:
-            raise BudgetExceeded("DeepSeek request budget exhausted")
-        if self.input_tokens + self.output_tokens + self.unknown_token_bound + input_bound + max_output_tokens > self.max_total_tokens:
-            raise BudgetExceeded("DeepSeek token budget exhausted")
-        if self.peak_cost_estimate_usd + self.unknown_cost_bound + estimated_cost > self.max_cost_usd:
-            raise BudgetExceeded("DeepSeek cost budget exhausted")
+            rejection = "DeepSeek task-analysis request limit exhausted"
+        elif self.requests >= self.max_requests:
+            rejection = "DeepSeek request budget exhausted"
+        elif self.input_tokens + self.output_tokens + self.unknown_token_bound + input_bound + max_output_tokens > self.max_total_tokens:
+            rejection = "DeepSeek token budget exhausted"
+        elif self.peak_cost_estimate_usd + self.unknown_cost_bound + estimated_cost > self.max_cost_usd:
+            rejection = "DeepSeek cost budget exhausted"
+        if rejection:
+            self.trace.log("preflight_budget_rejection", purpose=purpose, reason=rejection,
+                           reserved_input_byte_bound=input_bound,
+                           reserved_output_token_bound=max_output_tokens,
+                           reserved_cost_bound_usd=estimated_cost,
+                           actual_requests=self.requests, actual_input_tokens=self.input_tokens,
+                           actual_output_tokens=self.output_tokens)
+            raise BudgetExceeded(rejection)
         self.requests += 1
         label = purpose or "execution"
         self.requests_by_purpose[label] = self.requests_by_purpose.get(label, 0) + 1
@@ -101,6 +111,16 @@ class RunBudget:
         self.peak_cost_estimate_usd += (
             prompt * PEAK_INPUT_USD_PER_TOKEN + completion * PEAK_OUTPUT_USD_PER_TOKEN
         )
+        label = purpose or "execution"
+        actual = self.actual_usage_by_purpose.setdefault(label, {
+            "requests": 0, "input_tokens": 0, "output_tokens": 0,
+            "latency_seconds": 0.0, "cost_estimate_usd": 0.0})
+        actual["requests"] += 1
+        actual["input_tokens"] += prompt
+        actual["output_tokens"] += completion
+        actual["latency_seconds"] += latency
+        actual["cost_estimate_usd"] += (prompt * PEAK_INPUT_USD_PER_TOKEN
+                                        + completion * PEAK_OUTPUT_USD_PER_TOKEN)
         self.request_reservation = (0, 0.0)
         self.trace.log("model_usage", mode=self.mode, model=MODEL, provider=PROVIDER,
                        prompt_tokens=prompt, completion_tokens=completion,
@@ -140,6 +160,8 @@ class DeepSeekClient:
         from litellm.exceptions import RateLimitError, Timeout
         if on_input is not None:
             on_input(messages)
+        self.budget.trace.log("model_input_prepared", purpose=purpose,
+                              serialized_characters=len(json.dumps(messages, ensure_ascii=False, default=str)))
         for attempt in range(self.settings.max_attempts):
             try:
                 self.budget.before_request(messages, self.settings.max_output_tokens, purpose=purpose,
@@ -148,6 +170,8 @@ class DeepSeekClient:
                 if "task-analysis" not in str(error):
                     self.budget.trace.log("budget_exhausted", purpose=purpose, reason=str(error))
                 raise
+            self.budget.trace.log("model_request_submitted", purpose=purpose,
+                                  request_count=self.budget.requests)
             started = time.monotonic()
             try:
                 response = completion_fn(**kwargs)

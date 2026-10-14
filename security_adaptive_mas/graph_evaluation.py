@@ -3,21 +3,14 @@ from __future__ import annotations
 
 from collections import deque
 
+from .online_task import task_need_snapshot
+
 
 def coverage(analysis, graph, objects):
-    rows = []
-    for need in analysis.information_requirements:
-        provider = need.provider_task_id
-        available = [obj for obj in objects.values() if obj["task_id"] == provider and provider is not None and obj["status"] == "output_available"]
-        consumer = graph.assignments.get(need.task_id, "agent_0")
-        if available:
-            status = "available" if any((consumer, obj["object_id"]) in graph.object_access for obj in available) else "blocked"
-        elif provider in graph.assignments:
-            producer = graph.assignments[provider]
-            status = "producible" if producer == consumer or (producer, consumer) in graph.extra_edges else "blocked"
-        else:
-            status = "unknown"
-        rows.append({"task_id": need.task_id, "requirement_id": need.requirement_id, "status": status})
+    rows = [{"task_id": need.task_id, "requirement_id": need.need_id,
+             "status": need.status, "owner_instance_id": need.owner_instance_id,
+             "status_evidence_ids": need.status_evidence_ids}
+            for need in task_need_snapshot(analysis, graph, objects)]
     return {"requirements": rows, "known_missing": [row for row in rows if row["status"] == "blocked"],
             "unknown": [row for row in rows if row["status"] == "unknown"]}
 
