@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import redirect_stdout, redirect_stderr
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -17,7 +17,8 @@ from uuid import uuid4
 from .are_adapter import import_official_scenario, official_runner
 from .are_bridge import ObservedContext, make_framework_agent_builder
 from .attack import evaluate_attack, load_attack_spec
-from .config import ROOT, load_config
+from .config import ROOT, ScenarioRecord, load_config
+from .dataset_store import export_scenario
 from .controller import Controller
 from .deepseek import (API_BASE, MODEL, PROVIDER, DeepSeekClient, DeepSeekSettings,
                        RunBudget, PEAK_INPUT_USD_PER_TOKEN, PEAK_OUTPUT_USD_PER_TOKEN)
@@ -74,7 +75,10 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
     initial = controller.provenance.add("startup", "low_trust", "Waiting for actual delivered USER/ENV notifications")
     context = ObservedContext(controller, initial.evidence_id)
     source_versions = json.loads((ROOT / "configs/source_versions.json").read_text(encoding="utf-8"))
-    run_config = {"scenario_id": scenario_id, "run_id": run_id, "split": "development",
+    run_config = {"scenario_id": scenario_id, "run_id": run_id,
+        "split": "gaia2_validation_unreviewed" if args.dataset_category else "development",
+        "dataset_category": args.dataset_category,
+        "dataset_row_index_zero_based": args.dataset_row_index,
         "mode": args.mode, "attack_mode": args.attack,
         "attack_payload_hash": attack_spec.payload_hash if applies else None,
         "attack_id": attack_spec.attack_id if applies else None,
@@ -209,6 +213,7 @@ def main():
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument("--suite", choices=("five",))
     selection.add_argument("--scenario")
+    parser.add_argument("--dataset-category", help="With --scenario, select from a pinned full Gaia2 category")
     parser.add_argument("--attack", choices=("none", "single_injection"), default="none")
     parser.add_argument("--attack-spec", type=Path,
                         default=ROOT / "configs" / "attack_single_injection_22_kb5ah9.json")
@@ -230,6 +235,13 @@ def main():
             1 <= args.max_total_tokens <= 800000 and 0 < args.max_cost_usd <= 1):
         parser.error("v0.1 limits: 20 turns, 100 requests, 800000 tokens, 1 USD per episode")
     config = load_config()
+    args.dataset_row_index = None
+    if args.dataset_category:
+        if not args.scenario:
+            parser.error("--dataset-category requires --scenario")
+        path, digest, args.dataset_row_index = export_scenario(args.dataset_category, args.scenario)
+        record = ScenarioRecord(args.scenario, path, path.parent, digest)
+        config = replace(config, scenario_ids=(args.scenario,), records={args.scenario: record})
     ids = config.scenario_ids if args.suite else (args.scenario,)
     for scenario_id in ids:
         config.select(scenario_id)
@@ -241,6 +253,8 @@ def main():
     frozen = code_state()
     if args.dry_run:
         print(json.dumps({"dry_run": True, "case_ids": ids, "attack": args.attack,
+                          "dataset_category": args.dataset_category,
+                          "dataset_row_index_zero_based": args.dataset_row_index,
                           "attack_spec_hash": attack_spec.payload_hash if attack_spec else None,
                           "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware,
                           "effective_risk_selection": (args.organization_policy or (
@@ -264,6 +278,7 @@ def main():
         summaries = json.loads((batch_dir / "batch_results.json").read_text(encoding="utf-8"))
         for row in summaries:
             if (row["mode"] != args.mode or row["attack_mode"] != args.attack or
+                row.get("dataset_category") != args.dataset_category or
                 row.get("task_scope_policy", "strict") != args.task_scope_policy or
                 row.get("risk_aware", "off") != args.risk_aware or
                 row.get("organization_policy") != (args.organization_policy or (
@@ -273,6 +288,7 @@ def main():
                 row["max_total_tokens"] != args.max_total_tokens or row["max_cost_usd"] != args.max_cost_usd):
                 raise RuntimeError("Resume requires identical policy and experiment settings")
     save(batch_dir / "batch_config.json", {"case_ids": ids, "code": frozen, "batch_cap_usd": 5,
+        "dataset_category": args.dataset_category,
         "attack": args.attack, "attack_payload_hash": attack_spec.payload_hash if attack_spec else None,
         "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware,
         "organization_policy": args.organization_policy or (

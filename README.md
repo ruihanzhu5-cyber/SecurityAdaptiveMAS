@@ -130,6 +130,7 @@ flowchart TD
 | [`dynamic_team.py`](security_adaptive_mas/dynamic_team.py)、[`are_bridge.py`](security_adaptive_mas/are_bridge.py) | 顺序 Worker 与官方 ARE 事件／工具接入。 |
 | [`security.py`](security_adaptive_mas/security.py)、[`run_framework.py`](security_adaptive_mas/run_framework.py) | 授权网关、策略入口、预算和结果归档。 |
 | [`docs/reports/`](docs/reports/)、[`docs/research-log/`](docs/research-log/) | 历史实跑证据与每日记录。 |
+| [`data/gaia2/`](data/gaia2/README.md) | 五个固定场景、完整数据 Release、下载与场景选择说明。 |
 
 零付费配置核验（需本机已配置仓库依赖和官方场景数据）：
 
@@ -138,3 +139,9 @@ flowchart TD
 ```
 
 真实模型调用另需进程环境变量 `DEEPSEEK_API_KEY`、明确的单次预算上限与 `--acknowledge-model-cost`。本轮只运行离线测试和 dry-run，没有发起新的付费请求。
+
+## 9. 完整 Gaia2 数据
+
+Git 中保留了五个历史开发场景的原始 JSON；[Gaia2 数据 Release](https://github.com/ruihanzhu5-cyber/SecurityAdaptiveMAS/releases/tag/gaia2-data-78ea3bd)保存固定上游版本的 7 个 Parquet 文件和 ARE 所需的文件系统快照。这样普通代码克隆仍然较小，需要扩展场景时再下载大文件。每个文件的 SHA-256 都写在 [`source_versions.json`](configs/source_versions.json)，下载接口会核对。
+
+从完整数据选一个场景时，先运行 `python -m security_adaptive_mas.dataset_store fetch`，再用 `list --category execution` 查看 ID；`run_framework` 可用 `--dataset-category execution --scenario <ID> --dry-run` 检查入口。固定五例的运行和历史成绩不受此接口扩展影响。目录结构、命令和上游署名见[数据说明](data/gaia2/README.md)。

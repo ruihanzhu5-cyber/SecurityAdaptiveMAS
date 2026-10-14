@@ -1,9 +1,11 @@
 import json
+import hashlib
 from uuid import uuid4
 
 import pytest
 
 from security_adaptive_mas.config import ROOT, load_config
+from security_adaptive_mas import dataset_store
 from security_adaptive_mas.controller import Controller
 from security_adaptive_mas.demo import run_demo
 from security_adaptive_mas.organization import communication_edges
@@ -52,6 +54,25 @@ def test_fixed_config_and_hashes():
         assert config.select(scenario_id).path.is_file()
     with pytest.raises(ValueError):
         config.select("scenario_unknown")
+
+
+def test_full_gaia2_category_selection(tmp_path, monkeypatch):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    source = tmp_path / "execution.parquet"
+    raw = '{"scenario_id":"scenario_demo"}'
+    pq.write_table(pa.table({"scenario_id": ["scenario_other", "scenario_demo"],
+                             "data": ["{}", raw]}), source)
+    monkeypatch.setattr(dataset_store, "source_versions", lambda: {"files": {
+        source.name: {"bytes": source.stat().st_size,
+                      "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}}})
+    assert dataset_store.list_scenarios("execution", tmp_path) == ["scenario_other", "scenario_demo"]
+    path, digest, index = dataset_store.export_scenario("execution", "scenario_demo",
+                                                         tmp_path, tmp_path / "selected")
+    assert path.read_bytes() == raw.encode("utf-8")
+    assert digest == hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    assert index == 1
 
 
 def test_manta_topology_and_edges(system):

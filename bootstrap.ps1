@@ -37,19 +37,8 @@ function Ensure-PinnedRepo([string]$Url, [string]$Path, [string]$Commit) {
 if (-not $SkipDownloads) {
     Ensure-PinnedRepo "https://github.com/facebookresearch/meta-agents-research-environments.git" $AreRoot $AreCommit
     Ensure-PinnedRepo "https://github.com/mao-code/MANTA.git" $MantaRoot $MantaCommit
-    New-Item -ItemType Directory -Path $DataDir -Force | Out-Null
-    foreach ($Category in @("adaptability", "execution", "time")) {
-        $Filename = "$Category.parquet"
-        $Target = Join-Path $DataDir $Filename
-        $Expected = $Source.files.$Filename.sha256
-        if (-not (Test-Path -LiteralPath $Target) -or (Get-FileHash -LiteralPath $Target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Expected) {
-            $Url = "https://huggingface.co/datasets/meta-agents-research-environments/gaia2/resolve/$($Source.dataset_revision)/$Category/validation-00000-of-00001.parquet"
-            Invoke-WebRequest -Uri $Url -OutFile $Target
-        }
-        if ((Get-FileHash -LiteralPath $Target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Expected) {
-            throw "Gaia2 Parquet checksum mismatch: $Filename"
-        }
-    }
+    & $PythonExe (Join-Path $ProjectRoot "security_adaptive_mas\dataset_store.py") fetch
+    if ($LASTEXITCODE -ne 0) { throw "Gaia2 release download or checksum verification failed" }
 }
 
 if (-not (Test-Path -LiteralPath $VenvPython)) {
@@ -60,10 +49,6 @@ uv pip install --python $VenvPython -r (Join-Path $ProjectRoot "requirements-v2.
 if ($LASTEXITCODE -ne 0) { throw "Project dependency installation failed" }
 uv pip install --python $VenvPython -r (Join-Path $AreRoot "requirements.txt")
 if ($LASTEXITCODE -ne 0) { throw "ARE dependency installation failed" }
-if (-not $SkipDownloads) {
-    & $VenvPython -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='meta-agents-research-environments/gaia2_filesystem', repo_type='dataset', revision='$($Source.filesystem_revision)', local_dir=r'$(Join-Path $ProjectRoot 'work\gaia2_filesystem')')"
-    if ($LASTEXITCODE -ne 0) { throw "Gaia2 filesystem download failed" }
-}
 if ($SkipDownloads) {
     & $VenvPython -c "from security_adaptive_mas.config import load_config; cfg=load_config(); [cfg.select(s) for s in cfg.scenario_ids]; print('Five pinned scenario checksums OK')"
     if ($LASTEXITCODE -ne 0) { throw "Existing fixed scenario verification failed" }
