@@ -1,10 +1,10 @@
 # 技术概览与已有工程原型
 
-> 此文档保存 2026-10-12 之前 README 的技术说明、Related Work、复现命令和原型边界。首页现用于每日研究进展；以下内容按当时的工程状态保留，不表示后续研究模型已实现。[返回研究首页](../README.md)。
+> 此文档保存 2026-10-12 之前 README 的技术说明、Related Work、复现命令和原型边界。首页现用于每日研究进展；以下内容按当时的工程状态保留，不表示后续研究模型已实现。[返回研究首页](../../../README.md)。
 
 ---
 
-![SecurityAdaptiveMAS：现有多智能体协作原型示意](assets/hero.svg)
+![SecurityAdaptiveMAS：现有多智能体协作原型示意](../../assets/hero.svg)
 
 <h1 align="center">SecurityAdaptiveMAS</h1>
 <p align="center"><strong>让多智能体团队随着任务变化调整分工与信息流，并在整个执行过程中检查安全风险。</strong></p>
@@ -20,7 +20,7 @@
   <img alt="研究原型" src="https://img.shields.io/badge/%E7%8A%B6%E6%80%81-%E7%A0%94%E7%A9%B6%E5%8E%9F%E5%9E%8B-D97706?style=flat-square" />
 </p>
 
-> **状态：研究原型。** 当前代码实现了三种基础组织结构、固定规则的选择器、有限的消息与工具检查，以及只读 ARE 入口。22 项离线测试与一次 DeepSeek 连通性请求曾通过；尚无在线 Gaia2 任务得分、在线多智能体结果或本页提出的联合优化实验。[实现报告](reports/implementation_report_v2.md)记录了已验证的范围。
+> **状态：研究原型。** 当前代码实现了三种基础组织结构、固定规则的选择器、有限的消息与工具检查，以及只读 ARE 入口。22 项离线测试与一次 DeepSeek 连通性请求曾通过；尚无在线 Gaia2 任务得分、在线多智能体结果或本页提出的联合优化实验。[实现报告](../implementation/implementation_report_v2.md)记录了已验证的范围。
 
 ## 研究定位
 
@@ -50,9 +50,9 @@
 | Step 15：比较候选组织 | 在继续并行、增加核验、限制可见性、改派工作之间比较任务收益与成本。 | 排除违反硬约束的方案，估计剩余危险路径；避免一概停掉合法任务。 |
 | Step 18：准备敏感动作 | 执行前确认动作服务于原任务。 | 若模拟凭据被发送到受控攻击地址，才记为相应攻击结果；单纯存在路径不是成功。 |
 
-![外部内容可能沿协作路径传播的动机示意；旧图不代表实验结果](assets/problem.svg)
+![外部内容可能沿协作路径传播的动机示意；旧图不代表实验结果](../../assets/problem.svg)
 
-[放大查看动机图](assets/problem.svg)。**无攻击对照同样关键**：从探索转入可并行模块时，系统仍应考虑重组；完成并行部分后，也应考虑缩减团队。
+[放大查看动机图](../../assets/problem.svg)。**无攻击对照同样关键**：从探索转入可并行模块时，系统仍应考虑重组；完成并行部分后，也应考虑缩减团队。
 
 ### 安全约束具体指什么
 
@@ -105,9 +105,9 @@ flowchart LR
 
 三阶段都属于**计划中的同一拓扑决策过程**，并非已经实现的三个模块。旧的团队演化图仅说明当前原型能表达的少量结构变化：
 
-![现有原型的单人、星形与链形变化示意；不代表完整预测控制已经实现](assets/topology-evolution.svg)
+![现有原型的单人、星形与链形变化示意；不代表完整预测控制已经实现](../../assets/topology-evolution.svg)
 
-[放大查看团队变化图](assets/topology-evolution.svg)。
+[放大查看团队变化图](../../assets/topology-evolution.svg)。
 
 ## 相关工作与研究定位
 
@@ -149,18 +149,18 @@ flowchart LR
 
 ## 现有原型与边界
 
-![现有原型框架：Gaia2 与 ARE 环境、控制器和网关、DeepSeek 驱动的只读角色](assets/architecture.svg)
+![现有原型框架：Gaia2 与 ARE 环境、控制器和网关、DeepSeek 驱动的只读角色](../../assets/architecture.svg)
 
-[放大查看现有框架图](assets/architecture.svg)。图示的是已有工程连接，不包含已完成的风险预测器。
+[放大查看现有框架图](../../assets/architecture.svg)。图示的是已有工程连接，不包含已完成的风险预测器。
 
 | 已有部分 | 实际能力与限制 |
 |---|---|
-| [Controller](../security_adaptive_mas/controller.py) 与[组织选择](../security_adaptive_mas/organization.py) | 根据任务阶段、待办子任务和风险布尔值，用固定启发式分数选择 Singleton、Star、Chain；组织版本和少量隔离规则已存在。它不是联合优化器。 |
-| [MANTA 适配](../security_adaptive_mas/manta_adapter.py) | 复用部分 TopologySpec、ContextPolicy、TopologyMutation 接口；未接入完整 Engine、Planner 或 Trace Auditor。 |
-| [ProvenanceStore、MessageGateway、ToolGateway](../security_adaptive_mas/security.py) | 保守记录可见输入来源；检查部分消息边、可见范围、版本、隔离和精确工具授权。未实现完整历史因果图。 |
-| [ARE / Gaia2 适配](../security_adaptive_mas/are_bridge.py) | 使用官方场景、Runner 和工具；固定五个[场景](../configs/gaia2_v1_five.yaml)及其哈希。当前 ARE 入口只允许获准的只读工具。 |
-| [只读 Worker / Verifier](../security_adaptive_mas/dynamic_team.py) | 可并行委派两个只读任务，再交给 Verifier。风险信号只是少量英文字符串的正则匹配，不能当作成熟的注入检测。 |
-| [DeepSeek 接口](../security_adaptive_mas/deepseek.py)与[离线测试](../tests/) | 固定 deepseek-flash 路由和本地预算；已有一次在线连通性请求及 22 项离线测试的记录，未得到在线 Gaia2 多角色端到端结果。 |
+| [Controller](../../../security_adaptive_mas/controller.py) 与[组织选择](../../../security_adaptive_mas/organization.py) | 根据任务阶段、待办子任务和风险布尔值，用固定启发式分数选择 Singleton、Star、Chain；组织版本和少量隔离规则已存在。它不是联合优化器。 |
+| [MANTA 适配](../../../security_adaptive_mas/manta_adapter.py) | 复用部分 TopologySpec、ContextPolicy、TopologyMutation 接口；未接入完整 Engine、Planner 或 Trace Auditor。 |
+| [ProvenanceStore、MessageGateway、ToolGateway](../../../security_adaptive_mas/security.py) | 保守记录可见输入来源；检查部分消息边、可见范围、版本、隔离和精确工具授权。未实现完整历史因果图。 |
+| [ARE / Gaia2 适配](../../../security_adaptive_mas/are_bridge.py) | 使用官方场景、Runner 和工具；固定五个[场景](../../../configs/gaia2_v1_five.yaml)及其哈希。当前 ARE 入口只允许获准的只读工具。 |
+| [只读 Worker / Verifier](../../../security_adaptive_mas/dynamic_team.py) | 可并行委派两个只读任务，再交给 Verifier。风险信号只是少量英文字符串的正则匹配，不能当作成熟的注入检测。 |
+| [DeepSeek 接口](../../../security_adaptive_mas/deepseek.py)与[离线测试](../../../tests) | 固定 deepseek-flash 路由和本地预算；已有一次在线连通性请求及 22 项离线测试的记录，未得到在线 Gaia2 多角色端到端结果。 |
 
 **当前未完成：**任务依赖驱动的候选生成、可靠的时间性风险估计、跨 Agent/Memory 的完整历史依赖、选择性恢复、可写敏感工具场景，以及正式的安全—性能对照实验。现有角色使用固定 Agent ID；在一次从 Star 转为 Chain 的重构中，原先的 Worker ID 可能被复用为 Verifier，而隔离逻辑只遍历新拓扑中的 Worker。若风险首先出现在第二个 Worker，不能仅凭现有测试推断该 ID 已持续隔离；正式实验前须检查并修正状态继承。当前入口依然保持只读。
 
@@ -180,7 +180,7 @@ flowchart LR
 
 ## 快速开始
 
-需要 Windows PowerShell、Git、Python 3.12、`uv`、网络，以及下载上游源码和 Gaia2 数据的空间。完整的全新目录下载路径已有脚本，**尚未从空目录端到端验证**；现有 D 盘工作区通过了 `-SkipDownloads` 检查。详见[实现报告](reports/implementation_report_v2.md)。
+需要 Windows PowerShell、Git、Python 3.12、`uv`、网络，以及下载上游源码和 Gaia2 数据的空间。完整的全新目录下载路径已有脚本，**尚未从空目录端到端验证**；现有 D 盘工作区通过了 `-SkipDownloads` 检查。详见[实现报告](../implementation/implementation_report_v2.md)。
 
 ### 免费：安装并检查离线原型
 
@@ -216,6 +216,6 @@ $env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $key).Password
 .\.venv\Scripts\python.exe -m security_adaptive_mas.are_multi --scenario scenario_universe_22_0421h2 --allow-read-app Files --max-requests 12 --max-total-tokens 100000 --max-cost-usd 0.20 --acknowledge-model-cost
 ```
 
-两个入口都使用官方 ARE Runner 并导出轨迹，**目前都没有在线任务结果**。写工具仍关闭，需要修改应用状态的任务可能无法完成。本地费用估算不是服务商的账单保证。更多运行细节见[实现报告](reports/implementation_report_v2.md)。
+两个入口都使用官方 ARE Runner 并导出轨迹，**目前都没有在线任务结果**。写工具仍关闭，需要修改应用状态的任务可能无法完成。本地费用估算不是服务商的账单保证。更多运行细节见[实现报告](../implementation/implementation_report_v2.md)。
 
-继续阅读：[实现报告](reports/implementation_report_v2.md) · [五个固定场景](../configs/gaia2_v1_five.yaml) · [离线测试](../tests/)
+继续阅读：[实现报告](../implementation/implementation_report_v2.md) · [五个固定场景](../../../configs/gaia2_v1_five.yaml) · [离线测试](../../../tests)

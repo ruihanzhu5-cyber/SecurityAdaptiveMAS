@@ -40,14 +40,14 @@ I3 存在重要实现落差：[`Verifier.run_shadow_pass`](https://github.com/si
 
 | 位置 | 已有行为及状态 | 研究方案必须面对的缺口 |
 |---|---|---|
-| [`organization.py`](../security_adaptive_mas/organization.py) | 使用 MANTA `TopologySpec`/`ContextPolicy`/`TopologyMutation`形成 Singleton、Star、Chain；`TaskAnalyzer`接收调用方给的 intake/parallel/commit；`OrganizationSelector`用固定 benefit/cost 和布尔 `risky_input`风险惩罚。**部分实现/启发式** | 不是 MANTA Planner/Auditor；无任务依赖图、实测效用、候选路径或重构代价估计。 |
-| [`controller.py`](../security_adaptive_mas/controller.py) | 设置 spec/version、assignments 与网关；风险模式按**新 spec 中 worker 角色**加入隔离集。**部分实现** | `agent_2`在 Star 为 Worker，在 Chain 可变 Verifier；若它读取恶意文本，重组后按新角色遍历可能漏掉它。字符串 ID 没有实例 epoch；替换多个状态字段缺少完整 prepare/commit/rollback。 |
-| [`security.py`](../security_adaptive_mas/security.py) | `ProvenanceStore`记录来源、父证据、文本、owner；`MessageGateway`校验当前 spec 对象、版本、边、可见性、隔离；`ToolGateway`具精确写授权与持久去重。**局部真实约束** | `contains_low_trust`是保守父链，不证明 LLM 受影响；shared 只是网关记录的消息，无长期 Memory 读写及失效图；网关拦截会让固定拓扑下攻击也失败。 |
-| [`dynamic_team.py`](../security_adaptive_mas/dynamic_team.py) / [`are_bridge.py`](../security_adaptive_mas/are_bridge.py) | ARE `AgentBuilder`只读接线，`delegate_parallel_reads`串行委托两个 Worker、再给 Verifier；规则匹配输入风险。**有限运行路径** | 仅一次团队重组的工具路径，不是持续多轮原生调度；没有完整状态迁移/高权限 Executor；真实 ARE Single/Multi 端到端未验证。 |
-| [`manta_adapter.py`](../security_adaptive_mas/manta_adapter.py) / [`trace.py`](../security_adaptive_mas/trace.py) | 前者只导入 MANTA spec 命名空间；后者写 JSONL 事件。**已实现基础** | 尚无 MANTA Planner/Auditor 所需的轨迹模式与性能特征映射。 |
-| [`tests/test_system.py`](../tests/test_system.py) / [`tests/test_dynamic_team.py`](../tests/test_dynamic_team.py) | 网关旧版本、权限、一次重组和风险来自第一个 Worker 的离线假响应被覆盖。**测试桩/局部测试** | 缺第二个 Worker 风险、角色复用、重组失败、在途操作、长期 Memory 和真实多轮实验。 |
+| [`organization.py`](../../../security_adaptive_mas/organization.py) | 使用 MANTA `TopologySpec`/`ContextPolicy`/`TopologyMutation`形成 Singleton、Star、Chain；`TaskAnalyzer`接收调用方给的 intake/parallel/commit；`OrganizationSelector`用固定 benefit/cost 和布尔 `risky_input`风险惩罚。**部分实现/启发式** | 不是 MANTA Planner/Auditor；无任务依赖图、实测效用、候选路径或重构代价估计。 |
+| [`controller.py`](../../../security_adaptive_mas/controller.py) | 设置 spec/version、assignments 与网关；风险模式按**新 spec 中 worker 角色**加入隔离集。**部分实现** | `agent_2`在 Star 为 Worker，在 Chain 可变 Verifier；若它读取恶意文本，重组后按新角色遍历可能漏掉它。字符串 ID 没有实例 epoch；替换多个状态字段缺少完整 prepare/commit/rollback。 |
+| [`security.py`](../../../security_adaptive_mas/security.py) | `ProvenanceStore`记录来源、父证据、文本、owner；`MessageGateway`校验当前 spec 对象、版本、边、可见性、隔离；`ToolGateway`具精确写授权与持久去重。**局部真实约束** | `contains_low_trust`是保守父链，不证明 LLM 受影响；shared 只是网关记录的消息，无长期 Memory 读写及失效图；网关拦截会让固定拓扑下攻击也失败。 |
+| [`dynamic_team.py`](../../../security_adaptive_mas/dynamic_team.py) / [`are_bridge.py`](../../../security_adaptive_mas/are_bridge.py) | ARE `AgentBuilder`只读接线，`delegate_parallel_reads`串行委托两个 Worker、再给 Verifier；规则匹配输入风险。**有限运行路径** | 仅一次团队重组的工具路径，不是持续多轮原生调度；没有完整状态迁移/高权限 Executor；真实 ARE Single/Multi 端到端未验证。 |
+| [`manta_adapter.py`](../../../security_adaptive_mas/manta_adapter.py) / [`trace.py`](../../../security_adaptive_mas/trace.py) | 前者只导入 MANTA spec 命名空间；后者写 JSONL 事件。**已实现基础** | 尚无 MANTA Planner/Auditor 所需的轨迹模式与性能特征映射。 |
+| [`tests/test_system.py`](../../../tests/test_system.py) / [`tests/test_dynamic_team.py`](../../../tests/test_dynamic_team.py) | 网关旧版本、权限、一次重组和风险来自第一个 Worker 的离线假响应被覆盖。**测试桩/局部测试** | 缺第二个 Worker 风险、角色复用、重组失败、在途操作、长期 Memory 和真实多轮实验。 |
 
-[v1 报告](reports/implementation_report_v1.md)、[v2 报告](reports/implementation_report_v2.md)与代码相符：此前离线测试 22 项通过，并有一次 DeepSeek 连通性探测；正式 ARE Single/Multi 模型任务仍无在线端到端成绩。五个固定 Gaia2 场景、官方 Runner 与现有配置应保留为可复现基础，不能把离线成功当作任务完成率。
+[v1 报告](../implementation/implementation_report_v1.md)、[v2 报告](../implementation/implementation_report_v2.md)与代码相符：此前离线测试 22 项通过，并有一次 DeepSeek 连通性探测；正式 ARE Single/Multi 模型任务仍无在线端到端成绩。五个固定 Gaia2 场景、官方 Runner 与现有配置应保留为可复现基础，不能把离线成功当作任务完成率。
 
 有三项先行修正是研究结论的前提：第一，显式区分稳定逻辑身份、角色和运行实例；暴露与隔离绑定实例，交接另有事件。第二，记录 Memory 写/读、摘要和状态迁移的可观察父依赖；“读过”只表示**可能**影响，不表示真实因果。第三，将任务授权和敏感工具的实验控制固定在 E1–E4；否则现有 Tool Gateway 单独拦截攻击，就无法把收益归给拓扑选择。
 

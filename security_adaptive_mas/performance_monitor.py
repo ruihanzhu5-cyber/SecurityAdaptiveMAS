@@ -40,6 +40,20 @@ class PerformanceSignals:
 
 
 class PerformanceMonitor:
+    @staticmethod
+    def role_workload(runtime):
+        submitted = {}
+        delivered = {}
+        for event in runtime.flow_events:
+            instance = event.get("instance_id")
+            if event["flow_kind"] == "model_submitted":
+                submitted[instance] = submitted.get(instance,0)+1
+            elif event["flow_kind"] == "object_delivered":
+                delivered[instance] = delivered.get(instance,0)+1
+        return {"submitted_requests_by_instance":submitted,"delivered_objects_by_instance":delivered,
+                "waiting_time_seconds":None,"parallel_opportunity":None,
+                "measurement":"observed_serial_activity_not_parallel_speedup"}
+
     def __init__(self):
         self.last_analyzed_sequence = 0
         self.analyzed_event_ids: set[str] = set()

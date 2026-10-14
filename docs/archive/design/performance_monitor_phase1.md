@@ -19,15 +19,15 @@
 
 | 文件 | 本轮职责与改动 |
 |---|---|
-| [online_observation.py](../security_adaptive_mas/online_observation.py) | 原事件字段之后追加身份、状态和计量；稳定事件 ID、重复交付检查、不可变快照、整份模型输入的计量接口 |
-| [online_task.py](../security_adaptive_mas/online_task.py) | 沿用已有 TaskAnalysis/TaskUpdate；按 task_id 增量 upsert；依赖去重、移除和环校验；分开建议状态与事实状态 |
-| [performance_monitor.py](../security_adaptive_mas/performance_monitor.py)（新增） | 纯 Python 预筛、诊断、分析去重及 RECONSIDER 原因；无模型、任务写入或执行权限 |
-| [task_proposer.py](../security_adaptive_mas/task_proposer.py)（新增） | Prompt、可见材料组装、严格 JSON 解析和现有分析器校验；复用 DeepSeekClient |
-| [controller.py](../security_adaptive_mas/controller.py) | 默认关闭的 P1 协调入口、待分析事件合并、共享预算检查、手动安全边界调用和审计日志 |
-| [deepseek.py](../security_adaptive_mas/deepseek.py) | 可选 purpose 及同一 RunBudget 内的任务分析请求计数/上限；预算拒绝用 RuntimeError 子类 BudgetExceeded 表达 |
-| [are_bridge.py](../security_adaptive_mas/are_bridge.py) | 已交付通知、成功工具结果和实际模型输入转交廉价预筛；回调内不调用任务提案器 |
-| [test_performance_monitor.py](../tests/test_performance_monitor.py)（新增） | 8 个无付费模型调用的契约测试 |
-| [test_online_planning.py](../tests/test_online_planning.py) | 扩展原有 Builder 测试，核验实际返回的通知进入 Shadow 待分析队列 |
+| [online_observation.py](../../../security_adaptive_mas/online_observation.py) | 原事件字段之后追加身份、状态和计量；稳定事件 ID、重复交付检查、不可变快照、整份模型输入的计量接口 |
+| [online_task.py](../../../security_adaptive_mas/online_task.py) | 沿用已有 TaskAnalysis/TaskUpdate；按 task_id 增量 upsert；依赖去重、移除和环校验；分开建议状态与事实状态 |
+| [performance_monitor.py](../../../security_adaptive_mas/performance_monitor.py)（新增） | 纯 Python 预筛、诊断、分析去重及 RECONSIDER 原因；无模型、任务写入或执行权限 |
+| [task_proposer.py](../../../security_adaptive_mas/task_proposer.py)（新增） | Prompt、可见材料组装、严格 JSON 解析和现有分析器校验；复用 DeepSeekClient |
+| [controller.py](../../../security_adaptive_mas/controller.py) | 默认关闭的 P1 协调入口、待分析事件合并、共享预算检查、手动安全边界调用和审计日志 |
+| [deepseek.py](../../../security_adaptive_mas/deepseek.py) | 可选 purpose 及同一 RunBudget 内的任务分析请求计数/上限；预算拒绝用 RuntimeError 子类 BudgetExceeded 表达 |
+| [are_bridge.py](../../../security_adaptive_mas/are_bridge.py) | 已交付通知、成功工具结果和实际模型输入转交廉价预筛；回调内不调用任务提案器 |
+| [test_performance_monitor.py](../../../tests/test_performance_monitor.py)（新增） | 8 个无付费模型调用的契约测试 |
+| [test_online_planning.py](../../../tests/test_online_planning.py) | 扩展原有 Builder 测试，核验实际返回的通知进入 Shadow 待分析队列 |
 | 本文 | 接口、计量边界、实测结果和 Unresolved Decisions |
 
 本轮未修改 organization.py、dynamic_team.py、topology_candidates.py、are_adapter.py、trace.py、三个固定场景配置/划分文件，以及五例原始成功报告。没有新增 D_t/H_t 图服务。
@@ -190,12 +190,12 @@ $env:HF_HUB_OFFLINE='1'
 
 | 文件 | 实际改动 | 必要性 |
 |---|---|---|
-| [online_task.py](../security_adaptive_mas/online_task.py) | 普通 TaskUpdate 一律不能包含 root 子任务；refresh 每次从可见 USER 描述及 USER 证据同步 root，保留已有实际状态 | 证据可见不等于有权改写用户目标；ENV/TOOL/LLM 提案不得覆盖根目标 |
-| [task_proposer.py](../security_adaptive_mas/task_proposer.py) | Prompt 明确禁止在 subtasks 输出 root；JSON 继续经过分析器硬性校验 | Prompt 只提供指引，实际拒绝规则由 Python 执行；未改 JSON Schema 或预算 |
-| [performance_monitor.py](../security_adaptive_mas/performance_monitor.py) | 未关联工具结果使用 tool_result_unlinked；复用一个小型关联键校验方法，核对类型、明确 requirement_id 和当前登记项 | KEEP 只表示没有已验证的重分析触发；合法关联才允许 ANALYZE；无 ID 的旧需求不能用描述冒充稳定 ID |
-| [are_bridge.py](../security_adaptive_mas/are_bridge.py) | ObservedContext 增加显式一次性绑定/消费；GuardedARETool 在调用前消费，成功结果透传关联键 | 保留受信任串行调度代码的可选接缝；失败时不记录成功结果，也不把关联泄漏到下次调用 |
-| [controller.py](../security_adaptive_mas/controller.py) | 提供当前需求校验入口；既有日志追加事件 ID、待分析、分析成功及结构变化字段 | 明确区分 observed、pending、proposed/unverified；不增加冗余原文日志或自动 LLM 调度 |
-| [test_performance_monitor.py](../tests/test_performance_monitor.py) | 修订旧 root upsert 测试；扩展注入提案拒绝；新增工具一次性绑定及空提案状态两个回归 | 验证本次真实接口边界；不将响应注入视为 Gaia2 或 DeepSeek 实验成绩 |
+| [online_task.py](../../../security_adaptive_mas/online_task.py) | 普通 TaskUpdate 一律不能包含 root 子任务；refresh 每次从可见 USER 描述及 USER 证据同步 root，保留已有实际状态 | 证据可见不等于有权改写用户目标；ENV/TOOL/LLM 提案不得覆盖根目标 |
+| [task_proposer.py](../../../security_adaptive_mas/task_proposer.py) | Prompt 明确禁止在 subtasks 输出 root；JSON 继续经过分析器硬性校验 | Prompt 只提供指引，实际拒绝规则由 Python 执行；未改 JSON Schema 或预算 |
+| [performance_monitor.py](../../../security_adaptive_mas/performance_monitor.py) | 未关联工具结果使用 tool_result_unlinked；复用一个小型关联键校验方法，核对类型、明确 requirement_id 和当前登记项 | KEEP 只表示没有已验证的重分析触发；合法关联才允许 ANALYZE；无 ID 的旧需求不能用描述冒充稳定 ID |
+| [are_bridge.py](../../../security_adaptive_mas/are_bridge.py) | ObservedContext 增加显式一次性绑定/消费；GuardedARETool 在调用前消费，成功结果透传关联键 | 保留受信任串行调度代码的可选接缝；失败时不记录成功结果，也不把关联泄漏到下次调用 |
+| [controller.py](../../../security_adaptive_mas/controller.py) | 提供当前需求校验入口；既有日志追加事件 ID、待分析、分析成功及结构变化字段 | 明确区分 observed、pending、proposed/unverified；不增加冗余原文日志或自动 LLM 调度 |
+| [test_performance_monitor.py](../../../tests/test_performance_monitor.py) | 修订旧 root upsert 测试；扩展注入提案拒绝；新增工具一次性绑定及空提案状态两个回归 | 验证本次真实接口边界；不将响应注入视为 Gaia2 或 DeepSeek 实验成绩 |
 | 本文 | 追加当前修订、测试与待决台账，保留原 P1 历史 | 避免用旧接口描述覆盖当前行为或改写旧实验结果 |
 
 没有新增生产模块，没有修改 online_observation 的事件模型。

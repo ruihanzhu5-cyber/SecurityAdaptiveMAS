@@ -59,6 +59,51 @@ class InformationRequirement:
 
 
 @dataclass(frozen=True)
+class TaskNeed:
+    """A visible information need; completion is never inferred from prose."""
+    task_id: str
+    need_id: str
+    required_kind: str
+    required_fields: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    provider_task_id: str | None
+    prerequisites: tuple[str, ...]
+    owner_instance_id: str
+    status: str
+    status_evidence_ids: tuple[str, ...]
+
+
+def task_need_snapshot(analysis: "TaskAnalysis", graph, objects) -> tuple[TaskNeed, ...]:
+    """Derive statuses from current objects and executable graph relationships."""
+    needs = []
+    for requirement in analysis.information_requirements:
+        provider = requirement.provider_task_id
+        consumer = graph.assignments.get(requirement.task_id, "agent_0")
+        available = [obj for obj in objects.values()
+                     if provider is not None and obj["task_id"] == provider
+                     and obj["status"] == "output_available"]
+        readable = [obj for obj in available
+                    if (consumer, obj["object_id"]) in graph.object_access]
+        if readable:
+            status = "available"  # Not satisfied: content has no field-level validator.
+        elif available:
+            status = "blocked"
+        elif provider in graph.assignments:
+            producer = graph.assignments[provider]
+            status = "producible" if producer == consumer or (producer, consumer) in graph.extra_edges else "blocked"
+        else:
+            status = "unknown"
+        needs.append(TaskNeed(requirement.task_id,
+                              requirement.requirement_id or requirement.description,
+                              "information", (), requirement.evidence_ids, provider,
+                              tuple(edge.predecessor_id for edge in analysis.dependencies
+                                    if edge.successor_id == requirement.task_id),
+                              consumer, status,
+                              tuple(obj["object_id"] for obj in readable)))
+    return tuple(needs)
+
+
+@dataclass(frozen=True)
 class TaskAnalysis:
     as_of_sequence: int
     subtasks: tuple[Subtask, ...]
@@ -140,6 +185,11 @@ class TaskUpdate:
     as_of_sequence: int | None = None
     remove_dependencies: tuple[tuple[str, str], ...] = ()
     execution_contracts: tuple[dict, ...] = ()
+    role_specs: tuple = ()
+    need_specs: tuple = ()
+    repair_specs: tuple[dict, ...] = ()
+    remove_subtasks: tuple[str, ...] = ()
+    remove_need_ids: tuple[str, ...] = ()
 
 
 class TaskAnalyzerProtocol(Protocol):
@@ -192,6 +242,10 @@ class OnlineTaskAnalyzer:
         if len({task.task_id for task in proposal.subtasks}) != len(proposal.subtasks):
             raise ValueError("Duplicate task ID in proposal")
         tasks = {task.task_id: task for task in previous.subtasks}
+        for task_id in proposal.remove_subtasks:
+            if task_id == "root" or task_id not in tasks or not proposal.source_evidence_ids:
+                raise ValueError("invalid_working_plan_retraction")
+            del tasks[task_id]
         for item in proposal.subtasks:
             if not isinstance(item.certainty, Certainty):
                 raise ValueError("Invalid proposal task certainty")
@@ -208,6 +262,7 @@ class OnlineTaskAnalyzer:
                 certainty=Certainty.UNKNOWN if item.certainty == Certainty.UNKNOWN else Certainty.INFERRED,
             )
         dependencies = {(e.predecessor_id, e.successor_id): e for e in previous.dependencies}
+        dependencies = {key: value for key, value in dependencies.items() if set(key) <= tasks.keys()}
         if proposal.remove_dependencies and not proposal.source_evidence_ids:
             raise ValueError("Dependency removal requires visible source evidence")
         for key in proposal.remove_dependencies:
@@ -226,6 +281,8 @@ class OnlineTaskAnalyzer:
                 evidence_ids=tuple(dict.fromkeys((*(old.evidence_ids if old else ()), *edge.evidence_ids))),
             )
         requirements = {item.key: item for item in previous.information_requirements}
+        requirements = {key: item for key, item in requirements.items()
+                        if item.task_id in tasks and (item.provider_task_id is None or item.provider_task_id in tasks)}
         for item in proposal.information_requirements:
             if not isinstance(item.certainty, Certainty):
                 raise ValueError("Invalid proposal information certainty")
