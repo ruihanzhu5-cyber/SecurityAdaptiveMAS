@@ -6,6 +6,9 @@ work stays unknown; a smaller graph is not treated as a token saving.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import asdict, replace
+from uuid import uuid4
+import time
 
 from .graph_evaluation import coverage, project_risk
 from .graph_runtime import TopologyPatch
@@ -37,8 +40,8 @@ def joint_trigger(observation, analysis, runtime, *, task_delta=False,
         reasons.append("task_revision_changed")
     if output_arrived:
         reasons.append("worker_output_available")
-    flagged = tuple(dict.fromkeys(event.get("agent_id") for event in risk_events
-                                 if event.get("suspicion") == "flagged" and event.get("agent_id")))
+    flagged = tuple(dict.fromkeys(event["subject_id"] for event in risk_events
+                                 if event["suspicion"] in {"flagged", "supported"}))
     if flagged:
         reasons.append("observed_risk_boundary")
     if cost_opportunity is not None and cost_opportunity > 0:
@@ -231,3 +234,261 @@ def select_candidate(rows, *, policy):
     return min(feasible, key=lambda row: (0 if row["candidate_id"] == "keep" else 1,
                                           row["cost"]["known_delivery_characters"],
                                           row["candidate_id"])), "no_supported_cost_difference"
+
+
+def plan_patch(runtime, plan):
+    return TopologyPatch(plan.plan_id, plan.base_graph_version, plan.base_observation_sequence,
+                         plan.base_task_revision, plan.immediate_operations,
+                         assignments=plan.assignments,
+                         delivery_plans=plan.existing_object_deliveries,
+                         reason=plan.intervention,evidence_ids=plan.reason_evidence_ids)
+
+
+def generate_rewrite_plans(controller, runtime, roles):
+    started = time.monotonic()
+    from .organization_contracts import RewritePlan, UnsupportedDesign
+    from .topology_candidates import generate_edges, compile_activations
+    observation = controller.online_snapshot()
+    analysis = controller._current_task_analysis(observation)
+    design = controller.design
+    if design["method"] == "reactive_isolation":
+        repair_roles = {row["role_id"] for row in controller.repair_specs}
+        roles = tuple(role for role in roles if role.role_id not in repair_roles)
+    base = dict(base_graph_version=runtime.graph.version,base_observation_sequence=observation.sequence,
+                base_task_revision=controller.task_revision,reason_evidence_ids=observation.evidence_ids)
+    keep = RewritePlan("keep",**base,role_specs=tuple(("agent_0",r) for r in roles),
+        assignments=tuple(runtime.graph.assignments.items()),topology_spec={"family":"current","edges":tuple(runtime.graph.extra_edges)},
+        protocol_spec={"name":"dependency_schedule","rounds":1},immediate_operations=({"op":"KEEP"},),
+        existing_object_deliveries=(),pending_work=tuple({"kind":"continue","task_id":r.task_id} for r in roles),
+        future_output_bindings=(),release_conditions=())
+    candidates = [keep]
+    unsupported = []
+    groups = {"task":[],"risk":[],"joint_cost":[]}
+    suffix = uuid4().hex[:6]
+    for family in design["topologies"]:
+        if family == "singleton":
+            # The official Coordinator keeps the same remaining goal; no shadow worker loop.
+            singleton = replace(keep,plan_id="singleton_"+suffix,intervention="task",
+                                topology_spec={"family":"singleton","edges":()})
+            if len(runtime.graph.agents) == 1:
+                groups["task"].append(singleton)
+            else:
+                unsupported.append({"family":family,"reason":"singleton_retirement_requires_resolving_live_work"})
+            continue
+        specs, operations, deliveries = [], [], []
+        retained = {"agent_0"}
+        for role in roles:
+            independence_roots = tuple(root for repair in controller.repair_specs if repair["role_id"] == role.role_id
+                                       for root in repair["independent_from"])
+            existing = next((a for a in runtime.graph.agents if a.agent_id != "agent_0"
+                and a.role_contract is not None and a.role_contract.role_id == role.role_id
+                and a.agent_id not in controller.suspect_instances
+                and not any(controller.provenance.derived_from(key,root)
+                            for key in runtime.exposures.get(a.agent_id,()) for root in independence_roots)
+                and set(role.requested_tools) <= a.allowed_tools),None)
+            instance = existing.agent_id if existing else "role_"+suffix+"_"+role.role_id
+            retained.add(instance)
+            specs.append((instance,role))
+            if existing is None:
+                operations.append({"op":"SPAWN_WORKER","agent_id":instance,"tools":role.requested_tools})
+            operations.extend(({"op":"SET_ROLE","agent_id":instance,"role":role},
+                               {"op":"ASSIGN","agent_id":instance,"task_id":role.task_id}))
+            for object_id in role.required_inputs:
+                if object_id not in runtime.objects:
+                    raise ValueError("role_input_has_no_runtime_object")
+                operations.append({"op":"SET_OBJECT_ACCESS","agent_id":instance,"object_id":object_id,"allowed":True})
+                deliveries.append((instance,object_id))
+        for agent in runtime.graph.agents:
+            if agent.agent_id not in retained:
+                operations.append({"op":"RETIRE_WORKER","agent_id":agent.agent_id})
+        owners = {r.task_id:i for i,r in specs}
+        owners["root"] = "agent_0"
+        members = tuple(i for i,r in specs)+("agent_0",)
+        try:
+            edges = generate_edges(family,members,assignments=owners,dependencies=analysis.dependencies,
+                                   parameters=design["topology_parameters"],seed=design["seed"])
+            # A delivered input must have an explicit live source route or persistent-store author.
+            active_authors = {a.agent_id for a in runtime.graph.agents} & retained
+            for consumer,object_id in deliveries:
+                writer = runtime.objects[object_id]["writer"]
+                if (controller.provenance.items[object_id].trust != "trusted_task" and
+                        writer in active_authors and writer != consumer and (writer,consumer) not in edges):
+                    raise UnsupportedDesign("topology_cannot_deliver_required_existing_input")
+            name = family+"_"+suffix
+            activations = compile_activations(tuple(specs),analysis.dependencies,edges,
+                                             design["protocol"],design["rounds"],name)
+        except UnsupportedDesign as error:
+            unsupported.append({"family":family,"reason":str(error)})
+            continue
+        operations.extend({"op":"REMOVE_ROUTE","source":a,"target":b}
+                          for a,b in runtime.graph.extra_edges if a in retained and b in retained)
+        operations.extend({"op":"ADD_ROUTE","source":a,"target":b} for a,b in edges)
+        bindings, pending = [], []
+        for need in controller.need_specs.values():
+            for provider in need.provider_alternatives:
+                role = next((r for i,r in specs if r.task_id == provider["task_id"]),None)
+                if role is None or not set(need.acceptance_contract["required_fields"]) <= set(role.output_contract):
+                    continue
+                if provider["output_slot"] not in {"result",*role.output_contract}:
+                    continue
+                if any(controller.provenance.derived_from(key,root)
+                       for key in (*role.required_inputs,*role.source_evidence_ids)
+                       for root in need.acceptance_contract["independent_from"]):
+                    continue
+                bindings.append({"need_id":need.need_id,"producer_task":role.task_id,
+                    "output_slot":provider["output_slot"],"acceptance_contract":need.acceptance_contract})
+            for repair in controller.repair_specs:
+                if not design["ablations"]["repair"]:
+                    continue
+                if repair["need_id"] == need.need_id:
+                    if repair["kind"] == "verify":
+                        raise ValueError("OPEN_semantic_verification_acceptance_contract_unavailable")
+                    role = next((r for i,r in specs if r.role_id == repair["role_id"]),None)
+                    if role is None or not role.requested_tools and repair["kind"] == "requery":
+                        continue
+                    if any(controller.provenance.derived_from(key,root) for key in (*role.required_inputs,*role.source_evidence_ids)
+                           for root in repair["independent_from"]):
+                        continue
+                    if repair["kind"] == "verify" and not repair["independent_from"]:
+                        unsupported.append({"family":family,"reason":"verification_requires_declared_comparison_source"})
+                        continue
+                    pending.append(repair)
+                    bindings.append({"need_id":need.need_id,"producer_task":role.task_id,
+                        "output_slot":"result","acceptance_contract":need.acceptance_contract})
+        if design["ablations"]["repair"]:
+            # Existing providers qualify by a concrete check and field contract, never source label.
+            for need in controller.need_specs.values():
+                consumer = owners.get(need.consumer_task_id,"agent_0")
+                for provider in need.provider_alternatives:
+                    object_id = runtime.bindings.get((provider["task_id"],provider["output_slot"]))
+                    if object_id is None or runtime.checks[object_id]["status"] != "passed":
+                        continue
+                    obj = runtime.objects[object_id]
+                    description = next(t.description for t in analysis.subtasks if t.task_id == provider["task_id"])
+                    if obj["producer_task_description"] != description:
+                        continue
+                    if not set(need.acceptance_contract["required_fields"]) <= set(obj["fields"] or {}):
+                        continue
+                    if any(controller.provenance.derived_from(object_id,root)
+                           for root in need.acceptance_contract["independent_from"]):
+                        continue
+                    if any(event["suspicion"] in {"supported","flagged"} and object_id in event.get("object_ids",())
+                           for event in controller.framework_team.risk_events):
+                        continue
+                    writer = obj["writer"]
+                    if writer in retained and writer != consumer and (writer,consumer) not in edges:
+                        operations.append({"op":"ADD_ROUTE","source":writer,"target":consumer})
+                        edges = tuple(sorted((*edges,(writer,consumer))))
+                    operations.append({"op":"SET_OBJECT_ACCESS","agent_id":consumer,"object_id":object_id,"allowed":True})
+                    if (consumer,object_id) not in deliveries:
+                        deliveries.append((consumer,object_id))
+                    pending.append({"kind":"existing_result","need_id":need.need_id,"object_id":object_id,
+                                    "checker":runtime.checks[object_id]["checker"]})
+                    break
+        candidate = RewritePlan(name,**base,role_specs=tuple(specs),assignments=tuple(owners.items()),
+            topology_spec={"family":family,"edges":edges,"seed":design["seed"]},
+            protocol_spec={"name":design["protocol"],"rounds":max(a.round_index for a in activations)+1 if activations else 1},
+            immediate_operations=tuple(operations),existing_object_deliveries=tuple(deliveries),
+            pending_work=tuple(pending),future_output_bindings=tuple(bindings),
+            release_conditions=tuple(controller.need_specs),activations=activations)
+        groups["task"].append(candidate)
+        if design["search_depth"] == 2:
+            # Risk contraction only changes future routes/ACL; retained history is untouched.
+            dangerous = set(controller.suspect_instances)
+            contraction = [op for op in operations if not (op["op"] == "ADD_ROUTE" and op["source"] in dangerous)]
+            for a,b in edges:
+                if a in dangerous:
+                    contraction.append({"op":"REMOVE_ROUTE","source":a,"target":b})
+            contracted = replace(candidate,plan_id="isolate_"+name,intervention="risk",
+                                 immediate_operations=tuple(contraction),
+                                 pending_work=() if design["method"] == "reactive_isolation" else candidate.pending_work)
+            groups["risk"].append(contracted)
+            if candidate.protocol_spec["rounds"] > 1:
+                compact_activations = compile_activations(tuple(specs),analysis.dependencies,edges,
+                                                          "dependency_schedule",1,"compact_"+name)
+                groups["joint_cost"].append(replace(contracted,plan_id="compact_"+name,
+                    intervention="joint_cost",protocol_spec={"name":"dependency_schedule","rounds":1},
+                    activations=compact_activations))
+    seen = {keep.dedup_key()}
+    # Round-robin preserves intervention diversity before the fixed resource cap.
+    while any(groups.values()) and len(candidates) < design["max_candidates"]:
+        for group in groups.values():
+            if group and len(candidates) < design["max_candidates"]:
+                candidate = group.pop(0)
+                key = candidate.dedup_key()
+                if key not in seen:
+                    seen.add(key); candidates.append(candidate)
+    controller.trace.log("rewrite_candidates_generated",candidate_ids=[p.plan_id for p in candidates],
+                         unsupported_topologies=unsupported,limit=design["max_candidates"],
+                         generation_wall_seconds=time.monotonic()-started)
+    return candidates
+
+
+def select_rewrite_plan(controller, runtime, plans):
+    started = time.monotonic()
+    from .cost_model import assess_cost
+    from .graph_evaluation import plan_need_status, temporal_plan_risk
+    design = controller.design
+    observation = controller.online_snapshot()
+    trigger = joint_trigger(observation,controller._current_task_analysis(observation),runtime,
+        task_delta=controller.task_revision != controller.last_joint_task_revision,
+        output_arrived=any(p.plan_id.startswith("release_") for p in plans),
+        risk_events=controller.framework_team.risk_events[controller.last_joint_risk_event_count:],
+        cost_opportunity=controller.observed_repeated_object_chars-controller.last_cost_reconsidered_chars)
+    if not trigger.reconsider:
+        controller.trace.log("rewrite_keep",reason="no_new_task_risk_cost_or_output_evidence")
+        return next(p for p in plans if p.plan_id == "keep")
+    rows = []
+    for plan in plans:
+        graph = runtime.preview(plan_patch(runtime,plan))
+        needs = plan_need_status(controller,runtime,plan,graph)
+        risk = temporal_plan_risk(runtime,plan,graph,controller.protected_targets)
+        cost = assess_cost(plan,runtime,design)
+        rows.append({"plan":replace(plan,cost_assessment=cost,risk_assessment=risk),
+            "needs":needs,"risk_count":len(risk["projected_future_flow"]),
+            "unsupported_needs":[n for n in needs if n["status"] == "unsatisfied"],
+            "support":sum(n["status"] in {"satisfied","planned"} for n in needs),
+            "protocol_support":len(plan.existing_object_deliveries) if plan.activations and
+                plan.protocol_spec["name"] in {"one_round_exchange","bounded_review"} else 0,
+            "cost":cost,"risk":risk})
+    keep = next(row for row in rows if row["plan"].plan_id == "keep")
+    feasible = [row for row in rows if not row["unsupported_needs"]]
+    method = design["method"]
+    if method in {"joint","fixed_security"}:
+        feasible = [row for row in feasible if row["risk_count"] <= keep["risk_count"]]
+    if method == "reactive_isolation" and controller.suspect_instances:
+        feasible = [row for row in rows if row["plan"].intervention == "risk"]
+    if not feasible:
+        controller.trace.log("rewrite_blocked",status="NO_SUPPORTED_PROVIDER",needs=[r["needs"] for r in rows])
+        raise RuntimeError("NO_SUPPORTED_PROVIDER_or_no_feasible_rewrite")
+    def dimensions(row):
+        cost = row["cost"]
+        amount = (cost["predicted_remaining_tokens"] if design["cost_mode"] == "empirical"
+                  else cost["remaining_declared_model_steps_upper_bound"])
+        return (-row["support"],-row["protocol_support"],row["risk_count"] if method in {"joint","fixed_security","reactive_isolation"} else 0,
+                amount,cost["declared_input_characters"])
+    frontier = [row for row in feasible if not any(
+        all(a <= b for a,b in zip(dimensions(other),dimensions(row))) and
+        any(a < b for a,b in zip(dimensions(other),dimensions(row))) for other in feasible)]
+    # Explicit declared-work exploration applies only at a new task/risk boundary.
+    explored = [row for row in frontier if row["plan"].activations]
+    chosen = min(explored or frontier,key=lambda row:(dimensions(row),row["plan"].plan_id))
+    if method == "task_plus_filter" and chosen["risk_count"] > keep["risk_count"]:
+        filtered = [row for row in feasible if row["risk_count"] <= keep["risk_count"]]
+        if not filtered:
+            raise RuntimeError("posthoc_filter_has_no_task_supported_plan")
+        chosen = min(filtered,key=lambda row:(dimensions(row),row["plan"].plan_id))
+    controller.trace.log("joint_decision",design_version="v0.4",candidate_id=chosen["plan"].plan_id,
+        trigger_reasons=trigger.reasons,
+        observation_sequence=chosen["plan"].base_observation_sequence,
+        task_revision=controller.task_revision,organization_policy=method,
+        selected_reason="explicit_declared_work_exploration" if design["cost_mode"] == "declared_work" else "empirical_pareto",
+        pareto_ids=[row["plan"].plan_id for row in frontier],
+        alternatives=[{key:value for key,value in row.items() if key != "plan"} for row in rows],
+        rewrite_plan=asdict(chosen["plan"]))
+    controller.trace.log("rewrite_selection_cost",selection_wall_seconds=time.monotonic()-started,
+                         model_cost_accounting="shared_episode_usage_by_purpose")
+    controller.last_joint_task_revision = controller.task_revision
+    controller.last_joint_risk_event_count = len(controller.framework_team.risk_events)
+    controller.last_cost_reconsidered_chars = controller.observed_repeated_object_chars
+    return chosen["plan"]

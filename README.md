@@ -4,7 +4,7 @@
 
 **v0.3 研究方向：一次决策同时看任务需要、传播风险和执行成本**
 
-> 项目阶段：v0.3 本地代码原型与离线测试；尚无 v0.3 真实付费 episode 或成对实验。
+> 项目阶段：v0.4 本地工程实现与非付费验收，等待代码审查。角色化调度、结构生成与联合计划已接线；AgentDyn、并发、完整状态恢复和部分研究验收仍有阻塞。见 [v0.4 实施报告](docs/reports/v0_4_implementation_report.md)。
 >
 > 数据环境：Gaia2 / ARE Development，现有五场均为开发样本。
 >
@@ -121,6 +121,14 @@ flowchart TD
 当前最重要的开放问题是：如何独立判断用户任务是否全部完成；怎样验证低可信内容中的必要字段而不把指令洗成授权；以及怎样从真实调用校准未来成本。未解决前，任何“更安全且更省 Token”的数值结论都没有依据。
 
 ## 8. 仓库导航与复现入口
+
+v0.4 使用显式的 [`research_v0_4.yaml`](configs/research_v0_4.yaml) 配置进入新路径。普通旧入口保留原有版本行为。新配置下，模型提出有步骤、输入、工具子集和输出约定的角色；Controller 选择重组计划，GraphRuntime 实际提交，角色结果可直接进入下一角色。当前产物检查只验证字段和证据引用，不能证明内容正确或整个用户任务完成。外部适配和攻击家族的限制逐项列在[实施报告](docs/reports/v0_4_implementation_report.md)中。
+
+```powershell
+.\.venv\Scripts\python.exe -m security_adaptive_mas.run_framework --design-config configs/research_v0_4.yaml --mode adaptive --scenario scenario_universe_22_kb5ah9 --dry-run
+```
+
+该命令只检查配置和数据，不调用模型。新增的[研究清单](configs/research_v0_4_manifest.json)包含 20 个开发任务 ID 和 40 个冻结评测任务 ID；冻结部分从此前未静态扫描的 ambiguity/search 分类抽取。清单不是实验结果，攻击适用性仍需逐场景验证。
 
 | 文件 | 用途 |
 |---|---|

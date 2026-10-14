@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import subprocess
 import time
+import traceback
 from uuid import uuid4
 
 from .are_adapter import import_official_scenario, official_runner
@@ -33,10 +34,13 @@ def save(path, value):
 
 def code_state():
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip()
-    diff = subprocess.check_output(["git", "diff", "--binary", "HEAD", "--", "security_adaptive_mas", "tests"], cwd=ROOT)
+    diff = subprocess.check_output(["git", "diff", "--binary", "HEAD", "--", "security_adaptive_mas", "tests", "configs"], cwd=ROOT)
     hashes = {path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
-              for path in sorted((ROOT / "security_adaptive_mas").glob("*.py"))}
+              for folder in ("security_adaptive_mas", "configs") for path in sorted((ROOT / folder).rglob("*"))
+              if path.is_file() and path.suffix in {".py", ".json", ".yaml", ".md", ".txt"}}
+    status = subprocess.check_output(["git","status","--porcelain"],cwd=ROOT).decode()
     return {"code_revision": revision, "dirty_diff_hash": hashlib.sha256(diff).hexdigest(),
+            "dirty_status":status,
             "source_file_hashes": hashes,
             "code_snapshot_id": hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()}
 
@@ -55,6 +59,9 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
     if code_state() != frozen:
         raise RuntimeError("Code changed after batch freeze; do not mix revisions")
     record = config.select(scenario_id)
+    data_record = next((row for row in args.design_manifest["records"] if row["scenario_id"] == scenario_id),None) if args.design else None
+    if data_record and data_record["sha256"] != record.sha256:
+        raise ValueError("frozen_manifest_scenario_hash_mismatch")
     applies = attack_spec is not None and attack_spec.target_case == scenario_id
     policy_version = (SandboxPermissivePolicy.version if args.task_scope_policy == "sandbox_permissive"
                       else TaskScopePolicy.version)
@@ -63,22 +70,32 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
     out.mkdir(parents=True, exist_ok=False)
     trace = TraceLogger(out / "framework_trace.jsonl", mode="real_are_multi" if args.mode == "adaptive" else "real_are_single")
     budget = RunBudget(trace, args.max_requests, args.max_total_tokens, args.max_cost_usd, trace.mode)
-    settings = DeepSeekSettings()
+    settings = DeepSeekSettings(max_attempts=1) if args.design else DeepSeekSettings()
+    if args.design:
+        budget.purpose_limits = args.design["subbudgets"]
+        budget.input_rate = args.design["rates"]["input_usd_per_token"]
+        budget.output_rate = args.design["rates"]["output_usd_per_token"]
     client = DeepSeekClient(budget, settings)
     controller = Controller(config, trace, frozenset(), frozenset(),
-                            monitor_enabled=True, task_llm_enabled=True, max_analysis_requests=3)
+                            monitor_enabled=True, task_llm_enabled=True,
+                            max_analysis_requests=args.design["subbudgets"]["task_analysis"] if args.design else 3)
+    controller.design = args.design
     controller.run_budget = budget
     controller.organization_policy = args.organization_policy or (
         "joint" if args.risk_aware == "on" else "task_only")
+    if args.design:
+        controller.organization_policy = args.design["method"]
     controller.risk_aware_enabled = controller.organization_policy in {
         "joint", "reactive_isolation", "task_plus_filter"}
     initial = controller.provenance.add("startup", "low_trust", "Waiting for actual delivered USER/ENV notifications")
     context = ObservedContext(controller, initial.evidence_id)
     source_versions = json.loads((ROOT / "configs/source_versions.json").read_text(encoding="utf-8"))
     run_config = {"scenario_id": scenario_id, "run_id": run_id,
-        "split": "gaia2_validation_unreviewed" if args.dataset_category else "development",
+        "split": data_record["split"] if data_record else "gaia2_validation_unreviewed" if args.dataset_category else "development",
+        "data_manifest_hash":args.design_manifest_hash,
         "dataset_category": args.dataset_category,
         "dataset_row_index_zero_based": args.dataset_row_index,
+        "design":args.design,"design_hash":args.design_hash,
         "mode": args.mode, "attack_mode": args.attack,
         "attack_payload_hash": attack_spec.payload_hash if applies else None,
         "attack_id": attack_spec.attack_id if applies else None,
@@ -91,13 +108,15 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         "api_base": API_BASE, "settings": asdict(settings), "execution_mode": "sequential",
         "max_turns": args.max_turns, "max_requests": args.max_requests,
         "max_total_tokens": args.max_total_tokens, "max_cost_usd": args.max_cost_usd,
-        "max_agents": config.max_agents, "max_task_analysis_requests": 3,
-        "max_reconfigurations": 12, "worker_step_limit": 3,
+        "max_agents": config.max_agents,
+        "max_task_analysis_requests":args.design["subbudgets"]["task_analysis"] if args.design else 3,
+        "max_reconfigurations":args.design["reconfiguration_limit"] if args.design else 12,
+        "worker_step_limit":args.design["role_step_limit"] if args.design else 3,
         "max_tool_calls_per_worker_step": 4,
         "oracle": False, "load_completed_events": False,
         "rate_version": "existing-project-estimate-2026-10-12-not-current-bill",
-        "input_usd_per_token": PEAK_INPUT_USD_PER_TOKEN,
-        "output_usd_per_token": PEAK_OUTPUT_USD_PER_TOKEN}
+        "input_usd_per_token":budget.input_rate,
+        "output_usd_per_token":budget.output_rate}
     save(out / "run_config.json", run_config)
     result = None
     scenario = None
@@ -121,6 +140,9 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         except Exception as error:
             error_type = type(error).__name__
             trace.log("episode_failed", exception_type=error_type, reason=str(error))
+            if args.design:
+                save(out / "failure.json", {"exception_type":error_type,"reason":str(error),
+                                             "traceback":traceback.format_exc(),"status":"failed"})
         finally:
             logging.getLogger().removeHandler(handler)
             handler.close()
@@ -129,6 +151,11 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
     unsupported = isinstance(terminal, UnsupportedTaskScope)
     if terminal:
         error_type = type(terminal).__name__
+    if args.design and error_type and not (out / "failure.json").exists():
+        exception = terminal or (result.exception if result is not None else None)
+        save(out / "failure.json", {"exception_type":error_type,"reason":str(exception),
+            "traceback":"".join(traceback.format_exception(exception)) if exception is not None else None,
+            "status":"failed"})
     events = [json.loads(line) for line in trace.path.read_text(encoding="utf-8").splitlines()]
     decisions = [event for event in events if event["kind"] == "controller_runtime_decision"]
     joint_decisions = [event for event in events if event["kind"] == "joint_decision"]
@@ -174,7 +201,7 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
         "cost_estimate_usd": budget.peak_cost_estimate_usd, "unknown_cost_bound": budget.unknown_cost_bound,
         "budget_exhausted": exhausted, "unaccounted_usage_notes": budget.unaccounted_usage_notes,
         "tool_calls_by_agent": tools, "blocked_actions_by_reason": denied,
-        "risk_model": "current_effective_graph_with_live_objects",
+        "risk_model":"activation_ordered_history_and_future_projection" if args.design else "current_effective_graph_with_live_objects",
         "reachability_proxy": joint_decisions[-1]["risk"] if joint_decisions else None,
         "risk_events_observed": team.risk_events if team else [],
         "legitimate_task_status": "unknown",
@@ -190,6 +217,7 @@ def run_case(args, config, scenario_id, batch_dir, frozen, attack_spec=None):
     if applies:
         summary["attack_scoring"] = evaluate_attack(events, spec=attack_spec,
             official_success=official_success, stop_reason=summary["stop_reason"],
+            require_submitted=bool(args.design),
             final_state=(email_final_state(scenario) if attack_spec.target_email_id and scenario is not None else None))
         summary["attack_delivered"] = summary["attack_scoring"]["attack_delivered"]
         summary["target_attempted"] = summary["attack_scoring"]["target_attempted"]
@@ -214,9 +242,11 @@ def main():
     selection.add_argument("--suite", choices=("five",))
     selection.add_argument("--scenario")
     parser.add_argument("--dataset-category", help="With --scenario, select from a pinned full Gaia2 category")
+    parser.add_argument("--design-config",type=Path,help="Explicit v0.4 research configuration")
     parser.add_argument("--attack", choices=("none", "single_injection"), default="none")
     parser.add_argument("--attack-spec", type=Path,
                         default=ROOT / "configs" / "attack_single_injection_22_kb5ah9.json")
+    parser.add_argument("--attack-case",type=Path,help="v0.4 declared surface/family/evaluator metadata")
     parser.add_argument("--task-scope-policy", choices=("strict", "sandbox_permissive"), default="strict")
     parser.add_argument("--risk-aware", choices=("off", "on"), default="off")
     parser.add_argument("--organization-policy", choices=("joint", "task_only",
@@ -231,28 +261,56 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume-batch", type=Path, help="Reuse inspected first-case results only with identical code and run limits")
     args = parser.parse_args()
+    args.design, args.design_hash = None, None
+    args.design_manifest, args.design_manifest_hash = None, None
+    if args.design_config:
+        from .organization_contracts import load_design
+        args.design = load_design(args.design_config)
+        args.design_hash = hashlib.sha256(args.design_config.read_bytes()).hexdigest()
+        manifest_path = ROOT/args.design["data_manifest"]
+        args.design_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        args.design_manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        if args.organization_policy is not None or args.risk_aware != "off":
+            parser.error("v0.4 method is declared in --design-config; do not mix legacy policy flags")
     if not (1 <= args.max_turns <= 20 and 1 <= args.max_requests <= 100 and
             1 <= args.max_total_tokens <= 800000 and 0 < args.max_cost_usd <= 1):
         parser.error("v0.1 limits: 20 turns, 100 requests, 800000 tokens, 1 USD per episode")
     config = load_config()
+    if args.design:
+        config = replace(config,max_agents=args.design["max_agents"])
     args.dataset_row_index = None
     if args.dataset_category:
         if not args.scenario:
             parser.error("--dataset-category requires --scenario")
-        path, digest, args.dataset_row_index = export_scenario(args.dataset_category, args.scenario)
-        record = ScenarioRecord(args.scenario, path, path.parent, digest)
-        config = replace(config, scenario_ids=(args.scenario,), records={args.scenario: record})
+        if args.dry_run:
+            from .dataset_store import list_scenarios
+            ids_in_category = list_scenarios(args.dataset_category)
+            if args.scenario not in ids_in_category:
+                parser.error("scenario not found in pinned category")
+            args.dataset_row_index = ids_in_category.index(args.scenario)
+        else:
+            path, digest, args.dataset_row_index = export_scenario(args.dataset_category, args.scenario)
+            record = ScenarioRecord(args.scenario, path, path.parent, digest)
+            config = replace(config, scenario_ids=(args.scenario,), records={args.scenario: record})
     ids = config.scenario_ids if args.suite else (args.scenario,)
-    for scenario_id in ids:
-        config.select(scenario_id)
+    if args.design and not set(ids) <= {row["scenario_id"] for row in args.design_manifest["records"]}:
+        parser.error("v0.4 research run must belong to the explicit data manifest")
+    if not (args.dry_run and args.dataset_category):
+        for scenario_id in ids:
+            config.select(scenario_id)
     attack_spec = None
     if args.attack == "single_injection":
-        attack_spec = load_attack_spec(args.attack_spec)
+        if args.attack_case:
+            from .attack import AttackCase
+            attack_spec = AttackCase.load(args.attack_case).overlay_spec()
+        else:
+            attack_spec = load_attack_spec(args.attack_spec)
         if args.suite or args.scenario != attack_spec.target_case:
             parser.error("single_injection requires its one declared --scenario")
     frozen = code_state()
     if args.dry_run:
         print(json.dumps({"dry_run": True, "case_ids": ids, "attack": args.attack,
+                          "design":args.design,"design_hash":args.design_hash,
                           "dataset_category": args.dataset_category,
                           "dataset_row_index_zero_based": args.dataset_row_index,
                           "attack_spec_hash": attack_spec.payload_hash if attack_spec else None,
@@ -279,6 +337,7 @@ def main():
         for row in summaries:
             if (row["mode"] != args.mode or row["attack_mode"] != args.attack or
                 row.get("dataset_category") != args.dataset_category or
+                row.get("design_hash") != args.design_hash or
                 row.get("task_scope_policy", "strict") != args.task_scope_policy or
                 row.get("risk_aware", "off") != args.risk_aware or
                 row.get("organization_policy") != (args.organization_policy or (
@@ -289,6 +348,7 @@ def main():
                 raise RuntimeError("Resume requires identical policy and experiment settings")
     save(batch_dir / "batch_config.json", {"case_ids": ids, "code": frozen, "batch_cap_usd": 5,
         "dataset_category": args.dataset_category,
+        "design_hash":args.design_hash,"data_manifest_hash":args.design_manifest_hash,
         "attack": args.attack, "attack_payload_hash": attack_spec.payload_hash if attack_spec else None,
         "task_scope_policy": args.task_scope_policy, "risk_aware": args.risk_aware,
         "organization_policy": args.organization_policy or (
@@ -321,6 +381,8 @@ def main():
             os.fsync(stream.fileno())
         summaries.append(summary)
         save(batch_dir / "batch_results.json", summaries)
+        if args.design and summary["exception_type"]:
+            raise RuntimeError("v0.4 episode failed; summary and costs retained: "+summary["exception_type"])
         print("FINISH", scenario_id, "success=", summary["scenario_success"], "stop=", summary["stop_reason"],
               "requests=", summary["model_requests_total"], "cost=", summary["cost_estimate_usd"], flush=True)
     print("BATCH_RESULTS", batch_dir / "batch_results.json", flush=True)

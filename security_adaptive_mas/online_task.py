@@ -185,6 +185,11 @@ class TaskUpdate:
     as_of_sequence: int | None = None
     remove_dependencies: tuple[tuple[str, str], ...] = ()
     execution_contracts: tuple[dict, ...] = ()
+    role_specs: tuple = ()
+    need_specs: tuple = ()
+    repair_specs: tuple[dict, ...] = ()
+    remove_subtasks: tuple[str, ...] = ()
+    remove_need_ids: tuple[str, ...] = ()
 
 
 class TaskAnalyzerProtocol(Protocol):
@@ -237,6 +242,10 @@ class OnlineTaskAnalyzer:
         if len({task.task_id for task in proposal.subtasks}) != len(proposal.subtasks):
             raise ValueError("Duplicate task ID in proposal")
         tasks = {task.task_id: task for task in previous.subtasks}
+        for task_id in proposal.remove_subtasks:
+            if task_id == "root" or task_id not in tasks or not proposal.source_evidence_ids:
+                raise ValueError("invalid_working_plan_retraction")
+            del tasks[task_id]
         for item in proposal.subtasks:
             if not isinstance(item.certainty, Certainty):
                 raise ValueError("Invalid proposal task certainty")
@@ -253,6 +262,7 @@ class OnlineTaskAnalyzer:
                 certainty=Certainty.UNKNOWN if item.certainty == Certainty.UNKNOWN else Certainty.INFERRED,
             )
         dependencies = {(e.predecessor_id, e.successor_id): e for e in previous.dependencies}
+        dependencies = {key: value for key, value in dependencies.items() if set(key) <= tasks.keys()}
         if proposal.remove_dependencies and not proposal.source_evidence_ids:
             raise ValueError("Dependency removal requires visible source evidence")
         for key in proposal.remove_dependencies:
@@ -271,6 +281,8 @@ class OnlineTaskAnalyzer:
                 evidence_ids=tuple(dict.fromkeys((*(old.evidence_ids if old else ()), *edge.evidence_ids))),
             )
         requirements = {item.key: item for item in previous.information_requirements}
+        requirements = {key: item for key, item in requirements.items()
+                        if item.task_id in tasks and (item.provider_task_id is None or item.provider_task_id in tasks)}
         for item in proposal.information_requirements:
             if not isinstance(item.certainty, Certainty):
                 raise ValueError("Invalid proposal information certainty")

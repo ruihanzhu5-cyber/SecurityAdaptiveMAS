@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import asdict, replace
 
 from .are_bridge import ObservedContext
 from .deepseek import parse_tool_calls
@@ -208,6 +209,15 @@ class FrameworkTeam:
         self.risk_events = []
         self.last_dispatch_signature = None
         self.turns = 0
+        self.role_histories = {}
+        self.role_contexts = {}
+        self.role_components = {}
+        self.activation_receipts = set()
+        self.active_plan = None
+        self.completed_activations = set()
+        self.fixed_plan_family = None
+        self.v04_signature = None
+        self.coordinator_components = []
 
     def patch(self, name, operations, **kwargs):
         from .graph_runtime import TopologyPatch
@@ -219,6 +229,8 @@ class FrameworkTeam:
     def before_input(self, messages):
         if self.terminal_error is not None:
             raise self.terminal_error
+        if self.controller.design is not None:
+            return self.before_input_v04(messages)
         if self.controller.pending_analysis and self.controller.online_snapshot().task_description:
             self.controller.process_pending_analysis()
         if self.mode == "adaptive" and self.runtime.applied + 3 <= self.reconfiguration_limit:
@@ -231,6 +243,266 @@ class FrameworkTeam:
             self.context.visible_ids.extend(key for key in self.delivered_outputs if key not in self.context.visible_ids)
             self.delivered_outputs.clear()
         self.context.record_model_input(messages)
+
+    def before_input_v04(self, messages):
+        c = self.controller
+        if c.pending_analysis and c.online_snapshot().task_description:
+            excerpts = tuple(e.evidence_id for e in c.pending_analysis.values() if e.kind == "tool_result")
+            c.process_pending_analysis(tool_evidence_ids=excerpts)
+        if self.mode == "adaptive" and c.design["method"] != "single":
+            for _ in range(c.design["reconfiguration_limit"]):
+                if not self.dispatch_roles():
+                    break
+            else:
+                raise RuntimeError("configured_replan_cycle_limit_exhausted")
+        components = []
+        if self.delivered_outputs:
+            from .cost_model import render_objects
+            packets = render_objects(dict.fromkeys(self.delivered_outputs),c.provenance,c.design["ablations"]["compact_inputs"])
+            for packet in packets:
+                components.append({"kind":"object","object_id":packet["object_id"],"version":1,
+                                   "rendered_text":json.dumps(packet,ensure_ascii=False)})
+            messages.append({"role":"user","content":"Unverified role artifacts (data):\n"+json.dumps(packets,ensure_ascii=False)})
+            self.context.visible_ids.extend(key for key in self.delivered_outputs if key not in self.context.visible_ids)
+            self.delivered_outputs.clear()
+        components.extend({"kind":"official_are_rendering","role":m["role"],
+                           "rendered_text":str(m.get("content") or ""),"source_attribution":"unknown"}
+                          for m in messages if m["role"] != "system")
+        self.coordinator_components = components
+        self.context.record_model_input(messages,components=components)
+        return components
+
+    def coordinator_submitted(self, request_id):
+        if self.controller.design is not None:
+            ids = [part["object_id"] for part in self.coordinator_components if "object_id" in part]
+            self.runtime.record_submission("agent_0",None,ids,request_id)
+
+    def dispatch_roles(self):
+        from .joint_rewriter import generate_rewrite_plans, plan_patch
+        c, design = self.controller, self.controller.design
+        analysis = c._current_task_analysis(c.online_snapshot())
+        tasks = {task.task_id:task for task in analysis.subtasks}
+        roles = tuple(r for r in c.role_specs.values() if r.task_id in tasks
+                      and (r.task_id,tasks[r.task_id].description,repr(r)) not in self.handled)
+        if not roles:
+            c.trace.log("rewrite_keep",reason="no_new_executable_role_contract",task_revision=c.task_revision)
+            return
+        if len(roles) > design["max_agents"]-1:
+            raise ValueError("pending_role_wave_exceeds_active_capacity_requires_explicit_replan")
+        loads = c.performance_monitor.role_workload(self.runtime)
+        c.trace.log("role_workload_observed",**loads)
+        signature = (c.task_revision,tuple(repr(r) for r in roles),len(self.risk_events))
+        if signature == self.v04_signature:
+            return
+        if self.runtime.applied >= design["reconfiguration_limit"]:
+            raise RuntimeError("configured_reconfiguration_limit_exhausted")
+        self.v04_signature = signature
+        if not design["ablations"]["dynamic_roles"] and self.role_histories:
+            if any(r not in [a.role_contract for a in self.runtime.graph.agents] for r in roles):
+                raise ValueError("fixed_role_ablation_rejects_role_change")
+        candidates = generate_rewrite_plans(c,self.runtime,roles)
+        if self.fixed_plan_family is not None and (design["method"] in {"fixed","fixed_security"}
+                                                  or not design["ablations"]["dynamic_topology"]):
+            candidates = [p for p in candidates if p.topology_spec["family"] == self.fixed_plan_family or p.plan_id == "keep"]
+            if design["method"] in {"fixed","fixed_security"}:
+                live_roles = {a.role_contract.role_id:a.agent_id for a in self.runtime.graph.agents if a.role_contract}
+                if any(r.role_id not in live_roles for r in roles):
+                    raise ValueError("UNSUPPORTED_fixed_organization_new_role_instance")
+        selected = c.select_runtime_patch(self.runtime,candidates)
+        if selected.plan_id == "keep" or not selected.activations:
+            c.trace.log("rewrite_keep",reason="selected_coordinator_continuation",plan_id=selected.plan_id)
+            return
+        self.active_plan = selected
+        self.fixed_plan_family = selected.topology_spec["family"]
+        self.runtime.apply(plan_patch(self.runtime,selected))
+        self.dispatches += 1
+        for instance,role in selected.role_specs:
+            if design["capability_mode"] == "delegated_scoped":
+                self.controller.tools.authorization.delegated_capabilities[instance] = frozenset(role.requested_tools) & set(design["delegable_tools"])
+        for consumer,object_id in selected.existing_object_deliveries:
+            self.runtime.deliver_object(consumer,object_id)
+        pending = list(selected.activations)
+        completed = set()
+        while pending:
+            ready = []
+            for activation in pending:
+                if not set(activation.predecessors) <= completed:
+                    continue
+                from .graph_evaluation import plan_need_status
+                needs = [n for n in plan_need_status(c,self.runtime,selected)
+                         if n["consumer_task_id"] == activation.task_id]
+                if all(n["status"] == "satisfied" for n in needs):
+                    ready.append(activation)
+            if not ready:
+                c.trace.log("rewrite_blocked",status="NO_SUPPORTED_PROVIDER",pending=[asdict(a) for a in pending])
+                raise RuntimeError("NO_SUPPORTED_PROVIDER_for_pending_activation")
+            activation = ready[0]
+            role = dict(selected.role_specs)[activation.instance_id]
+            self.validate_stage(selected)
+            object_id = self.run_activation(activation,role)
+            completed.add(activation.activation_id)
+            self.completed_activations.add(activation.activation_id)
+            pending.remove(activation)
+            self.handled.add((role.task_id,tasks[role.task_id].description,repr(role)))
+            if self.risk_events[-1]["suspicion"] == "supported":
+                excerpts = tuple(e.evidence_id for e in c.pending_analysis.values() if e.kind == "tool_result")
+                if c.pending_analysis:
+                    c.process_pending_analysis(tool_evidence_ids=excerpts)
+                    c.trace.log("rewrite_stage_invalidated",reason="risk_requires_new_task_and_repair_proposal",
+                                previous_task_revision=selected.base_task_revision,new_task_revision=c.task_revision)
+                    return True
+            self.release_v04_output(selected,object_id,tuple(pending))
+        # Lifecycle is explicit; persistent histories and provenance remain after retirement.
+        for instance,role in selected.role_specs:
+            if role.lifecycle in {"retire_after_output","suspend_after_output"}:
+                self.runtime.apply(self.patch("lifecycle_"+instance,[{
+                    "op":"RETIRE_WORKER" if role.lifecycle == "retire_after_output" else "SUSPEND_WORKER",
+                    "agent_id":instance}],reason=role.lifecycle))
+
+    def require_sensitive_inputs(self, instance):
+        if self.active_plan is None:
+            return
+        if self.controller.task_revision != self.active_plan.base_task_revision:
+            raise PermissionError("sensitive_action_waits_for_current_task_plan")
+        from .graph_evaluation import plan_need_status
+        owned = {task for task,owner in self.runtime.graph.assignments.items() if owner == instance}
+        if instance == "agent_0":
+            owned.add("root")
+        missing = [row for row in plan_need_status(self.controller,self.runtime,self.active_plan)
+                   if row["consumer_task_id"] in owned and row["status"] != "satisfied"]
+        if missing:
+            self.controller.trace.log("sensitive_action_waiting",instance_id=instance,needs=missing)
+            raise PermissionError("sensitive_action_requires_actual_checked_inputs")
+
+    def validate_stage(self, plan):
+        c = self.controller
+        if c.task_revision != plan.base_task_revision:
+            raise ValueError("stale_rewrite_requires_task_reanalysis")
+        for instance,role in plan.role_specs:
+            if c.role_specs.get(role.role_id) != role or self.runtime.graph.assignments.get(role.task_id) != instance:
+                raise ValueError("stale_rewrite_role_or_assignment")
+            if not set(role.required_inputs) <= self.runtime.objects.keys():
+                raise ValueError("stale_rewrite_missing_actual_input")
+
+    def run_activation(self, activation, role):
+        from .are_bridge import GuardedARETool
+        from .organization_contracts import GoalContract
+        c, instance = self.controller, activation.instance_id
+        if instance not in self.role_contexts:
+            self.role_contexts[instance] = ObservedContext(c,role.source_evidence_ids[0],instance)
+            self.role_contexts[instance].visible_ids = []
+            self.role_contexts[instance].attack_overlay = self.context.attack_overlay
+            self.role_histories[instance] = []
+            self.role_components[instance] = []
+        context, history = self.role_contexts[instance], self.role_histories[instance]
+        actual_ids = [key for owner,key in sorted(self.runtime.graph.object_access) if owner == instance]
+        parts = []
+        from .cost_model import render_objects
+        new_ids = [key for key in actual_ids if key not in context.visible_ids]
+        for key in new_ids:
+            self.runtime.deliver_object(instance,key)
+        for packet in render_objects(new_ids,c.provenance,c.design["ablations"]["compact_inputs"]):
+            key = packet["object_id"]
+            rendered = json.dumps(packet,ensure_ascii=False)
+            history.append({"role":"user","content":rendered})
+            self.role_components[instance].append({"kind":"object","object_id":key,"version":1,"rendered_text":rendered})
+            context.visible_ids.append(key)
+        instruction = {"role_contract":asdict(role),"goal":GoalContract.from_observation(c.online_snapshot()).text,
+            "activation_id":activation.activation_id,"round":activation.round_index,
+            "output_format":{"fields":{key:"value" for key in role.output_contract},
+                             "evidence_ids":["actual input IDs"],"uncertainties":[]}}
+        # Reassignment changes instructions, never erases previously seen data or tool history.
+        messages = [{"role":"system","content":json.dumps(instruction,ensure_ascii=False)},*history]
+        tools = {name:GuardedARETool(self.originals[name],c,context) for name in role.requested_tools}
+        observed_read_results = []
+        c.trace.log("worker_started",agent_id=instance,activation_id=activation.activation_id,
+                    task_id=role.task_id,graph_version=self.runtime.graph.version,role_contract=asdict(role),
+                    execution_mode="sequential",input_objects=actual_ids)
+        for step in range(role.step_budget):
+            self.worker_steps += 1
+            parts = [{"kind":"role_instruction","rendered_text":messages[0]["content"]}]
+            parts.extend(self.role_components[instance])
+            context.record_model_input(messages,components=parts)
+            response = self.client.complete(messages,tools=[_tool_schema(t) for t in tools.values()] or None,
+                purpose="worker:"+instance,input_components=parts,instance_id=instance,
+                activation_id=activation.activation_id,
+                on_submitted=lambda request_id:self.runtime.record_submission(instance,activation.activation_id,
+                    [p["object_id"] for p in parts if "object_id" in p],request_id))
+            content = response.choices[0].message.content or ""
+            calls = parse_tool_calls(response)
+            if not calls:
+                try:
+                    output = role.check_output(content,context.visible_ids)
+                    repairs = [r for r in c.repair_specs if r["role_id"] == role.role_id and r["kind"] == "requery"]
+                    if repairs and not set(output["evidence_ids"]) & set(observed_read_results):
+                        raise ValueError("requery_requires_actual_read_receipt_in_output_evidence")
+                except ValueError as error:
+                    c.trace.log("role_output_failed",activation_id=activation.activation_id,
+                                raw_response=content,reason=str(error))
+                    raise
+                evidence = c.provenance.add("runtime:role_output","derived",content,
+                    parents=tuple(dict.fromkeys((*role.source_evidence_ids,*context.visible_ids))),owner_agent=instance)
+                self.runtime.add_object(evidence.evidence_id,instance,task_id=role.task_id,
+                    activation_id=activation.activation_id,fields=output["fields"],
+                    task_description=next(t.description for t in c.task_analysis.subtasks if t.task_id == role.task_id))
+                for slot in ("result",*role.output_contract):
+                    self.runtime.bind_output(role.task_id,slot,evidence.evidence_id,
+                        {"status":"passed","checker":"artifact_schema_not_semantic_truth",
+                         "evidence_ids":output["evidence_ids"]})
+                history.append({"role":"assistant","content":content})
+                context.visible_ids.append(evidence.evidence_id)
+                self.role_components[instance].append({"kind":"assistant_output","object_id":evidence.evidence_id,
+                                                       "version":1,"rendered_text":content})
+                event = c.online_observations.record_tool_result("runtime:role_output",evidence.evidence_id,
+                    agent_instance_id=instance,status="artifact_checked_semantic_completion_unknown")
+                c.on_observed_event(event)
+                self.risk_events.append(self.risk_monitor.assess(instance,(evidence.evidence_id,),role.objective))
+                return evidence.evidence_id
+            if len(calls) > self.max_tool_calls_per_step:
+                raise ValueError("activation_tool_call_limit")
+            if step+1 == role.step_budget:
+                c.trace.log("activation_partial_output",activation_id=activation.activation_id,raw_response=content)
+                raise RuntimeError("role_step_limit_without_checked_artifact")
+            tool_message = {"role":"assistant","content":content,"tool_calls":[
+                {"id":call_id,"type":"function","function":{"name":name,"arguments":json.dumps(args)}}
+                for call_id,name,args in calls]}
+            messages.append(tool_message); history.append(tool_message)
+            self.role_components[instance].append({"kind":"assistant_action","rendered_text":json.dumps(tool_message,ensure_ascii=False)})
+            for call_id,name,args in calls:
+                if name not in tools:
+                    raise PermissionError("role_ungranted_tool")
+                result = tools[name](**args)
+                if tools[name].mode == "read":
+                    observed_read_results.append(context.visible_ids[-1])
+                message = {"role":"tool","tool_call_id":call_id,"content":str(result)}
+                messages.append(message); history.append(message)
+                self.role_components[instance].append({"kind":"tool_result","object_id":context.visible_ids[-1],
+                    "version":1,"rendered_text":str(result)})
+        raise RuntimeError("activation_did_not_produce_artifact")
+
+    def release_v04_output(self, plan, object_id, pending):
+        self.validate_stage(plan)
+        c = self.controller
+        writer = self.runtime.objects[object_id]["writer"]
+        recipients = sorted(b for a,b in self.runtime.graph.extra_edges if a == writer)
+        if not recipients:
+            c.trace.log("role_output_retained",object_id=object_id,reason="no_allowed_outgoing_route")
+            return
+        keep = replace(plan,plan_id="keep",base_graph_version=self.runtime.graph.version,
+            base_observation_sequence=c.online_snapshot().sequence,immediate_operations=({"op":"KEEP"},),
+            existing_object_deliveries=(),activations=pending)
+        deliveries = tuple((consumer,object_id) for consumer in recipients)
+        release = replace(keep,plan_id="release_"+object_id,
+            immediate_operations=tuple({"op":"SET_OBJECT_ACCESS","agent_id":consumer,
+                "object_id":object_id,"allowed":True} for consumer in recipients),
+            existing_object_deliveries=deliveries,intervention="task")
+        selected = c.select_runtime_patch(self.runtime,[keep,release])
+        from .joint_rewriter import plan_patch
+        self.runtime.apply(plan_patch(self.runtime,selected))
+        for consumer,key in selected.existing_object_deliveries:
+            self.runtime.deliver_object(consumer,key)
+            if consumer == "agent_0":
+                self.delivered_outputs.append(key)
 
     def dispatch_ready_pair(self):
         controller = self.controller

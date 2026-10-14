@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import json
 
 from .organization import OrganizationSelector, TaskAnalyzer, TopologyPlanner
 from .online_observation import (Knowledge, ObservedEvent, OnlineObservation,
@@ -72,6 +73,10 @@ class Controller:
         self.last_joint_task_revision = -1
         self.last_joint_observation_sequence = 0
         self.last_joint_risk_event_count = 0
+        self.design = None
+        self.role_specs = {}
+        self.need_specs = {}
+        self.repair_specs = ()
 
     def quarantine(self, agent_id: str, mode: str = "full") -> None:
         if mode == "full":
@@ -197,8 +202,12 @@ class Controller:
         if not self.task_llm_enabled:
             return deferred("analysis_deferred_disabled")
         if self.analysis_requests >= self.max_analysis_requests:
+            if self.design is not None:
+                raise BudgetExceeded("task-analysis configured subbudget exhausted")
             return deferred("analysis_deferred_budget")
         if self.task_proposer is None:
+            if self.design is not None:
+                raise RuntimeError("v0.4 task proposer unavailable")
             return deferred("task_proposer_unavailable")
         if self.run_budget is None or self.task_proposer.budget is not self.run_budget:
             return deferred("shared_episode_budget_unavailable")
@@ -221,17 +230,45 @@ class Controller:
             for contract in proposal.execution_contracts:
                 if not set(contract["independent_of"]) <= known_ids:
                     raise ValueError("Execution contract cites unknown independent task")
+            if self.design is not None:
+                external_ids = tuple(dict.fromkeys((*tool_evidence_ids,
+                    *(event.evidence_id for event in events if event.kind == "environment"))))
+                if external_ids:
+                    risk = self.framework_team.risk_monitor.assess("task_planner",external_ids,
+                        json.dumps({"subtasks":[asdict(task) for task in proposal.subtasks],
+                                    "roles":[asdict(role) for role in proposal.role_specs]},ensure_ascii=False))
+                    self.framework_team.risk_events.append(risk)
         except BudgetExceeded:
+            if self.design is not None:
+                raise
             return deferred("analysis_deferred_budget")
         except TaskProposalError:
+            if self.design is not None:
+                raise
             return deferred("task_proposal_failed", analysis_succeeded=False)
         except ValueError as error:
             self.trace.log("task_proposal_error", as_of_sequence=observation.sequence,
                            error_type=type(error).__name__, reason=str(error))
+            if self.design is not None:
+                raise
             return deferred("task_proposal_failed", analysis_succeeded=False)
         finally:
             self.analysis_requests = self.run_budget.task_analysis_requests
-        self.task_analysis = current
+        next_roles = {key: role for key,role in self.role_specs.items() if role.task_id not in proposal.remove_subtasks}
+        next_needs = {key: need for key,need in self.need_specs.items() if need.consumer_task_id not in proposal.remove_subtasks}
+        for need_id in proposal.remove_need_ids:
+            if need_id not in self.need_specs or self.need_specs[need_id].origin != "proposed_plan":
+                raise ValueError("cannot_retract_unregistered_or_trusted_need")
+            next_needs.pop(need_id,None)
+        for role in proposal.role_specs:
+            next_roles[role.role_id] = role
+        for need in proposal.need_specs:
+            next_needs[need.need_id] = need
+        if any(need.consumer_task_id not in known_ids or any(provider["task_id"] not in known_ids
+               for provider in need.provider_alternatives) for need in next_needs.values()):
+            raise ValueError("retracted_work_requires_explicit_dependent_need_retraction")
+        self.task_analysis, self.role_specs, self.need_specs = current,next_roles,next_needs
+        self.repair_specs = proposal.repair_specs
         for contract in proposal.execution_contracts:
             self.execution_contracts[contract["task_id"]] = contract
         self.task_revision += 1
@@ -257,6 +294,9 @@ class Controller:
         return decision
 
     def select_runtime_patch(self, runtime, candidates, *, protected_targets=()):
+        if self.design is not None:
+            from .joint_rewriter import select_rewrite_plan
+            return select_rewrite_plan(self, runtime, candidates)
         if self.organization_policy != "legacy":
             return self._select_joint_runtime_patch(runtime, candidates)
         return self._select_runtime_patch_legacy(runtime, candidates,

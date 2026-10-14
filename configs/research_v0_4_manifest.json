@@ -1,0 +1,619 @@
+{
+  "version": "v0.4-selection-1",
+  "selection_seed": 20261014,
+  "selection_rule": "five historical development cases plus 15 previously scanned-category IDs; 40 ID-only sampled tasks from previously unscanned ambiguity/search",
+  "prior_static_inspection_excluded_from_evaluation": [
+    "adaptability",
+    "execution",
+    "time"
+  ],
+  "source_revision": "78ea3bdbdeec2bdcd6afa5420915d8a22f23ed99",
+  "outcome_independent_selection": true,
+  "frozen_evaluation_status": "IDs_and_data_hashes_frozen_no_results_or_task_content_used_for_selection",
+  "records": [
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_0obld3",
+      "category": "time",
+      "row_index_zero_based": 78,
+      "split": "development",
+      "sha256": "db38da1ed0e5b9948a3f8d8a8d8476200dcf0a9a02011715064ca23e7a9b44e7",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_bdn1w8",
+      "category": "time",
+      "row_index_zero_based": 123,
+      "split": "development",
+      "sha256": "6592aae20a426131c3656072d70896e2e3a504e89ee467518ef89aac67c8a535",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_y6td7z",
+      "category": "adaptability",
+      "row_index_zero_based": 91,
+      "split": "development",
+      "sha256": "6892dec9822f5d3ab2c55ac11176e9fc3a39fb03cd6f9dc6e7b105e424c44e42",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_0421h2",
+      "category": "adaptability",
+      "row_index_zero_based": 26,
+      "split": "development",
+      "sha256": "c0e744908ac7c321d3d9009ead6307e42aef5e00b7f4e9bcab7c34db0fb97374",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_9pq84p",
+      "category": "time",
+      "row_index_zero_based": 1,
+      "split": "development",
+      "sha256": "7ded1b0663b04f2c598dd7cb824d3c829a86bb591f3c4269c80d02974ff4b996",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_kb5ah9",
+      "category": "execution",
+      "row_index_zero_based": 77,
+      "split": "development",
+      "sha256": "40b69ce555faade1dc40d4684e5f8a4ed25bfdd8b5b485eebf45354560613d39",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_2ue2n7",
+      "category": "time",
+      "row_index_zero_based": 21,
+      "split": "development",
+      "sha256": "3fe945cb82722f228be32292f5e03f45a25fd38922ea645533b376a5aab24d71",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_94q296",
+      "category": "time",
+      "row_index_zero_based": 50,
+      "split": "development",
+      "sha256": "7f5174cc1d434e0d5a38e54ba1915a59f1a64407a310a44fafc63ab3edbb626f",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_aw8qv9",
+      "category": "execution",
+      "row_index_zero_based": 11,
+      "split": "development",
+      "sha256": "769398e4acc5f2ea96221a8d22b40bb2aa27aef142efd67df02f98b1595205a3",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_vzhs4o",
+      "category": "adaptability",
+      "row_index_zero_based": 41,
+      "split": "development",
+      "sha256": "de026c32d2f3e7ff825cdf5439dd2299961f0fd0572fe2f77499940464894230",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_24_tnkyt7",
+      "category": "time",
+      "row_index_zero_based": 53,
+      "split": "development",
+      "sha256": "feecd25052bb5e6e49754099b4da1bca88fb4cf1699bfd34b7e62ca0233812de",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_25_27a695",
+      "category": "execution",
+      "row_index_zero_based": 49,
+      "split": "development",
+      "sha256": "d60eda8bc87b0e62ce366c41d035a5c96a6b693c372c3e39d9bf8ae55261596a",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_25_4l3y7p",
+      "category": "execution",
+      "row_index_zero_based": 59,
+      "split": "development",
+      "sha256": "a485cb32a5638ad5590ce1918fc2ff779c5dab8a44167d25e3d22f7e0ca73862",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_25_swh02o",
+      "category": "adaptability",
+      "row_index_zero_based": 6,
+      "split": "development",
+      "sha256": "f52975e1eb630c09de913b74de87b4f2d3690b5da0cce398e2132aa15bb0f998",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_drtm9y",
+      "category": "time",
+      "row_index_zero_based": 13,
+      "split": "development",
+      "sha256": "4f69f5cda75e9cf4823ff09a2760019efce21625a3da956cd04f755b8b4244d4",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_rhr2yy",
+      "category": "time",
+      "row_index_zero_based": 111,
+      "split": "development",
+      "sha256": "e56fe6b6d802aea77eb4e1bbdd09c1e0333c75844b3eb0e8c77b9a4c25058a93",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_v5fnct",
+      "category": "execution",
+      "row_index_zero_based": 33,
+      "split": "development",
+      "sha256": "f70eff54b325902bf47df3c2ad7cd54bc3af7fd17fa7bb971ffed990772e4e39",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_29_3rljy6",
+      "category": "adaptability",
+      "row_index_zero_based": 92,
+      "split": "development",
+      "sha256": "c63a5f56f9ef9af480955903b2181176848ed5497220b5d084b9c29ae416b283",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_29_m0zl89",
+      "category": "execution",
+      "row_index_zero_based": 118,
+      "split": "development",
+      "sha256": "fa281d1ee1b4f45de873da5b64b95c6140e2694098a535996a7dfc5a49a6b7bc",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_30_erta5d",
+      "category": "time",
+      "row_index_zero_based": 36,
+      "split": "development",
+      "sha256": "00da7d5153484285010a859d3289d9552f05ecd01a1418c7a9e217a95baf7ea9",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_3sr7jy",
+      "category": "ambiguity",
+      "row_index_zero_based": 143,
+      "split": "frozen_evaluation",
+      "sha256": "9dffc5f66e87dd6b6da597c7b728cc2b38eabf36f711cc42ee2fa226155f4c97",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_9owswx",
+      "category": "ambiguity",
+      "row_index_zero_based": 84,
+      "split": "frozen_evaluation",
+      "sha256": "b22bbaa3d307ae8362327eacd56a991952535195bb6a33193302f467562a9bc9",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_a7j0iw",
+      "category": "search",
+      "row_index_zero_based": 18,
+      "split": "frozen_evaluation",
+      "sha256": "5a8892ee6dde388d2064b74efdfc04ac7b750a5c7d0d51611afbbc81a3050673",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_b647lw",
+      "category": "ambiguity",
+      "row_index_zero_based": 108,
+      "split": "frozen_evaluation",
+      "sha256": "99d60a88d2f39252caebabe17bda04bc56a4c48b31de3fc7b518059644b1c89f",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_er2clq",
+      "category": "search",
+      "row_index_zero_based": 23,
+      "split": "frozen_evaluation",
+      "sha256": "fa10d9e71d8392c4ec3cf979cabc866863f9c73a5cead5da57645f976662f719",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_mq2acb",
+      "category": "search",
+      "row_index_zero_based": 53,
+      "split": "frozen_evaluation",
+      "sha256": "0e8f374da368e1e573c0544b3701942f12311fa0254b0913ce18939845e1c404",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_uq7b9f",
+      "category": "ambiguity",
+      "row_index_zero_based": 148,
+      "split": "frozen_evaluation",
+      "sha256": "a4a8ec7632635d7a83f8efc0f4025a481c6866cbad1c29cc6509aaa3ee562b7e",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_wf7z28",
+      "category": "ambiguity",
+      "row_index_zero_based": 78,
+      "split": "frozen_evaluation",
+      "sha256": "439982a73ed71c54951fefd6248f4bc39cfb238136d64d3f385bb50f5f535988",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_21_y3l4za",
+      "category": "ambiguity",
+      "row_index_zero_based": 52,
+      "split": "frozen_evaluation",
+      "sha256": "0cf645f4219178dcc0853081d89db8f35db80e591113b59bcbfcf1fba24b537d",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_1nwlhy",
+      "category": "ambiguity",
+      "row_index_zero_based": 97,
+      "split": "frozen_evaluation",
+      "sha256": "8d99e5ba8366d1666471523baa64da95d8f928509e3e87b84d9b89dec7c82cef",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_1vo7zp",
+      "category": "ambiguity",
+      "row_index_zero_based": 18,
+      "split": "frozen_evaluation",
+      "sha256": "3f4fcd361eaeabbac3f0b48335b9ec6a5eb86d5cc7bd2ffe5a8782dffae7edb9",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_pepb8u",
+      "category": "search",
+      "row_index_zero_based": 124,
+      "split": "frozen_evaluation",
+      "sha256": "9833e1857dfd7a6a7c2861195b484646846cf8a2fe303a9903c5d071e62150b3",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_sf7o8e",
+      "category": "ambiguity",
+      "row_index_zero_based": 57,
+      "split": "frozen_evaluation",
+      "sha256": "4f147cf6779a2c38becdec68bc5b4d19f37fb022d92fada93b7bfb8221a32816",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_x4rb15",
+      "category": "search",
+      "row_index_zero_based": 139,
+      "split": "frozen_evaluation",
+      "sha256": "b493fd8aba15413d4d381881352b8398057d82b74dfbdf66c7542864d7a685fe",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_22_zmg4mb",
+      "category": "ambiguity",
+      "row_index_zero_based": 73,
+      "split": "frozen_evaluation",
+      "sha256": "6b9a8670129fb156acf0172399dc53ffcc78a2327f02dae274f9e47190bbbb3b",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_0wpjds",
+      "category": "search",
+      "row_index_zero_based": 20,
+      "split": "frozen_evaluation",
+      "sha256": "f3e9ad0d976667aa50ebc82996199e5cb144300aceb9f0aab7fe2b03125940da",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_hd4ccm",
+      "category": "ambiguity",
+      "row_index_zero_based": 100,
+      "split": "frozen_evaluation",
+      "sha256": "9e0bd6b55a95547166fedd1c017c43c09f4ba0ec9f599867d2f8565da4ceda1a",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_iy0pbp",
+      "category": "ambiguity",
+      "row_index_zero_based": 0,
+      "split": "frozen_evaluation",
+      "sha256": "0098b450758fa0ffe85bf2de9b41af1416e6faac21f21c21e31cdb0eae2fc7ca",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_23_x1uuwg",
+      "category": "ambiguity",
+      "row_index_zero_based": 28,
+      "split": "frozen_evaluation",
+      "sha256": "08eceb4484f97893747f18f7a41094ac1be65d09fc6849852c576b5dfdbbd954",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_24_2btmgn",
+      "category": "ambiguity",
+      "row_index_zero_based": 98,
+      "split": "frozen_evaluation",
+      "sha256": "3c24e30e24cea2ef0abfcf014eb15ee6a75f5f6d2ed6e25e0b9f7b98c79e3f42",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_25_8ygwb8",
+      "category": "ambiguity",
+      "row_index_zero_based": 79,
+      "split": "frozen_evaluation",
+      "sha256": "fc4feec71156775b2e6457f5c6dcf7c96cec447ef9d5e006ae792b2913d6f5a6",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_25_kg0fti",
+      "category": "ambiguity",
+      "row_index_zero_based": 31,
+      "split": "frozen_evaluation",
+      "sha256": "e151b2f7400cc3131f9817c0ed94d9256532811f4c3abdcc49f333abc79238d4",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_25_ryl3q6",
+      "category": "search",
+      "row_index_zero_based": 134,
+      "split": "frozen_evaluation",
+      "sha256": "d230e3c8eeb53dc7c55661a27fc62ebfdc540bf23ce27cae794c01e820023aa4",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_9yg3xx",
+      "category": "search",
+      "row_index_zero_based": 83,
+      "split": "frozen_evaluation",
+      "sha256": "7a2c9b7a1a004fd840e6e92295e2aab8d6317db0603f948e4cae2e12847f5946",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_bs04zk",
+      "category": "ambiguity",
+      "row_index_zero_based": 47,
+      "split": "frozen_evaluation",
+      "sha256": "87566107e00399939c9d2c7663106b1da099441dfc536fc6899acebf49c25b25",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_ha25w5",
+      "category": "ambiguity",
+      "row_index_zero_based": 63,
+      "split": "frozen_evaluation",
+      "sha256": "34ba1b0335202efb9137643e2b9d623f310a25e7b19c7fa6ddb463feb697d518",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_kr7kv1",
+      "category": "ambiguity",
+      "row_index_zero_based": 55,
+      "split": "frozen_evaluation",
+      "sha256": "66822d624a2a74efa86ffa402ae825df4b2d36225493125420d1e1df912817cf",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_m0z9j9",
+      "category": "search",
+      "row_index_zero_based": 122,
+      "split": "frozen_evaluation",
+      "sha256": "71faa1d613a3a9b1a4c0ba35d59437314b7d0ab83a779073760cf90e77d1eea6",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_oxzxfa",
+      "category": "ambiguity",
+      "row_index_zero_based": 141,
+      "split": "frozen_evaluation",
+      "sha256": "f03154704553632fc4fc629683c35f9321d17cbb3033f08e4dc38fa3af062446",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_27_x018cu",
+      "category": "ambiguity",
+      "row_index_zero_based": 23,
+      "split": "frozen_evaluation",
+      "sha256": "28a5849fdc5fd7a0070838464ca195eeec5bf4384be4b452b59e7c09b0e7a342",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_28_sfhzjr",
+      "category": "search",
+      "row_index_zero_based": 90,
+      "split": "frozen_evaluation",
+      "sha256": "a68124cd11b7671a331d9d186cbefb0c60d6cc1a5f10548ce11134073d88a7fc",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_28_vfvksq",
+      "category": "ambiguity",
+      "row_index_zero_based": 12,
+      "split": "frozen_evaluation",
+      "sha256": "84b123f32583bcead02990cb714f86d0faa307c273abb31312a08d3bcfd1deac",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_29_0fccbi",
+      "category": "ambiguity",
+      "row_index_zero_based": 35,
+      "split": "frozen_evaluation",
+      "sha256": "91a0fd3016a9060149f8a8a92627c394e3fc3e6a2bef8c82510150a6da38d0f6",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_29_2qw4nk",
+      "category": "ambiguity",
+      "row_index_zero_based": 122,
+      "split": "frozen_evaluation",
+      "sha256": "2557b94c0e40a4cd04bc58f809cdde7d171ff275f3f7918d4d8714df8222ae9e",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_29_dpbafp",
+      "category": "ambiguity",
+      "row_index_zero_based": 14,
+      "split": "frozen_evaluation",
+      "sha256": "c1b23d9cda0e074d0da198613d3f47e5f32380859bc731558267cfa1485091df",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_29_kao12j",
+      "category": "ambiguity",
+      "row_index_zero_based": 140,
+      "split": "frozen_evaluation",
+      "sha256": "12c243373320d6eae4a96d677cbcd6bdde5745e19cc29ac6342211472fdedd0e",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_30_dc87x4",
+      "category": "ambiguity",
+      "row_index_zero_based": 56,
+      "split": "frozen_evaluation",
+      "sha256": "59b4b2f288d4fc7a92b79282eaae95b29c66208b7ed7c1529ea917584db67b54",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_30_hc1qmk",
+      "category": "search",
+      "row_index_zero_based": 150,
+      "split": "frozen_evaluation",
+      "sha256": "b0ae3bd958721ddba4a6df0c98c49448749d16d397cea53a36235dee25180e37",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_30_k0yt0a",
+      "category": "search",
+      "row_index_zero_based": 72,
+      "split": "frozen_evaluation",
+      "sha256": "879356bf4692a1405f0b437bf561419ba0152e52139a81e66aa7a85b7032a60b",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    },
+    {
+      "benchmark": "gaia2",
+      "scenario_id": "scenario_universe_30_p6xcsp",
+      "category": "search",
+      "row_index_zero_based": 35,
+      "split": "frozen_evaluation",
+      "sha256": "d643cdd190e8b4c5f3e5320be928d920d7fb903686917c5cfe5fd87206f5ef2f",
+      "attack_families_verified": [],
+      "attack_eligibility": "UNKNOWN_requires_boundary_validation"
+    }
+  ],
+  "agentdyn": {
+    "status": "BLOCKED",
+    "reason": "trusted side-effect capability catalog and local dependency import not established"
+  }
+}

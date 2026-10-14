@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import hashlib
 import time
-from dataclasses import replace
+from dataclasses import replace, asdict
 from types import MethodType
 
 from .security import ToolDefinition, UnsupportedTaskScope
@@ -65,7 +65,7 @@ class ObservedContext:
         self.current_evidence_id = evidence.evidence_id
         return text
 
-    def record_model_input(self, messages):
+    def record_model_input(self, messages, *, components=None):
         self.last_messages = messages
         text = json.dumps(messages, ensure_ascii=False, default=str)
         objects = getattr(getattr(self.controller, "framework_team", None), "runtime", None)
@@ -73,6 +73,8 @@ class ObservedContext:
         included = []
         repeated_chars = 0
         for object_id, obj in objects.items():
+            if self.controller.design is not None:
+                continue
             if obj["status"] != "output_available" or object_id not in self.visible_ids:
                 continue
             item_text = self.controller.provenance.items[object_id].text
@@ -85,6 +87,8 @@ class ObservedContext:
                 repeated_chars += len(item_text)
             self._prepared_object_versions.add(key)
         self.controller.trace.log("model_input_components", agent_id=self.agent_id,
+                                  explicit_components=components,
+                                  attribution_status="explicit_components_plus_unknown_official_rendering" if self.controller.design is not None else "legacy_substring_proxy",
                                   role_characters=[{"role": item.get("role"),
                                                     "characters": len(str(item.get("content") or ""))}
                                                    for item in messages],
@@ -130,6 +134,8 @@ class GuardedARETool:
             self.name, self.mode, frozenset({self.resource}), original))
 
     def __call__(self, *args, **kwargs):
+        if self.controller.design is not None and self.mode == "write":
+            self.controller.framework_team.require_sensitive_inputs(self.context.agent_id)
         related_requirements = (self.context.consume_tool_requirements()
                                 if isinstance(self.context, ObservedContext) else ())
         if args:
@@ -168,14 +174,18 @@ class GuardedARETool:
             self.context.record_tool_output(evidence.evidence_id)
             team = getattr(self.controller, "framework_team", None)
             if team is not None:
-                from .dynamic_team import INJECTION_RULE
                 team.runtime.add_object(evidence.evidence_id, self.context.agent_id)
-                risk = {"subject_id": self.context.agent_id, "object_id": evidence.evidence_id,
+                if self.controller.design is not None:
+                    risk = team.risk_monitor.assess(self.context.agent_id,(evidence.evidence_id,))
+                else:
+                    from .dynamic_team import INJECTION_RULE
+                    risk = {"subject_id": self.context.agent_id, "object_id": evidence.evidence_id,
                         "event_sequence": output.sequence, "evidence_ids": [evidence.evidence_id],
                         "exposure": True, "suspicion": "flagged" if INJECTION_RULE.search(str(result)) else "none",
                         "observed_violation": False, "detector_version": "existing-regex-1"}
                 team.risk_events.append(risk)
-                self.controller.trace.log("runtime_risk_observation", **risk)
+                if self.controller.design is None:
+                    self.controller.trace.log("runtime_risk_observation", **risk)
                 if risk["suspicion"] == "flagged":
                     self.controller.suspect_instances.add(self.context.agent_id)
         return result
@@ -309,6 +319,11 @@ def make_framework_agent_builder(controller, context, client, mode, *,
                                          allowed_tools=sorted(originals),
                                          excluded_apps=["Files"],
                                          policy_version=SandboxPermissivePolicy.version)
+                if controller.design is not None:
+                    originals = SandboxPermissivePolicy.selected_tools(originals)
+                    controller.trace.log("v04_host_boundary_allowlist",allowed_tools=sorted(originals),
+                                         excluded_surfaces=["Files","attachment_transfer"],
+                                         authorization_policy=task_scope_policy)
                 guarded = [GuardedARETool(tool, controller, context) for tool in originals.values()]
                 coordinator_tools = frozenset(originals)
                 read_tools = frozenset(tool.name for tool in guarded if tool.mode == "read")
@@ -327,9 +342,22 @@ def make_framework_agent_builder(controller, context, client, mode, *,
                 if attack_spec is not None:
                     from .attack import AttackOverlay
                     context.attack_overlay = AttackOverlay(
-                        attack_spec, controller.trace, scenario_id=scenario.scenario_id)
+                        attack_spec, controller.trace, scenario_id=scenario.scenario_id,
+                        receiver_prefixes=("role_",) if controller.design else ("worker_",))
                 runtime = GraphRuntime(controller, coordinator_tools, read_tools, controller.candidate_generator.max_agents)
+                if controller.design is not None:
+                    design = controller.design
+                    delegated = frozenset(design["delegable_tools"])
+                    if not delegated <= coordinator_tools or not delegated <= SandboxPermissivePolicy.write_tools:
+                        raise ValueError("trusted_delegation_list_exceeds_verified_sandbox_tools")
+                    runtime.worker_tools = read_tools | (delegated if design["capability_mode"] == "delegated_scoped" else frozenset())
                 controller.framework_team = FrameworkTeam(controller, runtime, client, context, originals, mode)
+                if controller.design is not None:
+                    from .risk_monitor import RiskMonitor
+                    team = controller.framework_team
+                    team.reconfiguration_limit = design["reconfiguration_limit"]
+                    team.worker_step_limit = design["role_step_limit"]
+                    team.risk_monitor = RiskMonitor(client,controller,design["risk_detector"])
                 def stop_episode(error):
                     from are.simulation.agents.default_agent.base_agent import RunningState
                     controller.framework_team.terminal_error = error
@@ -341,7 +369,13 @@ def make_framework_agent_builder(controller, context, client, mode, *,
                 controller.suspect_instances = set()
                 controller.task_proposer = DeepSeekTaskProposer(client,
                     lambda key: controller.provenance.items[key].text,
-                    execution_tools=tuple(sorted(read_tools)))
+                    execution_tools=tuple(sorted(runtime.worker_tools)),design=controller.design,
+                    organization_snapshot=lambda: {
+                        "roles":[asdict(role) for role in controller.role_specs.values()],
+                        "needs":[asdict(need) for need in controller.need_specs.values()],
+                        "assignments":dict(runtime.graph.assignments),
+                        "available_object_ids":list(runtime.objects),
+                        "workload":controller.performance_monitor.role_workload(runtime)})
                 instance.tools = internal + guarded
                 instance.react_agent.tools = {tool.name: tool for tool in instance.tools}
                 instance.react_agent.init_system_prompts["system_prompt"] += (
@@ -366,4 +400,5 @@ def make_framework_agent_builder(controller, context, client, mode, *,
 
     return FrameworkBuilder(llm_engine_builder=DeepSeekEngineBuilder(
         client, lambda messages: controller.framework_team.before_input(messages),
-        on_error=lambda error: controller.framework_team.stop_episode(error)))
+        on_error=lambda error: controller.framework_team.stop_episode(error),
+        on_submitted=lambda request_id:controller.framework_team.coordinator_submitted(request_id)))
