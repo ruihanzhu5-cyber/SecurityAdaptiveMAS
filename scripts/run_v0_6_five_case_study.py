@@ -102,10 +102,13 @@ def execute(directory):
         fatal=False
         try:
             outcome=run(command(unit,manifest,path));summary=outcome["summaries"][0]
-            unit.update(status="FAILED" if summary["exception_type"] else "FINISHED",run_id=summary["run_id"],
+            runtime_status=summary.get("run_status")
+            unit.update(status=runtime_status if runtime_status in {"INDETERMINATE_IDLE","BLOCKED_EVALUATION"} else
+                "FAILED" if summary["exception_type"] else "FINISHED",run_id=summary["run_id"],
                 run_dir=str(Path(outcome["batch_dir"])/summary["scenario_id"]/summary["run_id"]),
                 results={k:summary[k] for k in ["exception_type","stop_reason","official_runner_success","legitimate_task_completed","model_requests_submitted","successful_model_responses","input_tokens_total","output_tokens_total","cost_estimate_usd","unknown_cost_bound","wall_time_seconds","effective_graph_patches"]})
             fatal=summary["exception_type"] not in {None,"BudgetExceeded","MaxIterationsAgentError","UnavailableToolAgentError"}
+            fatal=fatal or runtime_status in {"INDETERMINATE_IDLE","BLOCKED_EVALUATION"}
         except (Exception,SystemExit) as error:
             unit.update(status="FAILED",error_type=type(error).__name__,reason=str(error),traceback=traceback.format_exc());fatal=True
         unit["finished_at_utc"]=datetime.now(timezone.utc).isoformat()

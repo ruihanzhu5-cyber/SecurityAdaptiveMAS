@@ -16,7 +16,8 @@ import traceback
 from uuid import uuid4
 
 from .config import ROOT
-from .are_adapter import import_official_scenario,official_runner
+from .are_adapter import (import_benchmark_scenario,official_runner,BenchmarkLifecycle,
+                          benchmark_evaluation,BenchmarkEvaluationBlocked)
 from .attack import load_attack_spec,evaluate_attack,attack_target_state,evaluate_text_attack
 from .deepseek import API_BASE,MODEL,PROVIDER,DeepSeekClient,DeepSeekSettings,RunBudget
 from .trace import TraceLogger
@@ -73,6 +74,7 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
     budget.input_rate=args.design["rates"]["input_usd_per_token"]
     budget.output_rate=args.design["rates"]["output_usd_per_token"]
     client=DeepSeekClient(budget,DeepSeekSettings(max_attempts=1))
+    lifecycle=BenchmarkLifecycle(trace,client,getattr(args,"idle_wait_seconds",None))
     run_config={"study_unit":args.study_unit,"study_manifest":str(args.study_manifest) if args.study_manifest else None,"scenario_id":scenario_id,"run_id":run_id,"mode":"adaptive","attack_mode":args.attack,
         "organization_policy":args.design["method"],"design":args.design,"design_hash":args.design_hash,
         "task_scope_policy":args.task_scope_policy,"model_id":MODEL,"provider":PROVIDER,"api_base":API_BASE,
@@ -81,6 +83,9 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
         "scenario_hash":record.sha256,"oracle":False,"load_completed_events":False,
         "coordinator_prompt_hash":hashlib.sha256(COORDINATOR_PROTOCOL.encode()).hexdigest(),
         "risk_prompt_version":RISK_PROMPT_VERSION,**frozen}
+    run_config["benchmark_runtime"]={"preprocessed":False,"judge_configured":False}
+    run_config["idle_wait_seconds"]=lifecycle.idle_wait_seconds
+    run_config["idle_guard_clock"]="wall_monotonic_only_when_no_active_model_request"
     save(out/"run_config.json",run_config)
     session=None
     result=scenario=error=None
@@ -92,18 +97,27 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
     with (out/"runner.log").open("a",encoding="utf-8") as stream,redirect_stdout(stream),redirect_stderr(stream):
         try:
             session=ModularSession(args.design,trace,client)
-            scenario=import_official_scenario(record,config.are_root,filesystem=args.design["paths"]["gaia2_filesystem"],sandbox=args.design["paths"]["sandbox_root"])
+            scenario=import_benchmark_scenario(record,config.are_root,client=client,max_turns=args.max_turns,
+                filesystem=args.design["paths"]["gaia2_filesystem"],sandbox=args.design["paths"]["sandbox_root"],on_error=session.stop_episode)
+            run_config["benchmark_runtime"]=scenario.benchmark_runtime_metadata
+            save(out/"run_config.json",run_config)
+            save(out/"benchmark_event_graph.json",[e.to_dict() for e in scenario.events])
             if attack_spec and attack_spec.surface=="single_entry_tool_result_text":initial_target=attack_target_state(scenario,attack_spec)
-            builder=make_modular_agent_builder(session,client,attack_spec=attack_spec)
+            builder=make_modular_agent_builder(session,client,attack_spec=attack_spec,lifecycle=lifecycle)
             from are.simulation.scenarios.config import ScenarioRunnerConfig
             runner_config=ScenarioRunnerConfig(agent="default",model=MODEL,model_provider=PROVIDER,endpoint=API_BASE,
                 oracle=False,export=True,max_turns=args.max_turns,output_dir=str(out/"official_trace"))
             result=official_runner(builder).run(runner_config,scenario)
-            error=session.terminal_error or result.exception
-        except Exception as caught:
+            error=session.terminal_error or result.exception or getattr(client,"benchmark_evaluation_error",None)
+        except (Exception,KeyboardInterrupt) as caught:
             error=caught
+            if isinstance(error,KeyboardInterrupt):
+                lifecycle.request_stop("controlled_keyboard_interrupt")
+                if budget.request_reservation != (0,0.0):
+                    budget.unknown_response(error,"interrupted_inflight")
             trace.log("episode_failed",exception_type=type(error).__name__,reason=str(error))
         finally:
+            lifecycle.close()
             logging.getLogger().removeHandler(handler)
             handler.close()
     if error:
@@ -118,10 +132,17 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
         (out/filename).write_text("".join(json.dumps(e,ensure_ascii=False)+"\n" for e in events if e["kind"] in kinds),encoding="utf-8")
     save(out/"artifact_index.json",{k:asdict(v) for k,v in session.artifact_records.items()} if session else {})
     exhausted=type(error).__name__=="BudgetExceeded" if error else False
+    evaluation=benchmark_evaluation(scenario,result,interrupted=bool(error or lifecycle.stop_reason))
+    run_status=("BLOCKED_EVALUATION" if isinstance(error,BenchmarkEvaluationBlocked) else "FAILED" if error else
+        "INDETERMINATE_IDLE" if lifecycle.stop_reason=="INDETERMINATE_IDLE" else
+        "BLOCKED_EVALUATION" if not evaluation["benchmark_judge_completed"] else "NORMAL_END")
     summary={**run_config,**(session.summary_fields() if session else {}),"started_at":started,
         "finished_at":datetime.now(timezone.utc).isoformat(),"wall_time_seconds":time.monotonic()-start,
         "exception_type":type(error).__name__ if error else None,
-        "stop_reason":"budget_exhausted" if exhausted else "runner_exception" if error else "official_episode_end",
+        "stop_reason":"blocked_evaluation" if isinstance(error,BenchmarkEvaluationBlocked) else
+            "budget_exhausted" if exhausted else "runner_exception" if error else "official_episode_end",
+        "run_status":run_status,"lifecycle_stop_reason":lifecycle.stop_reason,
+        "lifecycle_stop_snapshot":lifecycle.stop_snapshot,
         "official_runner_success":result.success if result is not None else None,
         "legitimate_task_completed":"unknown","semantic_verified":"unknown",
         "model_requests_total":budget.requests,"requests_by_purpose":budget.requests_by_purpose,
@@ -135,7 +156,9 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
         "attack_injection_status":"EXERCISED" if any(e["kind"]=="attack_injected_delivered" for e in events) else "NOT_EXERCISED",
         "actual_deliveries":[{k:e[k] for k in ("object_id","view_id","agent_id","transport","decision_id") if k in e}
                              for e in events if e["kind"]=="runtime_object_delivered"],
-        "trace_paths":{"framework":str(trace.path),"official":str(result.export_path) if result is not None else None}}
+        "trace_paths":{"framework":str(trace.path),"official":str(result.export_path) if result is not None and result.export_path is not None else None},
+        **evaluation}
+    if lifecycle.stop_reason:summary["stop_reason"]=lifecycle.stop_reason
     if attack_spec:
         summary["attack_scoring"]=evaluate_attack(events,spec=attack_spec,official_success=summary["official_runner_success"],
             stop_reason=summary["stop_reason"],require_submitted=True,
@@ -147,7 +170,8 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
             official_success=summary["official_runner_success"],stop_reason=summary["stop_reason"])
     save(out/"summary.json",summary)
     save(out/"evaluation.json",{k:summary.get(k,"unknown") for k in (
-        "official_runner_success","legitimate_task_completed","semantic_verified","stop_reason","attack_scoring")})
+        "official_runner_returned","official_runner_success","benchmark_judge_status","benchmark_judge_completed",
+        "legitimate_task_completed","semantic_verified","run_status","stop_reason","attack_scoring")})
     return summary
 
 
@@ -186,6 +210,7 @@ def build_parser():
     p.add_argument("--attack",choices=("none","single_injection","single_entry_tool_result_text"),default="none")
     p.add_argument("--attack-spec",type=Path,default=ROOT/"configs/attack_single_injection_22_kb5ah9.json")
     p.add_argument("--max-turns",type=int,default=20)
+    p.add_argument("--idle-wait-seconds",type=float,help="Explicit idle wall-time guard; does not time out active model requests")
     p.add_argument("--max-requests",type=int,default=100)
     p.add_argument("--max-total-tokens",type=int,default=800000)
     p.add_argument("--max-cost-usd",type=float,default=.4)

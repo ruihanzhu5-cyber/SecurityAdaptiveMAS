@@ -1,18 +1,52 @@
 """Five fixed scenarios: official imports and typed read probes, zero model calls."""
 import argparse
-from dataclasses import asdict
 import hashlib
 import json
+import traceback
 from pathlib import Path
 from types import SimpleNamespace
 
 from security_adaptive_mas.config import ROOT
-from security_adaptive_mas.are_adapter import import_official_scenario
+from security_adaptive_mas.are_adapter import import_official_scenario,import_benchmark_scenario
+from security_adaptive_mas.deepseek import DeepSeekClient,RunBudget
 from security_adaptive_mas.orchestration.configuration import load_design,project_config
 from security_adaptive_mas.security import SandboxPermissivePolicy
 from security_adaptive_mas.attack import load_attack_spec,AttackOverlay,attack_target_state
 from security_adaptive_mas.trace import TraceLogger
 from security_adaptive_mas.run_framework import save
+
+
+def benchmark_preflight(output,scenario_ids=None):
+    """Actual official reference preprocessing, never model calls or agent claims."""
+    output=Path(output);output.mkdir(parents=True,exist_ok=True)
+    design=load_design(ROOT/"configs/research_v0_6.yaml");config=project_config(design)
+    rows=json.loads((ROOT/"configs/five_manifest.json").read_text(encoding="utf-8"))
+    results=[]
+    def forbidden(**kwargs):raise RuntimeError("Benchmark compatibility preflight cannot call a model")
+    for index,row in enumerate(rows,1):
+        if scenario_ids is not None and row["scenario_id"] not in scenario_ids:continue
+        directory=output/f"C{index}";directory.mkdir(parents=True,exist_ok=True)
+        client=DeepSeekClient(RunBudget(TraceLogger(directory/"framework_trace.jsonl"),100,800000,.4),completion_fn=forbidden)
+        result={"case_id":f"C{index}","scenario_id":row["scenario_id"],"scenario_sha256":row["sha256"],
+            "legitimate_scope":"PARTIAL_SCOPE" if index==4 else "FULL",
+            "attack_constraint":"BLOCKED_ATTACK_SURFACE" if index==3 else "existing_frozen_configuration",
+            "paid_api_requests":0}
+        try:
+            scenario=import_benchmark_scenario(config.select(row["scenario_id"]),config.are_root,client=client,
+                filesystem=design["paths"]["gaia2_filesystem"],sandbox=design["paths"]["sandbox_root"])
+            result.update(status="READY_BENCHMARK_IMPORT_ONLY",metadata=scenario.benchmark_runtime_metadata,
+                event_count=len(scenario.events),oracle_reference_event_count=len(scenario.oracle_run_event_log),
+                condition_event_ids=[e.event_id for e in scenario.events if e.event_type.value=="CONDITION"])
+            save(directory/"event_graph.json",[e.to_dict() for e in scenario.events])
+        except Exception as error:
+            # A diagnostic boundary, not a runtime fallback: retain the exact
+            # source failure and make this case ineligible for paid execution.
+            result.update(status="BLOCKED_EVALUATION",exception_type=type(error).__name__,
+                reason=str(error),traceback=traceback.format_exc())
+        result["model_requests"]=client.budget.requests
+        save(directory/"benchmark_compatibility.json",result);results.append(result)
+    save(output/"benchmark_compatibility_matrix.json",results)
+    return results
 
 
 def preflight(output):
@@ -61,13 +95,13 @@ def preflight(output):
                 elif method=="read_conversation":value=app.read_conversation(spec.source_conversation_id,limit=10)
                 else:value=app.list_recent_conversations(limit=5)
                 overlay=AttackOverlay(spec,TraceLogger(directory/"offline_probe.jsonl"),scenario_id=sid)
-                changed=overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
+                overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
                 page_offset=0
                 if method=="list_emails":
                     while not overlay.applied and value.emails and page_offset+len(value.emails)<value.total_emails:
                         page_offset+=len(value.emails)
                         value=app.list_emails(folder_name="INBOX",offset=page_offset,limit=50)
-                        changed=overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
+                        overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
                 if not overlay.applied:raise ValueError("BLOCKED_ATTACK_SURFACE:exact ID not in real typed read")
                 if before!=json.dumps(app.get_state(),sort_keys=True,ensure_ascii=False,default=str):raise RuntimeError("SYSTEMIC_STATE_MUTATION")
                 initial=attack_target_state(scenario,spec)
@@ -97,6 +131,13 @@ def preflight(output):
         except (ValueError,TypeError,KeyError,FileNotFoundError) as error:
             result.update(status="BLOCKED_PREFLIGHT",reason=f"{type(error).__name__}: {error}")
         save(directory/"preflight.json",result);matrix.append(result)
+    benchmark={r["scenario_id"]:r for r in benchmark_preflight(output/"benchmark")}
+    for result in matrix:
+        result["benchmark_runtime"]=benchmark[result["scenario_id"]]
+        if benchmark[result["scenario_id"]]["status"]=="BLOCKED_EVALUATION":
+            result.update(source_compatibility_status=result["status"],status="BLOCKED_EVALUATION",
+                benign_ready=False,attack_ready=False,
+                reason="Official benchmark preprocessing blocked: "+benchmark[result["scenario_id"]]["reason"])
     save(output/"compatibility_matrix.json",matrix)
     return matrix
 

@@ -91,7 +91,7 @@ def bind_coordinator_history(agent,session):
     base.build_history_from_logs=MethodType(history,base)
 
 
-def make_modular_agent_builder(session,client,*,attack_spec=None):
+def make_modular_agent_builder(session,client,*,attack_spec=None,lifecycle=None):
     from are.simulation.agents.agent_builder import AgentBuilder
     from are.simulation.notification_system import MessageType
     from are.simulation.agents.default_agent.base_agent import RunningState
@@ -152,6 +152,8 @@ def make_modular_agent_builder(session,client,*,attack_spec=None):
                     env.stop()
                 session.stop_callback=stop
             agent.init_tools=MethodType(initialize,agent)
+            if lifecycle is not None:
+                lifecycle.bind(agent,env,session)
             return agent
     return ModularBuilder(llm_engine_builder=DeepSeekEngineBuilder(client,session.before_coordinator_input,
         on_error=session.stop_episode,on_submitted=lambda request_id:session.record_submission("agent_0","root",session.input_components["agent_0"],request_id)))
