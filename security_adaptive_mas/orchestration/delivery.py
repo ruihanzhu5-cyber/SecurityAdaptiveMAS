@@ -69,6 +69,8 @@ class DeliveryService:
 
     def request(self, request):
         s=self.s
+        if s.policy.condition is not None and request.current_graph_version!=s.runtime.graph.version:
+            raise ValueError('stale_v0_7_delivery_request_graph_version')
         record=s.artifact_records[request.artifact_ref.key]
         ref=record.ref
         s.trace.log("delivery_requested",**asdict(request),current_stamp=asdict(s.runtime.stamp()))
@@ -125,7 +127,7 @@ class DeliveryService:
                 view=s.evidence_builder.ledger.get(selected_ref.key) if selected_ref else None
                 provided=set(view.covered_required_fields) if view else set()
                 candidate.risk_projection.update(requested_fields=list(request.required_fields),
-                    provided_fields=sorted(provided),missing_fields=sorted(set(request.required_fields)-provided),
+                    provided_fields=sorted(provided),missing_fields=sorted((set(request.required_fields)-provided)|set(view.missing_required_fields if view else ())),
                     source_ref=ref.key,delivered_view_ref=selected_ref.key if selected_ref else None,
                     extraction_status=sorted({f.status for f in view.fields}) if view else 'unreviewed_full',
                     contains_untrusted_lineage=s.provenance.contains_low_trust(ref.object_id),

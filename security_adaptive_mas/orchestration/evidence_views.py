@@ -1,6 +1,6 @@
 """Small deterministic, source-anchored projections; never an Oracle/fact verifier."""
 from dataclasses import replace,asdict
-from datetime import date,datetime,timezone
+from datetime import date
 import json
 import math
 import re
@@ -14,27 +14,29 @@ ISO_PATTERN=re.compile(r'\b(20\d{2}-\d{2}-\d{2})(?:\s*(?:to|through|[-–])\s*(2
 IDENTIFIER=re.compile(r'^[0-9a-fA-F-]{8,64}$')
 
 
-def date_fields(text,ref,path,call_id,year):
+def date_fields(text,ref,path,call_id):
     fields=[]
     for pattern in (MONTH_PATTERN,ISO_PATTERN):
         for match in pattern.finditer(text):
             try:
                 if pattern is ISO_PATTERN:
-                    start=date.fromisoformat(match[1]);end=date.fromisoformat(match[2] or match[1]);basis=None
+                    start=date.fromisoformat(match[1]);end=date.fromisoformat(match[2] or match[1]);basis=None;status='anchored'
                 else:
-                    selected_year=int(match[4]) if match[4] else year
-                    if selected_year is None:
-                        continue
+                    # A simulation clock does not establish the year meant by a
+                    # third-party proposal. Keep missing years explicitly unknown.
+                    selected_year=int(match[4]) if match[4] else 2000
                     start=date(selected_year,MONTHS[match[1].lower()],int(match[2]))
                     end=date(selected_year,start.month,int(match[3] or match[2]))
-                    basis=None if match[4] else f'observed_simulation_year:{year}'
+                    basis=None if match[4] else 'year_not_stated'
+                    status='anchored' if match[4] else 'unknown'
             except ValueError:
                 # Invalid calendar literals are not normalized into an answer.
                 continue
             if end<start:
                 continue
-            for name,value in (('date_start',start.isoformat()),('date_end',end.isoformat())):
-                fields.append(EvidenceField(name,value,ref,path,match.span(),'deterministic_parse','anchored',call_id,basis))
+            for name,value in (('date_start',start),('date_end',end)):
+                scalar=value.isoformat() if status=='anchored' else '--'+value.strftime('%m-%d')
+                fields.append(EvidenceField(name,scalar,ref,path,match.span(),'deterministic_parse',status,call_id,basis))
     return fields
 
 
@@ -68,7 +70,6 @@ class EvidenceViewBuilder:
         from are.simulation.apps.messaging_v2 import MessageV2,ConversationV2
         value=self.s.typed_snapshots[record.ref.key]
         fields=[]
-        year=datetime.fromtimestamp(self.s.time_manager.time(),timezone.utc).year if self.s.time_manager is not None else None
         def scalar(name,value,path):
             valid=(type(value) in (int,float) and math.isfinite(value)) if name=='timestamp' else (
                 isinstance(value,str) and IDENTIFIER.fullmatch(value) is not None)
@@ -77,12 +78,12 @@ class EvidenceViewBuilder:
         def email(item,path):
             scalar('email_id',item.email_id,path+'.email_id')
             scalar('timestamp',item.timestamp,path+'.timestamp')
-            fields.extend(date_fields(item.content,record.ref,path+'.content',record.source_call_id,year))
+            fields.extend(date_fields(item.content,record.ref,path+'.content',record.source_call_id))
         def message(item,path,cid,cid_path):
             scalar('conversation_id',cid,cid_path)
             for name in ('message_id','sender_id','timestamp'):
                 scalar(name,getattr(item,name),path+'.'+name)
-            fields.extend(date_fields(item.content,record.ref,path+'.content',record.source_call_id,year))
+            fields.extend(date_fields(item.content,record.ref,path+'.content',record.source_call_id))
         if type(value) is ReturnedEmails:
             for i,item in enumerate(value.emails):
                 if type(item) is not Email:

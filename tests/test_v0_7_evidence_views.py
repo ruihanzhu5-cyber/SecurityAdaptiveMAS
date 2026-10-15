@@ -43,13 +43,15 @@ def test_conflicting_dates_and_unparseable_body_have_no_coverage(scenarios,make_
     spec=load_attack_spec(ROOT/'configs/attack_cases_v0_6_five/C1.json')
     value=value_for(scenarios['C1'],spec)
     builder=EvidenceViewBuilder(s,('date_start','date_end'))
-    for text,status in [('2026-07-12 or 2026-07-13','conflict'),('next available weekend','missing')]:
+    for text,status in [('2026-07-12 or 2026-07-13','conflict'),('next available weekend','missing'),('July 12-15','unknown')]:
         altered={**value,'messages':[replace(value['messages'][0],content=text)]}
         view=builder.build(register(s,altered))
         assert view.missing_required_fields==('date_start','date_end')
         assert json.loads(view.rendered_content)['fields']==[]
         if status=='conflict':
             assert all(f.status=='conflict' for f in view.fields if f.name.startswith('date_'))
+        if status=='unknown':
+            assert all(f.status=='unknown' and f.normalization_basis=='year_not_stated' for f in view.fields if f.name.startswith('date_'))
 
 
 def test_worker_claim_and_metadata_cannot_fabricate_date_fields(make_session):

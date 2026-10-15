@@ -62,9 +62,15 @@ async def run_worker(s,work):
             known={key.split("@")[0] for key in s.seen.get(worker_id,set())}|set(parents)
             if not set(ids)<=known:raise ValueError("worker_finish_cites_unseen_evidence")
             payload=json.dumps(params,ensure_ascii=False)
-            result=s.provenance.add("worker:result","derived",payload,parents=tuple(dict.fromkeys([*parents,*ids])),owner_agent=worker_id)
+            result_parents=tuple(dict.fromkeys([*parents,*ids]))
+            result=s.provenance.add("worker:result","derived",payload,parents=result_parents,owner_agent=worker_id)
+            if s.evidence_builder is not None:
+                issued_refs={r.ref.object_id:r.ref for r in s.artifact_records.values()}
+                parent_refs=tuple(issued_refs[key] for key in result_parents)
+            else:
+                parent_refs=tuple(ArtifactRef(key) for key in result_parents)
             result_ref=s.register_artifact(result,worker_id,work.work_id,payload_kind="worker_result",
-                parents=tuple(ArtifactRef(key) for key in dict.fromkeys([*parents,*ids])),fields=work.output_fields or ("result",))
+                parents=parent_refs,fields=work.output_fields or ("result",))
             s.risk_states[result_ref.key]=s.risk_observer.assess(worker_id,(result_ref.object_id,))
             if s.evidence_builder is not None:
                 s.evidence_builder.ensure(result_ref)

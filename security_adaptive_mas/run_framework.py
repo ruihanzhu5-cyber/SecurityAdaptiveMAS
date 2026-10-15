@@ -129,6 +129,8 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
     run_config["benchmark_runtime"]={"preprocessed":False,"judge_configured":False}
     run_config["attack_configuration"]=None if attack_spec is None else asdict(attack_spec)
     run_config["single_episode_authorization"]=getattr(args,"validated_c1_authorization",None)
+    if args.design['version']=='v0.7':
+        run_config['handoff_study_authorization']=getattr(args,'validated_handoff_authorization',None)
     run_config["idle_wait_seconds"]=lifecycle.idle_wait_seconds
     run_config["idle_guard_clock"]="wall_monotonic_only_when_no_active_model_request"
     save(out/"run_config.json",run_config)
@@ -245,6 +247,75 @@ def approved_study_cap(args):
     return manifest["absolute_cap_usd"]
 
 
+def handoff_plan_hash(manifest):
+    keys=('unit_id','case_id','condition','phase','scenario_id','attack','eligibility','configuration_path','design_hash',
+        'attack_config','attack_config_sha256','payload_sha256')
+    plan={key:manifest[key] for key in ('kind','study_id','code','shared_ledger','ledger_charge_before','episode_limits','frozen_input_hashes')}
+    plan['units']=[{key:unit[key] for key in keys} for unit in manifest['units']]
+    return hashlib.sha256(json.dumps(plan,sort_keys=True).encode()).hexdigest()
+
+
+def handoff_authorization(args):
+    """New study only: no inheritance from the v0.6 or single-C1 approvals."""
+    if args.design.get('version')!='v0.7':
+        if args.handoff_authorization is not None or args.shared_ledger is not None:
+            raise ValueError('handoff_authorization_requires_v0_7')
+        return None
+    if args.c1_b1_authorization is not None:
+        raise ValueError('v0_7_cannot_reuse_C1_authorization')
+    if args.dry_run:
+        if args.study_manifest is not None or args.handoff_authorization is not None or args.shared_ledger is not None:
+            raise ValueError('v0_7_dry_run_is_unfunded_configuration_check_only')
+        return None
+    if args.study_manifest is None or args.handoff_authorization is None or args.shared_ledger is None:
+        raise ValueError('BLOCKED_v0_7_requires_fresh_study_fee_authorization_and_shared_ledger')
+    path=args.study_manifest.resolve()
+    if not path.is_relative_to(ROOT/'results/runs/evidence_handoff_v0_7'):
+        raise ValueError('v0_7_study_directory_mismatch')
+    manifest=json.loads(path.read_text(encoding='utf-8'))
+    approval=json.loads(args.handoff_authorization.read_text(encoding='utf-8'))
+    if (manifest['kind']!='evidence_handoff_v0_7' or manifest['code']!=code_state() or manifest['code']['dirty_status'] or len(manifest['units'])!=30
+        or approval['kind']!='v0_7_fee_authorization' or approval['study_id']!=manifest['study_id']
+        or approval['code_snapshot_id']!=manifest['code']['code_snapshot_id']
+        or approval['plan_sha256']!=manifest['plan_sha256'] or manifest['plan_sha256']!=handoff_plan_hash(manifest)
+        or not isinstance(approval['user_confirmation'],str) or not approval['user_confirmation'].strip()
+        or not 0<approval['additional_cap_usd']<=manifest['planned_additional_cap_usd']):
+        raise ValueError('v0_7_authorization_or_snapshot_mismatch')
+    unit=next(u for u in manifest['units'] if u['unit_id']==args.study_unit)
+    from .orchestration.handoff_pilot import CONDITIONS
+    if (args.design['experiment']['condition']!=CONDITIONS[unit['unit_id'].split('_')[1]]
+        or args.design['experiment']['case_id']!=unit['case_id'] or unit['condition']!=args.design['experiment']['condition']
+        or (unit['attack']=='none')!=(unit['unit_id'].endswith('_N0'))):
+        raise ValueError('v0_7_condition_or_attack_scope_mismatch')
+    if (args.study_unit not in approval['authorized_units'] or unit['eligibility']!='READY' or unit['status'] not in {'NOT_RUN','RUNNING'}
+        or unit['design_hash']!=args.design_hash or unit['scenario_id']!=args.scenario or unit['attack']!=args.attack
+        or args.output_dir.resolve()!=path.parent/'units'/args.study_unit):
+        raise ValueError('v0_7_unit_not_authorized_or_configuration_changed')
+    if manifest.get('stop_reason'):
+        raise ValueError('v0_7_study_stopped_after_prior_failure')
+    if args.study_unit!='C1_A3' and not manifest.get('real_pilot_passed',False):
+        raise ValueError('BLOCKED_real_C1_A3_pilot_required_first')
+    if unit['phase']==2 and approval.get('phase2_authorized') is not True:
+        raise ValueError('BLOCKED_phase2_requires_separate_explicit_authorization')
+    limits={'max_turns':args.max_turns,'max_requests':args.max_requests,'max_total_tokens':args.max_total_tokens,
+        'max_cost_usd':args.max_cost_usd,'idle_wait_seconds':args.idle_wait_seconds}
+    if limits!=manifest['episode_limits'] or args.batch_cap_usd!=manifest['ledger_charge_before']+approval['additional_cap_usd']:
+        raise ValueError('v0_7_frozen_limits_or_shared_cap_changed')
+    if (args.shared_ledger.resolve()!=Path(manifest['shared_ledger']).resolve()
+        or not args.shared_ledger.read_bytes().startswith((path.parent/'inputs/ledger_before.jsonl').read_bytes())):
+        raise ValueError('v0_7_historical_ledger_prefix_changed')
+    for name,sha in manifest['frozen_input_hashes'].items():
+        if hashlib.sha256(Path(name).read_bytes()).hexdigest()!=sha:
+            raise ValueError('v0_7_frozen_input_changed')
+    if unit['attack']!='none' and args.attack_spec.resolve()!=Path(unit['attack_config']).resolve():
+        raise ValueError('v0_7_attack_configuration_changed')
+    claim=path.parent/'claims'/(args.study_unit+'.claim.json')
+    if claim.exists():
+        raise ValueError('v0_7_unit_already_attempted_no_automatic_retry')
+    return {'manifest':str(path),'authorization_sha256':hashlib.sha256(args.handoff_authorization.read_bytes()).hexdigest(),
+        'claim':str(claim),'absolute_cap_usd':args.batch_cap_usd}
+
+
 def build_parser():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--design-config",type=Path,default=ROOT/"configs/research_v0_6.yaml")
@@ -262,6 +333,8 @@ def build_parser():
     p.add_argument("--study-manifest",type=Path)
     p.add_argument("--c1-b1-authorization",type=Path,help="Frozen single-use C1_B1 2 USD authorization; defaults remain unchanged")
     p.add_argument("--study-unit")
+    p.add_argument('--handoff-authorization',type=Path,help='Fresh v0.7 user fee approval; never created by prepare')
+    p.add_argument('--shared-ledger',type=Path,help='Existing historical ledger, only for a frozen authorized v0.7 study')
     p.add_argument("--batch-cap-usd",type=float,default=1.6)
     p.add_argument("--output-dir",type=Path,default=ROOT/"results/runs/v0_6_modular_pilot/manual")
     p.add_argument("--acknowledge-model-cost",action="store_true")
@@ -276,9 +349,11 @@ def main(argv=None,*,design_override=None):
     args.design=load_design(args.design_config,design_override)
     args.design["upstream_lock"]=str((ROOT/args.design["upstream_lock"]).resolve())
     args.design_hash=design_hash(args.design)
+    args.validated_handoff_authorization=handoff_authorization(args)
     args.validated_c1_authorization=c1_authorization(args)
-    approved_cap=C1_STUDY_CAP if args.validated_c1_authorization else approved_study_cap(args)
-    requests_cap,tokens_cap,cost_cap=(200,2000000,2.0) if args.validated_c1_authorization else (100,800000,.4)
+    v07=args.design.get('version')=='v0.7'
+    approved_cap=(args.validated_handoff_authorization['absolute_cap_usd'] if args.validated_handoff_authorization else 1.6) if v07 else (C1_STUDY_CAP if args.validated_c1_authorization else approved_study_cap(args))
+    requests_cap,tokens_cap,cost_cap=(160,2000000,.4) if v07 else (200,2000000,2.0) if args.validated_c1_authorization else (100,800000,.4)
     if not (1<=args.max_turns<=20 and 1<=args.max_requests<=requests_cap and 1<=args.max_total_tokens<=tokens_cap
             and 0<args.max_cost_usd<=cost_cap and 0<args.batch_cap_usd<=approved_cap):parser.error("v0.6 pilot limits exceeded")
     config=project_config(args.design)
@@ -300,11 +375,18 @@ def main(argv=None,*,design_override=None):
         parser.error("Real run requires DEEPSEEK_API_KEY and --acknowledge-model-cost")
     output=args.output_dir.resolve()
     output.mkdir(parents=True,exist_ok=True)
-    ledger=output/"v0_1_cost_ledger.jsonl"
+    ledger=args.shared_ledger.resolve() if args.validated_handoff_authorization else output/"v0_1_cost_ledger.jsonl"
     if ledger_charge(ledger)+args.max_cost_usd>args.batch_cap_usd:raise RuntimeError("shared_batch_budget_blocked")
     if args.validated_c1_authorization:
         with Path(args.validated_c1_authorization["claim"]).open("x",encoding="utf-8") as stream:
             json.dump({**args.validated_c1_authorization,"claimed_at":datetime.now(timezone.utc).isoformat()},stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+    if args.validated_handoff_authorization:
+        claim=Path(args.validated_handoff_authorization['claim'])
+        claim.parent.mkdir(exist_ok=True)
+        with claim.open('x',encoding='utf-8') as stream:
+            json.dump({**args.validated_handoff_authorization,'claimed_at':datetime.now(timezone.utc).isoformat()},stream)
             stream.flush()
             os.fsync(stream.fileno())
     batch=output/(datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")+"_"+uuid4().hex[:6])
