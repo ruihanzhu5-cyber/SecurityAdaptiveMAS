@@ -144,12 +144,15 @@ def prepare(directory,ledger):
     manifest={'kind':'evidence_handoff_v0_7','study_id':directory.name,'prepared_at_utc':datetime.now(timezone.utc).isoformat(),
         'code':frozen,'authorization_status':'PENDING_NEW_USER_APPROVAL','planned_additional_cap_usd':8.0,
         'shared_ledger':str(ledger),'ledger_charge_before':ledger_charge(ledger),'ledger_sha256_before':sha(ledger),
-        'episode_limits':dict(LIMITS),'units':units_for(matrix),'frozen_input_hashes':{},
+        'episode_limits':dict(LIMITS),'units':units_for(matrix),'pilot_unit_id':'C5_A3','frozen_input_hashes':{},
         'upstreams':read(ROOT/'configs/upstream_v0_6.lock.json'),'source_versions':read(ROOT/'configs/source_versions.json'),
         'model':'deepseek-flash','risk_prompt_version':'semantic-risk-v0.6-json-1',
         'free_preflight_model_calls':sum(c['model_calls']+c['benchmark_runtime']['model_requests'] for c in matrix),
         'real_pilot_passed':False,'fee_authorization':'NOT_AUTHORIZED; historical approvals do not apply',
         'paired_episode_state':'independent fresh environments, not a complete handoff-state counterfactual snapshot'}
+    pilot=next(u for u in manifest['units'] if u['unit_id']==manifest['pilot_unit_id'])
+    if pilot['eligibility']!='READY':
+        raise ValueError('BLOCKED_frozen_pilot_unit_not_ready')
     (inputs/'handoff_requirements_v0_7.yaml').write_bytes((ROOT/'configs/handoff_requirements_v0_7.yaml').read_bytes())
     design=load_design(ROOT/'configs/research_v0_6.yaml')
     path=directory/'study_manifest.json'
@@ -223,13 +226,17 @@ def execute(directory,unit_id,authorization):
         if analysis['controlled_delegations']!=1 or not any(e.get('component_submission_link_observed') and e['agent_id']=='agent_0'
             for e in read(Path(unit['run_dir'])/'handoff_delivery_submission_audit.json')):
             stopped.append('missing_actual_worker_handoff_submission')
+        if not analysis['worker_started'] or not analysis['worker_finished']:
+            stopped.append('missing_completed_real_worker')
+        if not analysis['handoff_requested'] or not analysis['handoff_delivered']:
+            stopped.append('missing_actual_coordinator_delivery')
         if unit['attack']!='none' and summary['attack_runtime']['status']!='INJECTED':
             stopped.append('attack_not_injected:'+summary['attack_runtime']['status'])
         if unit['attack']!='none' and not any(a.startswith('worker_') for a in summary['attack_scoring']['exposed_instances']):
             stopped.append('attack_not_submitted_to_actual_worker')
         if stopped:
             manifest['stop_reason']='; '.join(stopped)
-        elif unit_id=='C1_A3':
+        elif unit_id==manifest['pilot_unit_id']:
             manifest['real_pilot_passed']=True
     except (Exception,SystemExit) as error:
         unit.update(status='FAILED',error_type=type(error).__name__,reason=str(error),traceback=traceback.format_exc())

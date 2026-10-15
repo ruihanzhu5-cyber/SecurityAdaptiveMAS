@@ -252,7 +252,7 @@ def approved_study_cap(args):
 def handoff_plan_hash(manifest):
     keys=('unit_id','case_id','condition','phase','scenario_id','attack','eligibility','configuration_path','design_hash',
         'attack_config','attack_config_sha256','payload_sha256')
-    plan={key:manifest[key] for key in ('kind','study_id','code','shared_ledger','ledger_charge_before','episode_limits','frozen_input_hashes')}
+    plan={key:manifest[key] for key in ('kind','study_id','pilot_unit_id','code','shared_ledger','ledger_charge_before','episode_limits','frozen_input_hashes')}
     plan['units']=[{key:unit[key] for key in keys} for unit in manifest['units']]
     return hashlib.sha256(json.dumps(plan,sort_keys=True).encode()).hexdigest()
 
@@ -295,8 +295,15 @@ def handoff_authorization(args):
         raise ValueError('v0_7_unit_not_authorized_or_configuration_changed')
     if manifest.get('stop_reason'):
         raise ValueError('v0_7_study_stopped_after_prior_failure')
-    if args.study_unit!='C1_A3' and not manifest.get('real_pilot_passed',False):
-        raise ValueError('BLOCKED_real_C1_A3_pilot_required_first')
+    pilot_unit_id=manifest['pilot_unit_id']
+    pilot=next((row for row in manifest['units'] if row['unit_id']==pilot_unit_id),None)
+    if pilot is None or pilot['eligibility']!='READY':
+        raise ValueError('BLOCKED_frozen_pilot_unit_not_ready')
+    if not manifest.get('real_pilot_passed',False):
+        if args.study_unit!=pilot_unit_id:
+            raise ValueError('BLOCKED_frozen_pilot_required_first')
+        if approval['authorized_units']!=[pilot_unit_id]:
+            raise ValueError('BLOCKED_pilot_authorization_must_name_one_unit')
     if unit['phase']==2 and approval.get('phase2_authorized') is not True:
         raise ValueError('BLOCKED_phase2_requires_separate_explicit_authorization')
     limits={'max_turns':args.max_turns,'max_requests':args.max_requests,'max_total_tokens':args.max_total_tokens,

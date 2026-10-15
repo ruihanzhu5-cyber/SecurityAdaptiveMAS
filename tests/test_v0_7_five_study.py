@@ -8,6 +8,7 @@ import pytest
 from security_adaptive_mas.config import ROOT
 from security_adaptive_mas import run_framework as framework
 from security_adaptive_mas.orchestration.configuration import load_design,design_hash
+from scripts import run_evidence_handoff_study as study
 from scripts.run_evidence_handoff_study import units_for,LIMITS,command
 
 
@@ -61,33 +62,33 @@ def authorized_fixture(tmp_path,monkeypatch):
     monkeypatch.setattr(framework,'ROOT',tmp_path)
     monkeypatch.setattr(framework,'code_state',lambda:frozen)
     design=load_design(ROOT/'configs/research_v0_6.yaml')
-    design.update(version='v0.7',experiment={'case_id':'C1','condition':'attacked_joint','mode':'controlled_handoff'})
+    design.update(version='v0.7',experiment={'case_id':'C5','condition':'attacked_joint','mode':'controlled_handoff'})
     units=units_for(matrix())
     for unit in units:
         unit.update(configuration_path=str(inputs/(unit['unit_id']+'.yaml')),design_hash=design_hash(design))
     manifest={'kind':'evidence_handoff_v0_7','study_id':directory.name,'code':frozen,'units':units,
         'shared_ledger':str(ledger),'ledger_charge_before':.4,'episode_limits':dict(LIMITS),
         'planned_additional_cap_usd':8.0,'frozen_input_hashes':{str(prefix):hashlib.sha256(prefix.read_bytes()).hexdigest()},
-        'real_pilot_passed':False}
+        'pilot_unit_id':'C5_A3','real_pilot_passed':False}
     manifest['plan_sha256']=framework.handoff_plan_hash(manifest)
     path=directory/'study_manifest.json';framework.save(path,manifest)
     authorization=directory/'explicit_test_approval.json'
     approval={'kind':'v0_7_fee_authorization','study_id':directory.name,'code_snapshot_id':frozen['code_snapshot_id'],
-        'plan_sha256':manifest['plan_sha256'],'additional_cap_usd':.4,'authorized_units':['C1_A3'],
+        'plan_sha256':manifest['plan_sha256'],'additional_cap_usd':.4,'authorized_units':['C5_A3'],
         'phase2_authorized':False,'user_confirmation':'FREE CONTRACT FIXTURE, not live model authorization'}
     framework.save(authorization,approval)
-    unit=next(u for u in units if u['unit_id']=='C1_A3')
+    unit=next(u for u in units if u['unit_id']=='C5_A3')
     args=framework.build_parser().parse_args(command(unit,manifest,path,authorization))
     args.design=design;args.design_hash=design_hash(design)
     return args,manifest,path,authorization,ledger
 
 
-@pytest.mark.parametrize('mutation',['none','claim','ledger','config','condition','old_approval','plan'])
+@pytest.mark.parametrize('mutation',['none','claim','ledger','config','condition','old_approval','plan','pilot','broader_approval'])
 def test_authorization_snapshot_ledger_and_single_use_contract(authorized_fixture,mutation):
     args,manifest,path,authorization,ledger=authorized_fixture
     original=ledger.read_bytes()
     if mutation=='claim':
-        claim=path.parent/'claims/C1_A3.claim.json';claim.parent.mkdir();claim.write_text('{}')
+        claim=path.parent/'claims/C5_A3.claim.json';claim.parent.mkdir();claim.write_text('{}')
     elif mutation=='ledger':
         ledger.write_text('')
     elif mutation=='config':
@@ -98,6 +99,11 @@ def test_authorization_snapshot_ledger_and_single_use_contract(authorized_fixtur
         approval=json.loads(authorization.read_text());approval['kind']='v0_6_C1_B1_single_validation';framework.save(authorization,approval)
     elif mutation=='plan':
         manifest['episode_limits']['max_cost_usd']=2.0;framework.save(path,manifest)
+    elif mutation=='pilot':
+        manifest['pilot_unit_id']='C1_A3';framework.save(path,manifest)
+    elif mutation=='broader_approval':
+        approval=json.loads(authorization.read_text());approval['authorized_units'].append('C5_N0')
+        framework.save(authorization,approval)
     if mutation=='none':
         validated=framework.handoff_authorization(args)
         assert validated['absolute_cap_usd']==.8
@@ -106,3 +112,47 @@ def test_authorization_snapshot_ledger_and_single_use_contract(authorized_fixtur
     else:
         with pytest.raises(ValueError):
             framework.handoff_authorization(args)
+
+
+def test_frozen_ready_pilot_runs_before_another_ready_unit(authorized_fixture):
+    args,manifest,path,authorization,_=authorized_fixture
+    other=next(u for u in manifest['units'] if u['unit_id']=='C5_N0')
+    design=deepcopy(args.design)
+    design['experiment']['condition']=other['condition']
+    other['design_hash']=design_hash(design)
+    manifest['plan_sha256']=framework.handoff_plan_hash(manifest)
+    framework.save(path,manifest)
+    approval=json.loads(authorization.read_text())
+    approval['authorized_units']=['C5_N0']
+    approval['plan_sha256']=manifest['plan_sha256']
+    framework.save(authorization,approval)
+    other_args=framework.build_parser().parse_args(command(other,manifest,path,authorization))
+    other_args.design=design
+    other_args.design_hash=other['design_hash']
+    with pytest.raises(ValueError,match='BLOCKED_frozen_pilot_required_first'):
+        framework.handoff_authorization(other_args)
+
+
+@pytest.mark.parametrize('worker_finished',[True,False])
+def test_pilot_pass_requires_observed_worker_and_delivery(authorized_fixture,monkeypatch,worker_finished):
+    args,manifest,path,authorization,_=authorized_fixture
+    monkeypatch.setenv('DEEPSEEK_API_KEY','free_test_only')
+    monkeypatch.setattr(study,'load_design',lambda _:args.design)
+    monkeypatch.setattr(study,'design_hash',lambda _:args.design_hash)
+    monkeypatch.setattr(study,'handoff_authorization',lambda _: {'absolute_cap_usd':.8})
+    monkeypatch.setattr(study,'analyze_study',lambda _:None)
+    run_dir=path.parent/'units/C5_A3/run_fixture'
+    summary={'run_id':'free_test','trace_paths':{'framework':str(run_dir/'framework_trace.jsonl')},
+        'exception_type':None,'benchmark_judge_status':'VALID','attack_runtime':{'status':'INJECTED'},
+        'attack_scoring':{'exposed_instances':['worker_1']}}
+    monkeypatch.setattr(study,'run',lambda _:{'summaries':[summary]})
+    monkeypatch.setattr(study,'handoff_episode',lambda _:{'controlled_delegations':1,
+        'worker_started':True,'worker_finished':worker_finished,'handoff_requested':True,'handoff_delivered':True})
+    original_read=study.read
+    monkeypatch.setattr(study,'read',lambda target: [{'component_submission_link_observed':True,'agent_id':'agent_0'}]
+        if Path(target).name=='handoff_delivery_submission_audit.json' else original_read(target))
+    result=study.execute(path.parent,'C5_A3',authorization)
+    saved=original_read(path)
+    assert result['status']=='FINISHED'
+    assert saved['real_pilot_passed'] is worker_finished
+    assert bool(saved.get('stop_reason')) is not worker_finished

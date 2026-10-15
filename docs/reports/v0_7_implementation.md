@@ -113,7 +113,7 @@ delegation 的 spawn/assignment/初始 route 是受控实验 scaffolding；首�
 9. **OPEN_CONTEXT_ACCOUNTING：**官方未知渲染、组件重叠、无独立子任务 checker 的开销不能精确归因；没有提前停止所产生的“效率收益”结论。
 10. **BLOCKED_REQUIRED_FIELDS：**真实初始 C1 注入消息是普通聊天，C2 注入邮件是合作邀约，两者无可解析日期。C1 ENV 触发阶段的完整视图尚未核验；C2 初始触发要求日期与实际来源不匹配。C1_A1/C1_A3/C2_A1/C2_A3 当前都 BLOCKED，不仅仅缺费用授权。最小可选方案是先独立核验真实 ENV 后的合法日期来源，或经用户确认调整相应合法子任务需求；本轮不改触发、删字段或填答案来通过验收。
 
-下一步应先审查免费报告和冻结清单，解决 C1_A3 的触发阶段字段覆盖问题，再明确授权一个真实 Pilot 的费用。只有真实 Worker→handoff→下游提交→官方 Judge 链路可核验后，才具备启动核心矩阵的条件。A2/A4 属第二阶段，需要另行授权；当前 A4 即使授权也仍阻断。
+下一步使用重新冻结的 `C5_A3` 作为首个 READY Pilot，明确授权仅此一场的费用，再核验真实 Worker→handoff→下游提交→官方 Judge 链路。`C1_A3` 的字段覆盖问题仍未解决，继续 BLOCKED。A2/A4 属第二阶段，需要另行授权；当前 A4 即使授权也仍阻断。
 
 ## 9. 命令与冻结
 
@@ -150,12 +150,12 @@ $ledger='D:/SecurityAdaptiveMAS-v0.6/results/runs/v0_6_modular_pilot/20261015_01
 & $python -X utf8 -m scripts.run_evidence_handoff_study prepare --study-dir $study --ledger $ledger
 & $python -X utf8 -m scripts.run_evidence_handoff_study analyze --study-dir $study
 
-# 当前 C1_A3 还有字段覆盖阻断。修订并重新免费核验、冻结，且收到新费用授权后才执行。
-# 此处是实际存在的命令示例，本轮不运行，当前冻结清单会拒绝。
-& $python -X utf8 -m scripts.run_evidence_handoff_study run --study-dir $study --study-unit C1_A3 --authorization "$study/fresh_user_authorization.json" --acknowledge-model-cost
+# 本轮首个 Pilot 为新清单中明确记录且免费预检 READY 的 C5_A3。
+# 收到绑定新 Study、源码快照、计划哈希、单场 0.40 USD 的新授权后才运行。
+& $python -X utf8 -m scripts.run_evidence_handoff_study run --study-dir $study --study-unit C5_A3 --authorization "$study/fresh_user_authorization.json" --acknowledge-model-cost
 ```
 
-授权文件必须含 `kind=v0_7_fee_authorization`、本 Study 的 `study_id`、冻结的 `code_snapshot_id` 与 `plan_sha256`、新的 `user_confirmation`、`additional_cap_usd`、`authorized_units`（初次只列 C1_A3）以及 `phase2_authorized=false`。prepare 不创建有效授权文件。授权不能超出新批准的范围，即使代码可配置至 8 USD，也不能替用户批准 8 USD。
+授权文件必须含 `kind=v0_7_fee_authorization`、本 Study 的 `study_id`、冻结的 `code_snapshot_id` 与 `plan_sha256`、新的 `user_confirmation`、`additional_cap_usd=0.40`、`authorized_units=["C5_A3"]` 以及 `phase2_authorized=false`。prepare 不创建有效授权文件。旧授权不能移用；即使代码可配置至 8 USD，也不能替用户批准 8 USD。
 
 每场 `.claim.json` 独占创建，预算预留在原 ledger 中追加，完成后追加结算；异常中断留下原预留。已经尝试的单元不能自动重跑；发生接线、Judge、费用、攻击未送达或实际交接缺失时阻止后续运行。冻结的源码、测试、五例哈希、原 Payload、字段清单、路径、配置与账本历史前缀都有记录。新 Study 使用统一 160 请求、2,000,000 Token、0.40 USD、20 turns、idle 默认关闭；旧默认 100/800,000/0.40 不变。增加请求/Token 上限并不放宽单场费用。
 

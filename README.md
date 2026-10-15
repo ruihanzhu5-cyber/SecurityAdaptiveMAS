@@ -4,7 +4,7 @@
 
 [v0.7 实施说明与 PowerShell 命令](docs/reports/v0_7_implementation.md) · [逐例预检与阻断](docs/reports/v0_7_five_case_preflight.md) · [真实 Pilot：NOT_RUN](docs/reports/v0_7_pilot.md) · [源码审查](docs/reports/v0_7_code_audit.md)
 
-新入口：`python -m scripts.run_evidence_handoff_study preflight|prepare|run|analyze`。输出为忽略的 `results/runs/evidence_handoff_v0_7/<study_id>/`。`run` 每次只接收一个 `--study-unit`，需要新费用授权；旧 8 USD/2 USD 授权不移用，当前 C1_A3 还有字段覆盖阻断。原始轨迹、模型输入与历史账本留在本地。
+新入口：`python -m scripts.run_evidence_handoff_study preflight|prepare|run|analyze`。输出为忽略的 `results/runs/evidence_handoff_v0_7/<study_id>/`。`run` 每次只接收一个 `--study-unit`，需要新费用授权；旧 8 USD/2 USD 授权不移用。新冻结清单将 `C5_A3` 设为首个 Pilot；`C1_A3` 仍因字段覆盖不足而 BLOCKED。原始轨迹、模型输入与历史账本留在本地。
 
 以下为保留的 v0.6 历史开发与实验记录，属于原版本和原运行条件。
 
