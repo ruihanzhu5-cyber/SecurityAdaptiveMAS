@@ -6,6 +6,8 @@
 
 > **当前阶段：v0.6 工程实现、非付费接线验收和首次真实 pilot。** 15 项非付费检查通过。真实 B1 的 Coordinator 已取得 DeepSeek 回答并读取邮件，随后风险请求因 JSON mode 提示词缺少 API 要求的词而被返回 HTTP 400，后续三组停止。离线 fixture 不代表真实模型成绩，尚未验证新方法的安全或性能收益。详见 [pilot 报告](docs/reports/2026-10-15_v0_6_B1_json_mode_http_400.md)。
 
+> **2026-10-15 补充：**Issue #3 的 JSON 提示词契约已最小修复，16 项免费测试通过。修复后使用原 Runner 启动新四组时，被既有失败清单的重复执行保护阻止，新增模型请求为 0。详见 [修复与启动检查报告](docs/reports/2026-10-15_v0_6_issue3_fix_and_four_group_preflight.md)。
+
 [实际架构](docs/architecture_v0_6.md) · [局部决策规则](docs/algorithm_v0_6.md) · [实施与问题台账](docs/reports/2026-10-15_v0_6_implementation.md) · [上游源码与许可](docs/upstream_v0_6.md) · [历史研究日志](docs/research-log/README.md)
 
 ## 系统现在怎样运行
