@@ -22,6 +22,7 @@ from .deepseek import API_BASE,MODEL,PROVIDER,DeepSeekClient,DeepSeekSettings,Ru
 from .trace import TraceLogger
 from .orchestration.configuration import load_design,project_config,design_hash
 from .orchestration.session import ModularSession
+from .risk_monitor import RISK_PROMPT_VERSION
 
 
 def save(path,value):
@@ -79,7 +80,7 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
         "max_requests":args.max_requests,"max_total_tokens":args.max_total_tokens,"max_cost_usd":args.max_cost_usd,
         "scenario_hash":record.sha256,"oracle":False,"load_completed_events":False,
         "coordinator_prompt_hash":hashlib.sha256(COORDINATOR_PROTOCOL.encode()).hexdigest(),
-        "risk_prompt_version":"semantic-risk-v0.4-1",**frozen}
+        "risk_prompt_version":RISK_PROMPT_VERSION,**frozen}
     save(out/"run_config.json",run_config)
     session=None
     result=scenario=error=None
