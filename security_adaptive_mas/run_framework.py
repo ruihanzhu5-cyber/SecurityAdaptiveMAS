@@ -25,6 +25,48 @@ from .orchestration.configuration import load_design,project_config,design_hash
 from .orchestration.session import ModularSession
 from .risk_monitor import RISK_PROMPT_VERSION
 
+# Explicit authorization for the 2026-10-15 C1_B1 validation only.
+C1_LEDGER = Path("D:/SecurityAdaptiveMAS-v0.6/results/runs/v0_6_modular_pilot/20261015_01/v0_1_cost_ledger.jsonl")
+C1_STUDY_CAP = .7909167 + 8.0
+
+
+def c1_authorization(args):
+    path = getattr(args, "c1_b1_authorization", None)
+    if path is None:
+        return None
+    path = path.resolve()
+    if not path.is_relative_to(ROOT / "results"):
+        raise ValueError("c1_authorization_must_be_local_results")
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    actual = {"scenario": args.scenario, "method": args.design["method"], "attack": args.attack,
+        "model": args.design["model"], "max_turns": args.max_turns, "max_requests": args.max_requests,
+        "max_total_tokens": args.max_total_tokens, "max_cost_usd": args.max_cost_usd,
+        "idle_wait_seconds": args.idle_wait_seconds}
+    expected = {"scenario": "scenario_universe_22_0421h2", "method": "modular_risk_aware",
+        "attack": "none", "model": "deepseek-flash", "max_turns": 20, "max_requests": 200,
+        "max_total_tokens": 2000000, "max_cost_usd": 2.0, "idle_wait_seconds": None}
+    if (manifest["kind"] != "v0_6_C1_B1_single_validation" or manifest["episode_limit"] != 1
+        or actual != expected or manifest["configuration"] != expected
+        or args.study_manifest is not None or args.study_unit is not None):
+        raise ValueError("c1_authorization_scope_mismatch")
+    if manifest["code"] != code_state() or manifest["design_hash"] != args.design_hash:
+        raise ValueError("c1_authorization_snapshot_changed")
+    if (Path(manifest["shared_ledger"]).resolve() != C1_LEDGER.resolve()
+        or args.output_dir.resolve() != C1_LEDGER.resolve().parent
+        or args.batch_cap_usd != C1_STUDY_CAP or manifest["absolute_cap_usd"] != C1_STUDY_CAP):
+        raise ValueError("c1_authorization_shared_budget_mismatch")
+    if hashlib.sha256(C1_LEDGER.read_bytes()).hexdigest() != manifest["ledger_sha256_before"]:
+        raise ValueError("c1_authorization_ledger_changed")
+    for name, sha in manifest["frozen_input_hashes"].items():
+        if hashlib.sha256(Path(name).read_bytes()).hexdigest() != sha:
+            raise ValueError("c1_authorization_input_changed")
+    # A fixed claim path also prevents reuse through a second manifest filename.
+    claim = C1_LEDGER.parent / "C1_B1_20261015_2usd.claim.json"
+    if claim.exists():
+        raise ValueError("c1_authorization_already_attempted")
+    return {"manifest": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "claim": str(claim)}
+
 
 def save(path,value):
     path.parent.mkdir(parents=True,exist_ok=True)
@@ -84,6 +126,7 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
         "coordinator_prompt_hash":hashlib.sha256(COORDINATOR_PROTOCOL.encode()).hexdigest(),
         "risk_prompt_version":RISK_PROMPT_VERSION,**frozen}
     run_config["benchmark_runtime"]={"preprocessed":False,"judge_configured":False}
+    run_config["single_episode_authorization"]=getattr(args,"validated_c1_authorization",None)
     run_config["idle_wait_seconds"]=lifecycle.idle_wait_seconds
     run_config["idle_guard_clock"]="wall_monotonic_only_when_no_active_model_request"
     save(out/"run_config.json",run_config)
@@ -215,6 +258,7 @@ def build_parser():
     p.add_argument("--max-total-tokens",type=int,default=800000)
     p.add_argument("--max-cost-usd",type=float,default=.4)
     p.add_argument("--study-manifest",type=Path)
+    p.add_argument("--c1-b1-authorization",type=Path,help="Frozen single-use C1_B1 2 USD authorization; defaults remain unchanged")
     p.add_argument("--study-unit")
     p.add_argument("--batch-cap-usd",type=float,default=1.6)
     p.add_argument("--output-dir",type=Path,default=ROOT/"results/runs/v0_6_modular_pilot/manual")
@@ -230,9 +274,11 @@ def main(argv=None,*,design_override=None):
     args.design=load_design(args.design_config,design_override)
     args.design["upstream_lock"]=str((ROOT/args.design["upstream_lock"]).resolve())
     args.design_hash=design_hash(args.design)
-    approved_cap=approved_study_cap(args)
-    if not (1<=args.max_turns<=20 and 1<=args.max_requests<=100 and 1<=args.max_total_tokens<=800000
-            and 0<args.max_cost_usd<=.4 and 0<args.batch_cap_usd<=approved_cap):parser.error("v0.6 pilot limits exceeded")
+    args.validated_c1_authorization=c1_authorization(args)
+    approved_cap=C1_STUDY_CAP if args.validated_c1_authorization else approved_study_cap(args)
+    requests_cap,tokens_cap,cost_cap=(200,2000000,2.0) if args.validated_c1_authorization else (100,800000,.4)
+    if not (1<=args.max_turns<=20 and 1<=args.max_requests<=requests_cap and 1<=args.max_total_tokens<=tokens_cap
+            and 0<args.max_cost_usd<=cost_cap and 0<args.batch_cap_usd<=approved_cap):parser.error("v0.6 pilot limits exceeded")
     config=project_config(args.design)
     config.select(args.scenario)
     attack_spec=load_attack_spec(args.attack_spec) if args.attack=="single_injection" else None
@@ -241,7 +287,9 @@ def main(argv=None,*,design_override=None):
     if args.dry_run:
         result={"dry_run":True,"design":args.design,"design_hash":args.design_hash,"key_present":bool(os.environ.get("DEEPSEEK_API_KEY")),
             "scenario":args.scenario,"attack":args.attack,"organization_policy":args.design["method"],
-            "max_cost_usd":args.max_cost_usd,"batch_cap_usd":args.batch_cap_usd,**frozen}
+            "max_cost_usd":args.max_cost_usd,"batch_cap_usd":args.batch_cap_usd,
+            "max_requests":args.max_requests,"max_total_tokens":args.max_total_tokens,
+            "single_episode_authorization":args.validated_c1_authorization,**frozen}
         print(json.dumps(result,ensure_ascii=False,indent=2))
         return result
     if not args.acknowledge_model_cost or not os.environ.get("DEEPSEEK_API_KEY"):
@@ -250,9 +298,15 @@ def main(argv=None,*,design_override=None):
     output.mkdir(parents=True,exist_ok=True)
     ledger=output/"v0_1_cost_ledger.jsonl"
     if ledger_charge(ledger)+args.max_cost_usd>args.batch_cap_usd:raise RuntimeError("shared_batch_budget_blocked")
+    if args.validated_c1_authorization:
+        with Path(args.validated_c1_authorization["claim"]).open("x",encoding="utf-8") as stream:
+            json.dump({**args.validated_c1_authorization,"claimed_at":datetime.now(timezone.utc).isoformat()},stream)
+            stream.flush()
+            os.fsync(stream.fileno())
     batch=output/(datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")+"_"+uuid4().hex[:6])
     save(batch/"batch_config.json",{"code":frozen,"design":args.design,"design_hash":args.design_hash,
-        "organization_policy":args.design["method"],"scenario":args.scenario,"attack":args.attack,"batch_cap_usd":args.batch_cap_usd})
+        "organization_policy":args.design["method"],"scenario":args.scenario,"attack":args.attack,"batch_cap_usd":args.batch_cap_usd,
+        "single_episode_authorization":args.validated_c1_authorization})
     for relative in frozen["source_file_hashes"]:
         target=batch/"code_snapshot"/relative
         target.parent.mkdir(parents=True,exist_ok=True)
