@@ -91,7 +91,7 @@ def bind_coordinator_history(agent,session):
     base.build_history_from_logs=MethodType(history,base)
 
 
-def make_modular_agent_builder(session,client,*,attack_spec=None,lifecycle=None):
+def make_modular_agent_builder(session,client,*,attack_spec=None,attack_runtime=None,lifecycle=None):
     from are.simulation.agents.agent_builder import AgentBuilder
     from are.simulation.notification_system import MessageType
     from are.simulation.agents.default_agent.base_agent import RunningState
@@ -136,9 +136,15 @@ def make_modular_agent_builder(session,client,*,attack_spec=None,lifecycle=None)
                     else:originals[tool.name]=tool
                 originals=SandboxPermissivePolicy.selected_tools(originals)
                 session.configure_tools(originals)
-                if attack_spec is not None:
-                    from ..attack import AttackOverlay
-                    session.overlay=AttackOverlay(attack_spec,session.trace,scenario_id=scenario.scenario_id,receiver_prefixes=("worker_",))
+                if attack_runtime is not None and attack_spec is not None:
+                    raise ValueError('provide_attack_runtime_or_legacy_spec_not_both')
+                if attack_runtime is not None:
+                    if attack_runtime.scenario_id!=scenario.scenario_id:
+                        raise ValueError('attack_runtime_scenario_mismatch')
+                    session.attack_runtime=attack_runtime
+                elif attack_spec is not None:
+                    from ..attacks.runtime import AttackRuntime
+                    session.attack_runtime=AttackRuntime(attack_spec,session.trace,scenario_id=scenario.scenario_id)
                 instance.tools=internal+[ModularARETool(t,session) for t in originals.values()]+[DelegateTaskTool(session),GetArtifactTool(session)]
                 instance.react_agent.tools={t.name:t for t in instance.tools}
                 instance.react_agent.init_tools()

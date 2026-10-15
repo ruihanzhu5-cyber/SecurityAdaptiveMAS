@@ -1,5 +1,5 @@
 """Per-episode services. No global task planner or topology enumeration."""
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict
 from copy import deepcopy
 import hashlib
 import json
@@ -35,7 +35,7 @@ class ModularSession:
         self.input_components,self.last_submitted,self.rendered_components={}, {}, []
         self.current_evidence,self.calls,self.last_return_refs={}, {}, []
         self.runtime=None
-        self.overlay=None
+        self.attack_runtime=None
         self.stop_callback=None
         self.terminal_error=None
         self.worker_steps=0
@@ -180,12 +180,18 @@ class ModularSession:
         call_id=f"call_{self.call_counter:06d}"
         self.calls[call_id]={"caller":caller,"work_id":work_id,"tool":name,"arguments":deepcopy(arguments)}
         original=self.original_tools[name]
+        application=context=None
+        def transform(value,*,tool_name,agent_id):
+            nonlocal application,context
+            from ..attacks.contracts import AttackContext
+            context=AttackContext(self.attack_runtime.scenario_id,agent_id,tool_name,call_id,'tool_result',value)
+            application=self.attack_runtime.apply(context)
+            return application.modified_result
         result,evidence=self.tool_gateway.call(self.runtime.graph,caller,self.runtime.graph.version,name,
             original.app_tool.app_name,arguments,self.current_evidence[caller],
-            result_transform=self.overlay.apply_tool_result if self.overlay is not None and original.app_tool.write_operation is False else None)
-        if self.overlay is not None and self.overlay.record is not None and self.overlay.record.get("source")==name and not self.overlay.record.get("evidence_id"):
-            self.overlay.record["evidence_id"]=evidence.evidence_id
-            self.trace.log("attack_injected_delivered",evidence_id=evidence.evidence_id,attack_id=self.overlay.spec.attack_id,agent_id=caller,tool=name)
+            result_transform=transform if self.attack_runtime is not None and original.app_tool.write_operation is False else None)
+        if application is not None:
+            self.attack_runtime.bind_delivery(application,evidence_id=evidence.evidence_id,context=context)
         self.observation_recorder.record_action(name,self.current_evidence[caller],agent_instance_id=caller,call_id=call_id,status="completed")
         self.observation_recorder.record_tool_result(name,evidence.evidence_id,agent_instance_id=caller,call_id=call_id,status="completed")
         ref=self.register_tool_result(call_id,caller,work_id,result,evidence)

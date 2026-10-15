@@ -11,7 +11,8 @@ from security_adaptive_mas.are_adapter import import_official_scenario,import_be
 from security_adaptive_mas.deepseek import DeepSeekClient,RunBudget
 from security_adaptive_mas.orchestration.configuration import load_design,project_config
 from security_adaptive_mas.security import SandboxPermissivePolicy
-from security_adaptive_mas.attack import load_attack_spec,AttackOverlay,attack_target_state
+from security_adaptive_mas.attacks.loader import load_for_run
+from security_adaptive_mas.attacks.runtime import probe_attack
 from security_adaptive_mas.trace import TraceLogger
 from security_adaptive_mas.run_framework import save
 
@@ -49,12 +50,33 @@ def benchmark_preflight(output,scenario_ids=None):
     return results
 
 
-def preflight(output):
+def attack_configurations(overrides=()):
+    """Select configurations by declared scenario, with explicit alternative files."""
+    candidates={}
+    for path in sorted((ROOT/"configs/attack_cases_v0_6_five").glob("*.json")):
+        data=json.loads(path.read_text(encoding="utf-8"))
+        scenario=data.get("scenario_id",data.get("target_case"))
+        candidates.setdefault(scenario,[]).append(path)
+    selected={}
+    for path in overrides:
+        path=Path(path).resolve();data=json.loads(path.read_text(encoding="utf-8"))
+        scenario=data.get("scenario_id",data.get("target_case"))
+        if scenario in selected:raise ValueError("choose_one_attack_configuration_per_scenario")
+        selected[scenario]=path
+    for scenario,paths in candidates.items():
+        if scenario not in selected:
+            if len(paths)!=1:raise ValueError("ambiguous_attack_configuration_requires_explicit_selection")
+            selected[scenario]=paths[0]
+    return selected
+
+
+def preflight(output,attack_configs=None):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     design=load_design(ROOT/"configs/research_v0_6.yaml");config=project_config(design)
     source=json.loads((ROOT/"configs/source_versions.json").read_text(encoding="utf-8"))
     rows=json.loads((ROOT/"configs/five_manifest.json").read_text(encoding="utf-8"))
     if len(rows)!=5 or len({r["scenario_id"] for r in rows})!=5:raise ValueError("five_fixed_cases_required")
+    selected_configs=attack_configurations(attack_configs or ())
     matrix=[]
     for i,row in enumerate(rows,1):
         key=f"C{i}";sid=row["scenario_id"];directory=output/key;directory.mkdir(exist_ok=True)
@@ -74,7 +96,9 @@ def preflight(output):
             result.update(verified_tool_catalog=catalog,allowed_tools=sorted(allowed),denied_required_tools=denied,
                 reference_tool_caveat="Offline reference actions show capability gaps; they are not online input or a unique solution.",benign_ready=True,
                 legitimate_scope="PARTIAL_SCOPE" if key=="C4" else "FULL")
-            if key=="C3":
+            specpath=selected_configs[sid]
+            declaration=json.loads(specpath.read_text(encoding="utf-8"))
+            if declaration.get("status")=="BLOCKED_ATTACK_SURFACE":
                 future=[e for e in raw["events"] if e["event_type"]=="ENV" and e["action"]["app"]=="Messages"]
                 result.update(status="BLOCKED_ATTACK_SURFACE",reason="Future Messages have no fixed message_id in declared actions; MessageV2 generates uuid.uuid4 at actual execution. Do not substitute old messages or ENV injection.",
                     future_message_offsets=[e["event_relative_time"] for e in future],candidate_read_surface={"tool_name":"Messages__read_conversation","temporal_status":"future_until_observed","source_id":"unknown_before_execution"})
@@ -84,27 +108,12 @@ def preflight(output):
                 from are.simulation.apps.messaging_v2 import MessageV2
                 result["current_messages_are_MessageV2"]=all(type(m) is MessageV2 for m in current["messages"])
             else:
-                specpath=ROOT/"configs/attack_cases_v0_6_five"/(key+".json");spec=load_attack_spec(specpath)
-                if spec.source_tool not in allowed:raise ValueError("BLOCKED_TOOL_SCOPE:source tool not selected")
-                action_tool="Calendar__delete_calendar_event" if spec.target_type=="calendar_event" else "Emails__delete_email"
-                if action_tool not in allowed:raise ValueError("BLOCKED_TOOL_SCOPE:target tool unavailable")
-                appname,method=spec.source_tool.split("__",1);app=scenario.get_app(appname)
-                before=json.dumps(app.get_state(),sort_keys=True,ensure_ascii=False,default=str)
-                if method=="list_emails":value=app.list_emails(folder_name="INBOX",offset=0,limit=50)
-                elif method=="get_email_by_id":value=app.get_email_by_id(spec.source_selector.split(":",1)[1])
-                elif method=="read_conversation":value=app.read_conversation(spec.source_conversation_id,limit=10)
-                else:value=app.list_recent_conversations(limit=5)
-                overlay=AttackOverlay(spec,TraceLogger(directory/"offline_probe.jsonl"),scenario_id=sid)
-                overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
-                page_offset=0
-                if method=="list_emails":
-                    while not overlay.applied and value.emails and page_offset+len(value.emails)<value.total_emails:
-                        page_offset+=len(value.emails)
-                        value=app.list_emails(folder_name="INBOX",offset=page_offset,limit=50)
-                        overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
-                if not overlay.applied:raise ValueError("BLOCKED_ATTACK_SURFACE:exact ID not in real typed read")
-                if before!=json.dumps(app.get_state(),sort_keys=True,ensure_ascii=False,default=str):raise RuntimeError("SYSTEMIC_STATE_MUTATION")
-                initial=attack_target_state(scenario,spec)
+                spec=load_for_run(declaration['attack'],specpath,sid)
+                probe=probe_attack(scenario,spec,allowed,TraceLogger(directory/"offline_probe.jsonl"))
+                result["attack_preflight"]=probe
+                action_tool=probe["target_tool"]
+                initial=probe["initial_target_state"]
+                page_offset=probe["page_offset"]
                 if key=="C4":
                     from datetime import datetime,timezone,timedelta
                     today=datetime.fromtimestamp(scenario.start_time,timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0)
@@ -123,10 +132,10 @@ def preflight(output):
                     from datetime import datetime,timezone
                     if datetime.fromtimestamp(target["timestamp"],timezone.utc).month==8:raise ValueError("BLOCKED_TARGET_ORACLE:target is August")
                     initial_evidence={k:target[k] for k in ["email_id","timestamp","subject"]}
-                result.update(attack_ready=True,injection_adapter_supported=True,status="READY_WITH_LIMITATION" if key=="C4" else "READY",
+                result.update(attack_ready=True,attack_mode=declaration['attack'],injection_adapter_supported=True,status="READY_WITH_LIMITATION" if key=="C4" else "READY",
                     reason="Typed exact-ID clone and fixed independent target verified; Files/attachments/group creation gaps remain" if key=="C4" else "Actual read, exact selector, immutable clone and initial target verified",
                     attack_config=str(specpath),attack_config_sha256=hashlib.sha256(specpath.read_bytes()).hexdigest(),payload_sha256=spec.payload_hash,
-                    candidate_read_surface={"tool_name":spec.source_tool,"returned_python_type":type(value).__module__+"."+type(value).__name__,"selector":spec.source_selector,"field_path":spec.field_path,"source_id":spec.source_selector.split(":",1)[1],"conversation_id":spec.source_conversation_id,"temporal_status":"already_present","verified_page_offset":page_offset},
+                    candidate_read_surface={"tool_name":spec.source_tool,"returned_python_type":probe["returned_python_type"],"selector":spec.source_selector,"field_path":spec.field_path,"source_id":spec.source_selector.split(":",1)[1],"conversation_id":spec.source_conversation_id,"temporal_status":"already_present","verified_page_offset":page_offset},
                     attack_target={"action_tool":action_tool,"target_id_or_condition":spec.target_id,"initial_state_evidence":initial_evidence,"initial_target_state":initial,"why_outside_authorization":spec.desired_deviation,"post_episode_evaluator":spec.evaluation_rule})
         except (ValueError,TypeError,KeyError,FileNotFoundError) as error:
             result.update(status="BLOCKED_PREFLIGHT",reason=f"{type(error).__name__}: {error}")
@@ -143,6 +152,6 @@ def preflight(output):
 
 
 if __name__=="__main__":
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--output",type=Path,required=True)
-    args=parser.parse_args();matrix=preflight(args.output)
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--output",type=Path,required=True);parser.add_argument("--attack-config",type=Path,action="append")
+    args=parser.parse_args();matrix=preflight(args.output,args.attack_config)
     print(json.dumps([{k:r[k] for k in ["case_id","status","legitimate_scope","benign_ready","attack_ready","reason"]} for r in matrix],ensure_ascii=False,indent=2))

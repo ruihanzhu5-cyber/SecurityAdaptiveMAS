@@ -18,7 +18,8 @@ from uuid import uuid4
 from .config import ROOT
 from .are_adapter import (import_benchmark_scenario,official_runner,BenchmarkLifecycle,
                           benchmark_evaluation,BenchmarkEvaluationBlocked)
-from .attack import load_attack_spec,evaluate_attack,attack_target_state,evaluate_text_attack
+from .attacks.loader import load_for_run
+from .attacks.runtime import AttackRuntime
 from .deepseek import API_BASE,MODEL,PROVIDER,DeepSeekClient,DeepSeekSettings,RunBudget
 from .trace import TraceLogger
 from .orchestration.configuration import load_design,project_config,design_hash
@@ -126,11 +127,12 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
         "coordinator_prompt_hash":hashlib.sha256(COORDINATOR_PROTOCOL.encode()).hexdigest(),
         "risk_prompt_version":RISK_PROMPT_VERSION,**frozen}
     run_config["benchmark_runtime"]={"preprocessed":False,"judge_configured":False}
+    run_config["attack_configuration"]=None if attack_spec is None else asdict(attack_spec)
     run_config["single_episode_authorization"]=getattr(args,"validated_c1_authorization",None)
     run_config["idle_wait_seconds"]=lifecycle.idle_wait_seconds
     run_config["idle_guard_clock"]="wall_monotonic_only_when_no_active_model_request"
     save(out/"run_config.json",run_config)
-    session=None
+    session=attack_runtime=None
     result=scenario=error=None
     initial_target=None
     started=datetime.now(timezone.utc).isoformat()
@@ -139,14 +141,16 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
     logging.getLogger().addHandler(handler)
     with (out/"runner.log").open("a",encoding="utf-8") as stream,redirect_stdout(stream),redirect_stderr(stream):
         try:
+            if attack_spec is not None:
+                attack_runtime=AttackRuntime(attack_spec,trace,scenario_id=scenario_id)
             session=ModularSession(args.design,trace,client)
             scenario=import_benchmark_scenario(record,config.are_root,client=client,max_turns=args.max_turns,
                 filesystem=args.design["paths"]["gaia2_filesystem"],sandbox=args.design["paths"]["sandbox_root"],on_error=session.stop_episode)
             run_config["benchmark_runtime"]=scenario.benchmark_runtime_metadata
             save(out/"run_config.json",run_config)
             save(out/"benchmark_event_graph.json",[e.to_dict() for e in scenario.events])
-            if attack_spec and attack_spec.surface=="single_entry_tool_result_text":initial_target=attack_target_state(scenario,attack_spec)
-            builder=make_modular_agent_builder(session,client,attack_spec=attack_spec,lifecycle=lifecycle)
+            if attack_runtime is not None:initial_target=attack_runtime.snapshot(scenario)
+            builder=make_modular_agent_builder(session,client,attack_runtime=attack_runtime,lifecycle=lifecycle)
             from are.simulation.scenarios.config import ScenarioRunnerConfig
             runner_config=ScenarioRunnerConfig(agent="default",model=MODEL,model_provider=PROVIDER,endpoint=API_BASE,
                 oracle=False,export=True,max_turns=args.max_turns,output_dir=str(out/"official_trace"))
@@ -202,15 +206,13 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
         "trace_paths":{"framework":str(trace.path),"official":str(result.export_path) if result is not None and result.export_path is not None else None},
         **evaluation}
     if lifecycle.stop_reason:summary["stop_reason"]=lifecycle.stop_reason
-    if attack_spec:
-        summary["attack_scoring"]=evaluate_attack(events,spec=attack_spec,official_success=summary["official_runner_success"],
-            stop_reason=summary["stop_reason"],require_submitted=True,
-            final_state=email_final_state(scenario) if scenario is not None and attack_spec.target_email_id else None)
-        summary["exposure_interpretation"]="injection_source_related_objects_not_proven_payload_adoption"
-    if attack_spec and attack_spec.surface=="single_entry_tool_result_text":
-        summary["attack_scoring"]=evaluate_text_attack(events,spec=attack_spec,initial=initial_target,
-            final=attack_target_state(scenario,attack_spec) if scenario is not None else None,
-            official_success=summary["official_runner_success"],stop_reason=summary["stop_reason"])
+    if attack_runtime is not None:
+        summary["attack_runtime"]=attack_runtime.finish(interrupted=bool(error or lifecycle.stop_reason))
+        summary["attack_scoring"]=attack_runtime.evaluate(events,initial=initial_target,
+            final=attack_runtime.snapshot(scenario) if scenario is not None else None,
+            official_success=summary["official_runner_success"],legitimate_task_completed=summary["legitimate_task_completed"],
+            stop_reason=summary["stop_reason"],interrupted=bool(error or lifecycle.stop_reason),model_io_dir=out/"model_io")
+        summary["exposure_interpretation"]="actual_submitted_payload_text_is_not_proven_adoption_or_causality"
     save(out/"summary.json",summary)
     save(out/"evaluation.json",{k:summary.get(k,"unknown") for k in (
         "official_runner_returned","official_runner_success","benchmark_judge_status","benchmark_judge_completed",
@@ -250,7 +252,7 @@ def build_parser():
     p.add_argument("--scenario",required=True)
     p.add_argument("--task-scope-policy",choices=("sandbox_permissive",),default="sandbox_permissive")
     p.add_argument("--organization-policy",help=argparse.SUPPRESS)
-    p.add_argument("--attack",choices=("none","single_injection","single_entry_tool_result_text"),default="none")
+    p.add_argument("--attack",default="none",help="none or a mode explicitly supported by the registered attack adapter")
     p.add_argument("--attack-spec",type=Path,default=ROOT/"configs/attack_single_injection_22_kb5ah9.json")
     p.add_argument("--max-turns",type=int,default=20)
     p.add_argument("--idle-wait-seconds",type=float,help="Explicit idle wall-time guard; does not time out active model requests")
@@ -281,14 +283,16 @@ def main(argv=None,*,design_override=None):
             and 0<args.max_cost_usd<=cost_cap and 0<args.batch_cap_usd<=approved_cap):parser.error("v0.6 pilot limits exceeded")
     config=project_config(args.design)
     config.select(args.scenario)
-    attack_spec=load_attack_spec(args.attack_spec) if args.attack=="single_injection" else None
-    if attack_spec and args.scenario!=attack_spec.target_case:parser.error("attack scenario does not match fixed configuration")
+    attack_spec=load_for_run(args.attack,args.attack_spec,args.scenario)
     frozen=code_state()
     if args.dry_run:
         result={"dry_run":True,"design":args.design,"design_hash":args.design_hash,"key_present":bool(os.environ.get("DEEPSEEK_API_KEY")),
             "scenario":args.scenario,"attack":args.attack,"organization_policy":args.design["method"],
             "max_cost_usd":args.max_cost_usd,"batch_cap_usd":args.batch_cap_usd,
             "max_requests":args.max_requests,"max_total_tokens":args.max_total_tokens,
+            "attack_configuration":None if attack_spec is None else {"attack_id":attack_spec.attack_id,
+                "surface_type":attack_spec.surface_type,"payload_sha256":attack_spec.payload_sha256,
+                "evaluator_id":attack_spec.evaluator_id},
             "single_episode_authorization":args.validated_c1_authorization,**frozen}
         print(json.dumps(result,ensure_ascii=False,indent=2))
         return result

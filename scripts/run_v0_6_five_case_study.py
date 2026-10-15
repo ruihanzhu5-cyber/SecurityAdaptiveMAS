@@ -27,7 +27,7 @@ def units_for(matrix):
             ready=case["attack_ready"] if attack else case["benign_ready"]
             units.append({"unit_id":case["case_id"]+"_"+condition,"case_id":case["case_id"],"condition":condition,
                 "scenario_id":case["scenario_id"],"method":"modular_risk_aware" if condition in {"B1","A1"} else "modular_task_only",
-                "attack":"single_entry_tool_result_text" if attack else "none","status":"READY" if ready else case["status"],
+                "attack":case.get("attack_mode","single_entry_tool_result_text") if attack else "none","status":"READY" if ready else case["status"],
                 "legitimate_scope":case["legitimate_scope"],"readiness_reason":case["reason"],
                 "attack_config":case.get("attack_config") if attack else None,
                 "attack_config_sha256":case.get("attack_config_sha256") if attack else None})
@@ -48,14 +48,14 @@ def command(unit,manifest,path,*,dry=False):
     return argv
 
 
-def prepare(directory,ledger):
+def prepare(directory,ledger,attack_configs=None):
     directory=Path(directory).resolve();ledger=Path(ledger).resolve();path=directory/"study_manifest.json"
     if not directory.is_relative_to(ROOT/"results"):raise ValueError("study_directory_must_be_local_results")
     if path.exists():raise FileExistsError("study_manifest_already_exists")
     if not ledger.is_file():raise FileNotFoundError("historical_ledger_required")
     frozen=code_state()
     if frozen["dirty_status"]:raise ValueError("commit_changes_before_prepare")
-    matrix=preflight(directory/"preflight");directory.mkdir(parents=True,exist_ok=True)
+    matrix=preflight(directory/"preflight",attack_configs);directory.mkdir(parents=True,exist_ok=True)
     inputs=directory/"inputs";inputs.mkdir(exist_ok=True)
     before=ledger_charge(ledger)
     manifest={"kind":"v0_6_five_case_20","study_id":directory.name,"status":"PREPARED","prepared_at_utc":datetime.now(timezone.utc).isoformat(),
@@ -125,11 +125,12 @@ def execute(directory):
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("action",choices=("prepare","run"))
+    parser.add_argument("--attack-config",type=Path,action="append")
     parser.add_argument("--study-dir",type=Path,required=True);parser.add_argument("--ledger",type=Path)
     parser.add_argument("--acknowledge-model-cost",action="store_true");args=parser.parse_args()
     if args.action=="prepare":
         if args.ledger is None:parser.error("prepare requires the existing --ledger")
-        prepare(args.study_dir,args.ledger)
+        prepare(args.study_dir,args.ledger,args.attack_config)
     else:
         if not args.acknowledge_model_cost:parser.error("paid study requires explicit cost acknowledgment")
         execute(args.study_dir)
