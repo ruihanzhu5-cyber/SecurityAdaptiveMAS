@@ -1,5 +1,7 @@
 # v0.7 Evidence Handoff 真实 Pilot：NOT_RUN
 
+> 本文件记录首次冻结时的历史状态。`C5_A3` 后来获单场授权并真实运行，结果为 FAILED；详见 [2026-10-15 C5_A3 真实 Pilot 报告](2026-10-15_v0_7_C5_A3_real_handoff_pilot.md)。下文的 NOT_RUN 和“没有新授权”仅指此前的冻结阶段。
+
 日期：2026-10-15。分支：`research/v0.7-evidence-handoff-five-case`。
 
 ## 实际状态
