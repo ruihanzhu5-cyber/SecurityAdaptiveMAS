@@ -90,8 +90,17 @@ class ModularSession:
         self.manta=MantaContextAdapter(self.runtime,self.trace)
         from .delivery import DeliveryService
         self.delivery_service=DeliveryService(self)
+        if self.evidence_builder is not None:
+            self.trace.log('handoff_graph_snapshot',phase='initial',graph=self.graph_snapshot())
         self.trace.log("modular_tools_registered",coordinator_tools=sorted(names),worker_tools=sorted(reads),
                        protected_tools=sorted(writes),source="real_app_tool_metadata")
+
+    def graph_snapshot(self):
+        graph=self.runtime.graph
+        return {'version':graph.version,'agents':[{'agent_id':a.agent_id,'tools':sorted(a.allowed_tools),
+            'lifecycle_status':a.lifecycle_status} for a in graph.agents],
+            'edges':sorted(graph.extra_edges),'object_access':sorted(graph.object_access),
+            'assignments':dict(graph.assignments),'all_instances':sorted(self.runtime.instances)}
 
     def on_notification(self, kind, text, timestamp=None):
         evidence=self.provenance.add("are:"+kind,"trusted_task" if kind=="user" else "low_trust",text)

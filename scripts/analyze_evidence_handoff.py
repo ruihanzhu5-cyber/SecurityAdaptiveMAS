@@ -83,6 +83,14 @@ def handoff_episode(directory):
         'output_tokens':0,'cost_estimate_usd':0,'latency_seconds':'unknown_not_instrumented'}]
     selected=[e for e in events if e['kind']=='reconfiguration_selected']
     delegation=[e for e in events if e['kind']=='delegation_requested']
+    counts=Counter(e['kind'] for e in events)
+    consumption=[e for e in events if e['kind']=='controlled_handoff_consumption']
+    chosen=consumption[-1]['selected_view_refs'] if consumption else []
+    views=[e for e in events if e['kind']=='evidence_view_created']
+    view_map={f"{e['view_ref']['object_id']}@{e['view_ref']['version']}:{e['view_ref']['view_id']}":e for e in views}
+    coverage=all(not view_map[key]['missing_required_fields'] for key in chosen) if chosen and all(key in view_map for key in chosen) else 'unknown'
+    score=summary.get('attack_scoring')
+    snapshots={e['phase']:e['graph'] for e in events if e['kind']=='handoff_graph_snapshot'}
     scope='PARTIAL_SCOPE' if config['design']['experiment']['case_id']=='C4' else 'FULL'
     result.update(mode=config['design']['experiment']['mode'],condition=config['design']['experiment']['condition'],
         legitimate_scope=scope,supported_subtask_utility='unknown_no_independent_subtask_checker',
@@ -91,7 +99,22 @@ def handoff_episode(directory):
         risk_driven_patches=sum(e['patch_kind']=='risk_driven' and e['effective_reconfiguration'] for e in selected),
         handoff_scaffolding_patches=sum(e['patch_kind']=='handoff_scaffolding' and e['effective_reconfiguration'] for e in selected),
         initial_delegation_scaffolding_count=len(delegation),role_usage=role_usage,
-        prior_exposure_cannot_be_undone=True)
+        prior_exposure_cannot_be_undone=True,worker_started=counts['worker_started']>0,
+        worker_finished=counts['worker_finished']>0,
+        handoff_requested=any(e['kind']=='delivery_requested' and e['requester_id']=='agent_0' for e in events),
+        handoff_delivered=any(row['agent_id']=='agent_0' and row['component_submission_link_observed'] for row in deliveries),
+        original_artifact_ref=consumption[-1]['original_artifact_ref'] if consumption else 'unknown',
+        selected_view_refs=chosen if consumption else 'unknown',required_fields_covered=coverage,
+        attack_runtime_status=summary['attack_runtime']['status'] if 'attack_runtime' in summary else 'NOT_APPLICABLE',
+        attack_delivered=score['attack_delivered'] if score else 'NOT_APPLICABLE',
+        submitted_exposed_agents=score['exposed_instances'] if score else 'NOT_APPLICABLE',
+        dangerous_tool_attempted=score['target_attempted'] if score else 'NOT_APPLICABLE',
+        target_achieved=score['target_achieved'] if score else 'NOT_APPLICABLE',
+        blocked_by_gateway=score['blocked_by_gateway'] if score else 'NOT_APPLICABLE',
+        official_success=summary['official_runner_success'],
+        initial_graph=snapshots.get('initial','unknown'),final_graph=snapshots.get('final','unknown'),
+        actual_graph_changes=[e for e in events if e['kind']=='topology_patch_applied' and e['graph_version']!=e['previous_version']],
+        trace_refs=summary['trace_paths'])
     save(directory/'handoff_context_measurements.json',measurements)
     save(directory/'handoff_delivery_submission_audit.json',deliveries)
     save(directory/'handoff_evidence_view_audit.json',[e for e in events if e['kind']=='evidence_view_created'])
@@ -113,6 +136,10 @@ def analyze_study(directory):
         else:
             row.update(requests='NOT_RUN',input_tokens='NOT_RUN',output_tokens='NOT_RUN',cost_estimate_usd='NOT_RUN',
                 attack_delivered='unknown',effective_reconfiguration='NOT_RUN',reason=unit.get('reason','no_real_episode'))
+            row.update({key:'NOT_RUN' for key in ('worker_started','worker_finished','handoff_requested','handoff_delivered',
+                'original_artifact_ref','selected_view_refs','required_fields_covered','attack_runtime_status',
+                'actual_graph_changes','submitted_exposed_agents','dangerous_tool_attempted','target_achieved',
+                'legitimate_task_completed','official_success','initial_graph','final_graph','trace_refs')})
         matrix.append(row)
     save(directory/'results_matrix.json',matrix)
     export_csv(directory/'results_matrix.csv',matrix)

@@ -172,6 +172,8 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
     if error:
         save(out/"failure.json",{"exception_type":type(error).__name__,"reason":str(error),
             "traceback":"".join(traceback.format_exception(error)),"status":"failed"})
+    if args.design['version']=='v0.7' and session is not None and session.runtime is not None:
+        trace.log('handoff_graph_snapshot',phase='final',graph=session.graph_snapshot())
     events=[json.loads(line) for line in trace.path.read_text(encoding="utf-8").splitlines()] if trace.path.exists() else []
     groups={"delegation_events.jsonl":{"delegation_requested","worker_started","worker_finished"},
             "delivery_events.jsonl":{"delivery_requested","delivery_held","runtime_object_delivered","official_observation_bound","manta_packet_selection"},

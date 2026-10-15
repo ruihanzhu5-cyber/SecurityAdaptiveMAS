@@ -82,6 +82,8 @@ def test_p0_real_worker_get_artifact_and_submitted_observation(tmp_path,monkeypa
     from scripts.analyze_evidence_handoff import handoff_episode
     analysis=handoff_episode(trace.parent)
     assert analysis['controlled_delegations']==1 and analysis['autonomous_delegations']==0
+    assert analysis['worker_started'] and analysis['worker_finished']
+    assert len(analysis['initial_graph']['agents'])==1 and len(analysis['final_graph']['agents'])==2
     assert analysis['role_usage']['RiskMonitor'] and analysis['role_usage']['Worker']
     measurements=json.loads((trace.parent/'handoff_context_measurements.json').read_text(encoding='utf-8'))
     assert len(measurements)==summary['coordinator_model_inputs_prepared']+len(steps)+len(summary['risk_assessments'])
