@@ -50,46 +50,49 @@ class TopologyPatch:
     delivery_plans: tuple[tuple[str, str], ...] = ()
     reason: str = ""
     evidence_ids: tuple[str, ...] = ()
+    base_object_epoch: int = 0
 
 
 class GraphRuntime:
-    def __init__(self, controller, coordinator_tools, worker_tools, max_agents=3):
-        self.controller = controller
+    def __init__(self, *, trace, provenance, tool_gateway, message_gateway,
+                 coordinator_tools, worker_tools, max_agents, reconfiguration_limit,
+                 observation_stamp, max_total_instances=8):
+        self.trace, self.provenance = trace, provenance
+        self.tools, self.messages = tool_gateway, message_gateway
+        self.observation_stamp = observation_stamp
         self.worker_tools = frozenset(worker_tools)
-        self.max_agents = max_agents
-        self.objects = {}
+        self.max_agents, self.max_total_instances = max_agents, max_total_instances
+        self.reconfiguration_limit = reconfiguration_limit
+        self.objects, self.receipts, self.exposures = {}, set(), {}
         self.instances = {"agent_0"}
-        self.max_active = 1
-        self.applied = 0
-        self.flow_events = []
-        self.exposures = {}
-        self.receipts = set()
-        self.checks = {}
-        self.bindings = {}
-        self.submitted_component_versions = set()
+        self.max_active, self.applied, self.object_epoch = 1, 0, 0
+        self.flow_events, self.submitted_component_versions = [], set()
         self.install(RuntimeGraph(1, (RuntimeAgent("agent_0", frozenset(coordinator_tools)),)))
 
     @property
     def graph(self):
-        return self.controller.spec
+        return self._graph
+
+    def stamp(self):
+        from .orchestration.contracts import RuntimeStamp
+        sequence, revision = self.observation_stamp()
+        return RuntimeStamp(self.graph.version, sequence, revision, self.object_epoch)
 
     def install(self, graph):
         for agent in graph.agents:
             agent.context.visible_from = frozenset(src for src, dst in graph.extra_edges if dst == agent.agent_id)
-        self.controller.spec = graph
-        self.controller.tools.current_spec = graph
-        self.controller.messages.current_spec = graph
-        self.controller.assignments = graph.assignments
-        self.controller.pattern = "runtime"
-        self.controller.runtime_agent_instances = tuple(a.agent_id for a in graph.agents)
+            agent.context.max_packet_chars = 2**63-1
+        self._graph = graph
+        self.tools.current_spec = self.messages.current_spec = graph
 
     def preview(self, patch):
-        observation = self.controller.online_snapshot()
-        if (patch.base_graph_version != self.graph.version or
-                patch.base_observation_sequence != observation.sequence or
-                patch.base_task_revision != self.controller.task_revision):
+        stamp = self.stamp()
+        if (patch.base_graph_version != stamp.graph_version or
+                patch.base_observation_sequence != stamp.observation_sequence or
+                patch.base_task_revision != stamp.goal_revision or
+                patch.base_object_epoch != stamp.object_epoch):
             raise ValueError("stale_topology_patch")
-        if not set(patch.evidence_ids) <= set(observation.evidence_ids):
+        if not set(patch.evidence_ids) <= self.provenance.items.keys():
             raise ValueError("patch_unseen_evidence")
         graph = deepcopy(self.graph)
         agents = {a.agent_id: a for a in graph.agents}
@@ -108,7 +111,7 @@ class GraphRuntime:
                 role = op["role"]
                 if not set(role.requested_tools) <= agent.allowed_tools:
                     raise ValueError("role_exceeds_granted_capabilities")
-                if not set(role.source_evidence_ids) <= set(observation.evidence_ids):
+                if not set(role.source_evidence_ids) <= self.provenance.items.keys():
                     raise ValueError("role_cites_unseen_runtime_evidence")
                 agent.role_contract = role
                 agent.allowed_tools = frozenset(role.requested_tools)
@@ -140,12 +143,16 @@ class GraphRuntime:
                 agent_id = op["agent_id"]
                 if agent_id == "agent_0" or agent_id not in agents:
                     raise ValueError("invalid_retirement")
+                if agents[agent_id].lifecycle_status != "idle":
+                    raise ValueError("retirement_requires_idle_worker")
                 del agents[agent_id]
                 graph.extra_edges = {edge for edge in graph.extra_edges if agent_id not in edge}
                 graph.object_access = {key for key in graph.object_access if key[0] != agent_id}
                 graph.assignments = {task: owner for task, owner in graph.assignments.items() if owner != agent_id}
             else:
                 raise ValueError(f"unsupported_graph_operation:{kind}")
+        if len(self.instances | agents.keys()) > self.max_total_instances:
+            raise ValueError("total_instance_limit")
         if not 1 <= len(agents) <= self.max_agents:
             raise ValueError("active_agent_limit")
         for task_id, agent_id in patch.assignments:
@@ -156,21 +163,25 @@ class GraphRuntime:
             if (agent_id, object_id) not in graph.object_access:
                 raise ValueError("delivery_without_object_access")
         graph.agents = tuple(agents.values())
-        if patch.operations != ({"op": "KEEP"},):
+        if (graph.agents != self.graph.agents or graph.extra_edges != self.graph.extra_edges or
+                graph.object_access != self.graph.object_access or graph.assignments != self.graph.assignments):
             graph.version += 1
+        if graph.version != self.graph.version and self.applied >= self.reconfiguration_limit:
+            raise ValueError("effective_graph_patch_limit_exhausted")
         return graph
 
     def apply(self, patch):
         graph = self.preview(patch)
         previous = self.graph.version
-        design = self.controller.design
-        if design is not None and graph.version != previous and self.applied >= design["reconfiguration_limit"]:
+        if graph.version != previous and self.applied >= self.reconfiguration_limit:
             raise RuntimeError("configured_effective_graph_patch_limit_exhausted")
+        if graph.object_access != self.graph.object_access:
+            self.object_epoch += 1
         self.install(graph)
         self.instances.update(a.agent_id for a in graph.agents)
         self.max_active = max(self.max_active, len(graph.agents))
         self.applied += int(graph.version != previous)
-        self.controller.trace.log("topology_patch_applied", patch_id=patch.patch_id,
+        self.trace.log("topology_patch_applied", patch_id=patch.patch_id,
                                   previous_version=previous, graph_version=graph.version,
                                   operations=[{**op,"role":asdict(op["role"])} if op["op"] == "SET_ROLE" else op
                                               for op in patch.operations], assignments=graph.assignments,
@@ -178,86 +189,51 @@ class GraphRuntime:
                                   observation_sequence=patch.base_observation_sequence,
                                   evidence_ids=patch.evidence_ids)
 
-    def add_object(self, evidence_id, writer, *, task_id=None, status="output_available",
-                   activation_id=None, fields=None, task_description=None):
-        evidence = self.controller.provenance.items[evidence_id]
-        if evidence_id in self.objects:
+    def add_object(self, ref, writer, *, task_id=None, status="output_available", **metadata):
+        evidence = self.provenance.items[ref.object_id]
+        if ref.key in self.objects:
             raise ValueError("immutable_object_already_registered")
-        self.objects[evidence_id] = {"object_id": evidence_id, "version": 1,
-            "writer": writer, "task_id": task_id, "status": status,
-            "parent_ids": evidence.parent_ids, "low_trust": self.controller.provenance.contains_low_trust(evidence_id),
-            "source_trust": evidence.trust, "producer_activation": activation_id,
-            "producer_task_description":task_description,
-            "fields": fields, "created_sequence": len(self.flow_events)+1}
-        self.graph.object_access.add((writer, evidence_id))
-        self.controller.trace.log("runtime_object_created", **self.objects[evidence_id])
-        self.record_flow("object_created", instance_id=writer, object_id=evidence_id,
-                         activation_id=activation_id, parent_ids=evidence.parent_ids)
+        if writer not in self.instances:
+            raise ValueError("unregistered_object_author")
+        self.objects[ref.key] = {"object_id":ref.object_id,"version":ref.version,"view_id":ref.view_id,
+            "writer":writer,"task_id":task_id,"status":status,"parent_ids":evidence.parent_ids,
+            "source_trust":evidence.trust, **metadata}
+        self.graph.object_access.add((writer,ref.key))
+        self.object_epoch += 1
+        self.trace.log("runtime_object_created", **self.objects[ref.key])
 
-    def read_object(self, agent_id, object_id):
-        self.graph.agent(agent_id)
-        if (agent_id, object_id) not in self.graph.object_access:
+    def check_delivery(self, consumer_id, ref):
+        self.graph.agent(consumer_id)
+        obj=self.objects[ref.key]
+        if obj["version"] != ref.version or obj["view_id"] != ref.view_id:
+            raise ValueError("object_version_mismatch")
+        if obj["status"] in {"held","quarantined"}:
+            raise PermissionError("object_held")
+        if (consumer_id,ref.key) not in self.graph.object_access:
             raise PermissionError("object_access_denied")
-        evidence = self.controller.provenance.items[object_id]
-        self.controller.trace.log("runtime_object_delivered", agent_id=agent_id,
-                                  object_id=object_id, graph_version=self.graph.version)
-        return evidence.text
+        author=obj["writer"]
+        if author not in self.instances:
+            raise PermissionError("unknown_original_author")
+        active={a.agent_id for a in self.graph.agents}
+        if author in active and author != consumer_id and (author,consumer_id) not in self.graph.extra_edges:
+            raise PermissionError("object_delivery_route_denied")
+        return "persistent_store" if author not in active else "live_route"
+
+    def authorize_stored_delivery(self, consumer_id, ref, expected_stamp):
+        if expected_stamp != self.stamp():
+            raise ValueError("stale_stored_delivery")
+        if self.objects[ref.key]["writer"] in {a.agent_id for a in self.graph.agents}:
+            raise ValueError("stored_transport_requires_retired_author")
+        if self.check_delivery(consumer_id, ref) != "persistent_store":
+            raise PermissionError("stored_delivery_denied")
 
     def record_flow(self, kind, **data):
-        row = {"flow_sequence": len(self.flow_events)+1, "flow_kind": kind, **data}
+        row={"flow_sequence":len(self.flow_events)+1,"flow_kind":kind,**data}
         self.flow_events.append(row)
-        self.controller.trace.log("information_flow", **row)
+        self.trace.log("information_flow",**row)
         return row
 
-    def deliver_object(self, consumer, object_id):
-        """Persistent object store can deliver retired authors' artifacts under ACL."""
-        self.graph.agent(consumer)
-        if (consumer, object_id) not in self.graph.object_access:
-            raise PermissionError("object_access_denied")
-        obj = self.objects[object_id]
-        writer = obj["writer"]
-        active = {a.agent_id for a in self.graph.agents}
-        transport = "live_route" if writer in active else "persistent_store"
-        trusted_goal = self.controller.provenance.items[object_id].trust == "trusted_task"
-        if trusted_goal:
-            transport = "trusted_goal_control"
-        if not trusted_goal and writer in active and writer != consumer and (writer,consumer) not in self.graph.extra_edges:
-            raise PermissionError("object_delivery_route_denied")
-        receipt = (consumer, object_id, obj["version"])
-        if receipt in self.receipts:
-            return None
-        self.receipts.add(receipt)
-        self.record_flow("object_delivered", instance_id=consumer, object_id=object_id,
-                         author_instance_id=writer, transport=transport)
-        self.controller.trace.log("runtime_object_delivered", agent_id=consumer, object_id=object_id,
-                                  object_version=obj["version"], author_instance_id=writer,
-                                  transport=transport, graph_version=self.graph.version)
-        return self.controller.provenance.items[object_id].text
-
     def record_submission(self, instance_id, activation_id, object_ids, request_id):
-        self.exposures.setdefault(instance_id, set()).update(object_ids)
-        repeated = 0
-        for key in object_ids:
-            version = self.objects[key]["version"]
-            identity = (instance_id,key,version)
-            if identity in self.submitted_component_versions:
-                repeated += len(self.controller.provenance.items[key].text)
-            self.submitted_component_versions.add(identity)
-        self.controller.observed_repeated_object_chars += repeated
-        self.record_flow("model_submitted", instance_id=instance_id, activation_id=activation_id,
-                         object_ids=tuple(object_ids), request_id=request_id,
-                         repeated_object_characters=repeated)
-
-    def bind_output(self, task_id, slot, object_id, check):
-        if object_id not in self.objects or self.objects[object_id]["task_id"] != task_id:
-            raise ValueError("output_binding_requires_actual_producer")
-        if check["checker"] == "artifact_schema_not_semantic_truth":
-            if check.get("artifact_schema_valid") is not True:
-                raise ValueError("output_binding_requires_explicit_schema_check")
-            if (check.get("semantic_verified") != "unknown" or
-                    check.get("legitimate_task_completed") != "unknown"):
-                raise ValueError("schema_checker_cannot_assert_semantic_or_task_completion")
-        self.bindings[(task_id, slot)] = object_id
-        self.checks[object_id] = check
-        self.record_flow("output_checked", object_id=object_id, task_id=task_id,
-                         output_slot=slot, check=check)
+        self.exposures.setdefault(instance_id,set()).update(object_ids)
+        self.record_flow("model_submitted",instance_id=instance_id,activation_id=activation_id,
+                         object_ids=tuple(object_ids),request_id=request_id)

@@ -38,7 +38,7 @@ def test_deepseek_fixed_route_history_usage_and_tool_parse(monkeypatch):
     assert seen[0]["messages"] == history
     assert seen[0]["extra_body"] == {"thinking": {"type": "disabled"}}
     assert seen[0]["temperature"] == 0
-    assert seen[0]["timeout"] == 45
+    assert "timeout" not in seen[0]
     assert parse_tool_calls(result) == [("call_1", "read_file", {"key": "A"})]
     assert budget.requests == 1 and budget.input_tokens == 12 and budget.output_tokens == 7
     with pytest.raises(RuntimeError, match="request budget"):

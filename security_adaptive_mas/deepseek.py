@@ -21,8 +21,7 @@ class DeepSeekSettings:
     max_output_tokens: int = 4096
     temperature: float = 0.0
     thinking: str = "disabled"
-    timeout_seconds: float = 45.0
-    max_attempts: int = 2
+    max_attempts: int = 1
 
     def __post_init__(self) -> None:
         if self.thinking != "disabled":
@@ -159,7 +158,7 @@ class DeepSeekClient:
                       api_key=api_key, messages=messages,
                       temperature=self.settings.temperature,
                       max_tokens=self.settings.max_output_tokens,
-                      timeout=self.settings.timeout_seconds, num_retries=0,
+                      num_retries=0,
                       extra_body={"thinking": {"type": self.settings.thinking}})
         if tools is not None:
             kwargs["tools"] = tools
@@ -171,6 +170,13 @@ class DeepSeekClient:
             if prepared is not None and input_components is None:
                 input_components = prepared
         prepared_id = uuid4().hex
+        from pathlib import Path
+        io_dir = Path(self.budget.trace.path).parent / "model_io"
+        io_dir.mkdir(exist_ok=True)
+        (io_dir / (prepared_id + "_request.json")).write_text(json.dumps({
+            "messages": messages, "tools": tools, "response_format": response_format,
+            "components": input_components, "purpose": purpose, "instance_id": instance_id,
+            "activation_id": activation_id}, ensure_ascii=False, default=str), encoding="utf-8")
         self.budget.trace.log("model_input_prepared", purpose=purpose,
                               prepared_id=prepared_id, instance_id=instance_id, activation_id=activation_id,
                               prepared_input_components=input_components,
@@ -193,6 +199,9 @@ class DeepSeekClient:
             started = time.monotonic()
             try:
                 response = completion_fn(**kwargs)
+                (io_dir / (prepared_id + f"_{attempt}_response.json")).write_text(
+                    response.model_dump_json() if hasattr(response, "model_dump_json") else
+                    json.dumps(response, default=lambda o: vars(o), ensure_ascii=False), encoding="utf-8")
                 self.budget.after_response(response.usage, time.monotonic() - started, purpose=purpose)
                 self.budget.trace.log("model_response_received", request_id=prepared_id+":"+str(attempt),
                     purpose=purpose, instance_id=instance_id, activation_id=activation_id,

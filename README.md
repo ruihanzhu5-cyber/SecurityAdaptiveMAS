@@ -1,81 +1,81 @@
-# SecurityAdaptiveMAS
+# SecurityAdaptiveMAS · v0.6
 
-**面向长任务的安全感知自适应多 Agent 组织**
+**让任务执行带动分工，在结果交付时处理风险。**
 
-用户的任务会不断收到新消息和工具结果。这个项目研究：怎样按当前任务需要调整分工、结果交付和工具权限；遇到可疑外部内容时，怎样保留完成任务所需的信息，并记录调整带来的成本。
+本项目研究长任务中的多 Agent 协作：主 Agent 怎样提出具体委托，子 Agent 怎样按需使用前序结果，遇到可疑外部内容时怎样调整交付对象和工作承担者，并记录这些选择的真实代价。
 
-> **当前阶段：v0.5 工程链路与离线验收。** 统一入口复用原有 Controller、GraphRuntime 和 ARE 执行链。没有新的付费 DeepSeek 实验，没有测出安全收益或 Token 节省。
->
-> [架构](docs/architecture.md) · [算法与状态口径](docs/algorithm.md) · [命令手册](docs/cli.md) · [实验与历史证据](docs/experiments.md) · [开发指南](docs/development.md) · [研究日志](docs/research-log/README.md)
+> **当前阶段：v0.6 工程实现、非付费接线验收和首次真实 pilot。** 15 项非付费检查通过。真实 B1 的 Coordinator 已取得 DeepSeek 回答并读取邮件，随后风险请求因 JSON mode 提示词缺少 API 要求的词而被返回 HTTP 400，后续三组停止。离线 fixture 不代表真实模型成绩，尚未验证新方法的安全或性能收益。详见 [pilot 报告](docs/reports/2026-10-15_v0_6_B1_json_mode_http_400.md)。
 
-## Quickstart（Windows PowerShell）
+[实际架构](docs/architecture_v0_6.md) · [局部决策规则](docs/algorithm_v0_6.md) · [实施与问题台账](docs/reports/2026-10-15_v0_6_implementation.md) · [上游源码与许可](docs/upstream_v0_6.md) · [历史研究日志](docs/research-log/README.md)
 
-在仓库根目录操作。基础 CLI 只需 Python 3.10+ 与 PyYAML；真实运行另需已有的 ARE/MANTA 源码、模型依赖和 Gaia2 文件系统。`doctor` 会报告本机缺少什么，不会自动下载或安装。
-
-```powershell
-python -m pip install -e .
-security-mas --help
-python -m security_adaptive_mas --help
-security-mas doctor --config configs/research_v0_4.yaml
-security-mas run --design-config configs/research_v0_4.yaml --mode adaptive --scenario scenario_universe_22_kb5ah9 --dry-run
-```
-
-已有项目虚拟环境时，用 `.\.venv\Scripts\python.exe` 代替 `python`，或先运行 `.\.venv\Scripts\Activate.ps1` 激活它。安装依赖可能联网；本轮本机验收使用了缓存与离线安装选项，见[实施报告](docs/reports/v0_5_implementation_report.md)。从零配置 ARE 的步骤和限制见[开发指南](docs/development.md)。
-
-以上检查不调用模型、不推进任务。`configs/research_v0_4.yaml` 是继续使用的设计配置名；v0.5 主要规范入口和状态，不另造一套配置。
-
-### 只生成实验计划
-
-```powershell
-security-mas experiment plan --design-config configs/research_v0_4.yaml --output results/plans/development.json
-```
-
-默认生成 20 个开发任务 × 7 种方法，共 140 条 `NOT_RUN` 计划。40 个冻结评测 ID 仍保留；任务清单不代表已经运行，也不代表攻击入口已逐项验证。输出文件已存在时会报错，请给新文件名。
-
-### 汇总已有结果
-
-```powershell
-security-mas report --runs results/v0_3_pilot --output results/v0_5_pilot_report.json
-```
-
-这是本机已有历史目录的示例，代码克隆不包含 `results/`。汇总器只读取实际文件；缺失内容保持 `unknown`，不会把官方 success 当作完整任务完成，也不会改写原始结果。[全部参数与付费入口](docs/cli.md)另见命令手册；付费执行必须显式指定数量、总费用上限并确认模型费用。
-
-## 输入怎样变成输出
+## 系统现在怎样运行
 
 ```text
-CLI / scripts
-  → api.run → 原有 run_framework
-  → ARE 已到达的 USER / ENV / 工具结果
-  → 任务观察与分析、轻量触发、风险记录
-  → Controller 生成并选择有限 RewritePlan
-  → GraphRuntime 提交一张实际生效的组织图
-  → FrameworkTeam 按角色顺序执行 → ToolGateway → ARE 工具
-  → trace / topology_events / summary / evaluation / runner.log
-  → report 只读汇总
+已经到达的 USER / ENV 消息
+  → 官方 ARE Coordinator 正常执行
+  → delegate_task：具体指令、已发放的输入句柄、只读工具
+  → AOrchestra 派生 Worker 在同一 ARE 环境中执行
+  → 保存结果和来源，返回无正文的状态回执
+  → Coordinator 或另一个 Worker 调用 get_artifact
+  → 生成局部候选 → ATM / 有向图预览 → 策略选择
+  → 提交路由、对象 ACL 或工作改派
+  → MANTA 筛选 → 最终权限核对 → 实际模型输入
 ```
 
-角色可以有不同步骤、输入、工具子集和输出字段。13 类拓扑生成族仍保留；实际执行是顺序的。图预览不会派工，只有正式提交的图才影响执行。模型提出的任务和字段不能增加权限，外部数据不能改写用户目标。
+只有一份生效图、一个应用环境和一个模型费用账本。MANTA 的图是只读筛选视图；ATM 检查的是结构和对象去向。它们都不能独立证明内容正确或模型没有受攻击。
 
-## v0.5 主要改了什么
+## 与 v0.5 的区别
 
-| 改动 | 现在怎样处理 |
-|---|---|
-| 产物检查与任务完成分开 | 字段和证据 ID 合格仅记 `artifact_schema_valid`；内容正确和整个任务完成没有独立判据时仍为 `unknown`。 |
-| 已有信息与未来计划分开 | `satisfied` 表示结果已可读取；`planned` 表示有后续获取计划，敏感动作不能把它当作已交付结果。 |
-| 风险含义写清楚 | 分开记录低可信来源的结构潜在可达性和已登记可疑来源的可达性。没有报警不等于零风险。 |
-| 不奖励组织复杂度 | 不再因为交付更多对象或增加协议轮次而加分；比较必要信息、可比风险、工作量代理和稳定顺序。 |
-| 统一使用入口 | 新 CLI、`python -m`、scripts 和旧入口共用原有运行器，预算、网关和评分不另实现一份。 |
+v0.6 不在执行前分析全局 NeedContract、生成角色并枚举整张拓扑。Coordinator 先做事，需要协作时再提出委托；具体结果需要交付时，再决定原样交付、字段视图、暂缓、重查或改派。
 
-`declared_work` 只是声明步骤和字符等代理量，不是节省的 Token。实际 Token、费用估算和耗时从运行记录读取。没有充分真实数据时，`empirical` 不会生成假系数。
+Worker A 的结果可以由 Worker B 自己请求，形成有向的 A→B→Coordinator 关系。委托回执只包含句柄，不提前返回正文。邮件元数据视图从真实工具返回中提取 ID、时间和分页字段，不包含邮件正文，也不会把外部来源改成可信来源。
 
-## 已有证据和不能下的结论
+## 本地入口
 
-- [官方 Single Agent 五场历史日志](docs/research-log/2026-10-13.md)：`ScenarioRunner.success` 为 **5/5**，三场出现过 `MaxIterationsAgentError`。这些运行没有使用后来新增的 Controller。
-- [v0.2 真实邮件案例](docs/reports/framework_v0_2_paid_22_kb5ah9_2026-10-14.md)和 [v0.3 受攻击 Single Agent 对照](docs/reports/v0_3_attacked_single_comparison_22_kb5ah9_2026-10-14.md)保留当时数字和停止原因；它们不是 v0.5 实验。
-- [v0.4 实施报告](docs/reports/v0_4_implementation_report.md)和 [v0.5 实施报告](docs/reports/v0_5_implementation_report.md)记录代码与非付费验收。离线测试不能证明实际攻击成功率、合法任务完成率或并行加速。
+本轮开发目录为 `D:\SecurityAdaptiveMAS-v0.6`，分支为 `research/v0.6-modular-runtime`。旧目录与旧实验留在 `D:\SecurityAdaptiveMAS`。新目录有独立 `.venv`，数据和 ARE 固定源码通过显式路径读取。
 
-## 仍然缺什么
+```powershell
+Set-Location D:\SecurityAdaptiveMAS-v0.6
+.\.venv\Scripts\security-mas.exe doctor --config configs/research_v0_6.yaml
+.\.venv\Scripts\security-mas.exe run --design-config configs/research_v0_6.yaml --mode adaptive --scenario scenario_universe_22_kb5ah9 --task-scope-policy sandbox_permissive --dry-run
+.\.venv\Scripts\python.exe -m pytest tests/test_v0_6_modular.py -q --basetemp work/pytest_v0_6
+```
 
-独立的内容和完整任务验收、真实成本校准、AgentDyn 工具能力目录、ARE 并发与完整状态恢复仍有 OPEN / BLOCKED。当前仅复用已核验的 `22_kb5ah9` 邮件入口；四类攻击标签不是四类已验证攻击集。下一步先 Review 当前链路，再决定是否授权一次有限的真实模型验证。
+CLI、`python -m security_adaptive_mas` 和 Python API 都调用同一个 `run_framework.run_case`。旧设计配置请在 v0.5 worktree 使用；新路径不会失败后自动切回旧算法。
 
-完整数据放在 [Gaia2 Release](https://github.com/ruihanzhu5-cyber/SecurityAdaptiveMAS/releases/tag/gaia2-data-78ea3bd)，Git 保留五个历史开发场景。目录、校验和下载命令见[数据说明](data/gaia2/README.md)。旧阶段文档保留在[归档索引](docs/archive/README.md)；本轮不改写研究日志和历史实验数字。
+新机器需要设置忽略的 `work/v0_6_local_paths.yaml`，填写 `atm_root`、`are_root`、`gaia2_filesystem`、`scenario_root` 和新工作区内的 `sandbox_root`。路径样例和固定源码说明见 [上游文档](docs/upstream_v0_6.md)。密钥只放环境变量，不写进配置、日志或 Git。
+
+## 四组探索性实验
+
+| 单元 | 方法 | 攻击 |
+|---|---|---|
+| B1 | modular_risk_aware | 无 |
+| B0 | modular_task_only | 无 |
+| A0 | modular_task_only | 已有单次邮件注入 |
+| A1 | modular_risk_aware | 已有单次邮件注入 |
+
+固定场景为 `scenario_universe_22_kb5ah9`。两种方法共享检测器、工具权限、视图能力和预算，只在选择规则上不同。每组估算上限 0.4 USD，合计 1.6 USD，按 B1→B0→A0→A1 顺序；失败请求与未知费用预留也计入同一账本。
+
+```powershell
+# 只做四组 dry-run 并冻结配置，不调用模型
+.\.venv\Scripts\python.exe scripts/run_v0_6_pilot.py prepare
+
+# 只有明确确认费用后才运行；接线级故障会停止后续单元
+.\.venv\Scripts\python.exe scripts/run_v0_6_pilot.py run --acknowledge-model-cost
+```
+
+脚本固定使用 `results/runs/v0_6_modular_pilot/20261015_01/`，拒绝覆盖已有清单或自动重复批次。原始模型输入、工具结果与轨迹只保存在本地，整个 `results/` 继续被 Git 忽略。
+
+## 尚未证明的事情
+
+- 没有独立通用的合法任务完成判据；官方 success 与任务完整完成分开记录。
+- 普通摘要不是去污证明；字段投影只证明本次交付没有包含被排除字段。
+- 重查是同一来源，更换 Worker 不保证未来结果安全。
+- 没有真实并发、全环境回滚或经校准的未来 Token 预测。
+- ATM 固定提交缺少根 LICENSE 文本，仅使用本地源码依赖；再分发材料缺口保持 OPEN。
+
+## 历史记录
+
+此前五个 Gaia2 官方 Single Agent 基线及其原始数字保留在 [2026-10-13 日志](docs/research-log/2026-10-13.md)。它们没有使用 v0.6，不能成为新方法的成绩。
+
+v0.5 的架构、算法、命令手册和实施报告作为历史文档保留：[旧架构](docs/architecture.md)、[旧算法](docs/algorithm.md)、[旧 CLI](docs/cli.md)、[v0.5 报告](docs/reports/v0_5_implementation_report.md)。

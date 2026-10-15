@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from .organization_contracts import load_design
+from .orchestration.configuration import load_design
 
 
 def load_configuration(path):

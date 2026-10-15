@@ -22,7 +22,8 @@ def summarize(run_path):
     row = read_result(source)
     scoring = row.get("attack_scoring") or {}
     files = {name: (source.parent / name).is_file() for name in (
-        "run_config.json", "framework_trace.jsonl", "topology_events.jsonl", "summary.json", "evaluation.json", "runner.log")}
+        "run_config.json", "framework_trace.jsonl", "topology_events.jsonl", "summary.json", "evaluation.json", "runner.log",
+        "delegation_events.jsonl", "delivery_events.jsonl", "reconfiguration_events.jsonl", "artifact_index.json")}
     trace_path = source.parent / "framework_trace.jsonl"
     events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()] if files["framework_trace.jsonl"] else None
     patches = ([event for event in events if event["kind"] == "topology_patch_applied"]
@@ -53,7 +54,7 @@ def summarize(run_path):
         "unknown_cost_bound": row.get("unknown_cost_bound", "unknown"),
         "cost_scope": "historical_rate_estimate_not_provider_bill",
         "wall_time_seconds": row.get("wall_time_seconds", "unknown"),
-        "candidate_decisions": sum(e["kind"] == "joint_decision" for e in events) if events is not None else "unknown",
+        "candidate_decisions": sum(e["kind"] in {"joint_decision", "candidates_evaluated"} for e in events) if events is not None else "unknown",
         "effective_graph_patches": sum(e["graph_version"] != e["previous_version"] for e in patches) if patches is not None else row.get("effective_graph_patches", "unknown"),
         "effective_reconfigurations": row.get("effective_reconfigurations", "unknown"),
         "files_present": files, "raw_attack_scoring": scoring,
