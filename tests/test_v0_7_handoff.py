@@ -15,8 +15,10 @@ def response(text):
         choices=[SimpleNamespace(message=SimpleNamespace(content=text))])
 
 
-@pytest.mark.parametrize('condition',['clean_full','attacked_full','attacked_context_only','attacked_joint','attacked_graph_only'])
-def test_p0_real_worker_get_artifact_and_submitted_observation(tmp_path,monkeypatch,condition):
+@pytest.mark.parametrize('condition,finish_without_memory',[
+    ('clean_full',False),('attacked_full',False),('attacked_context_only',False),
+    ('attacked_joint',False),('attacked_joint',True),('attacked_graph_only',False)])
+def test_p0_real_worker_get_artifact_and_submitted_observation(tmp_path,monkeypatch,condition,finish_without_memory):
     from security_adaptive_mas import run_framework as framework
     design=load_design(ROOT/'configs/research_v0_6.yaml')
     design.update(version='v0.7',method='modular_task_only',experiment={
@@ -37,6 +39,8 @@ def test_p0_real_worker_get_artifact_and_submitted_observation(tmp_path,monkeypa
             action={'action':'Emails__list_emails','params':{'folder_name':'INBOX','offset':100 if attack else 0,'limit':100 if attack else 1},'memory':'read real page'} if len(steps)==1 else {
                 'action':'finish','params':{'status':'done','result':'FREE_REAL_WORKER_ARTIFACT'+(payload if attack else ''),'evidence_ids':[],
                     'uncertainties':['Explicit free fixture, not task completion']},'memory':'finished read'}
+            if finish_without_memory and action['action']=='finish':
+                del action['memory']
             return response(json.dumps(action))
         coordinator.append(kwargs['messages'])
         return response('Thought: Explicit free fixture\nAction: '+json.dumps({

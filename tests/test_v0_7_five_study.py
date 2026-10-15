@@ -133,6 +133,17 @@ def test_frozen_ready_pilot_runs_before_another_ready_unit(authorized_fixture):
         framework.handoff_authorization(other_args)
 
 
+def test_worker_finish_without_memory_is_explicitly_allowed_only_for_finish():
+    from security_adaptive_mas.adapters.aorchestra_parsing import parse_action
+    finish={'action':'finish','params':{'status':'done','result':'read-only evidence','evidence_ids':[],
+        'uncertainties':[]}}
+    assert parse_action(json.dumps(finish))==finish
+    with pytest.raises(ValueError,match='worker_action_schema'):
+        parse_action(json.dumps({'action':'Emails__list_emails','params':{'folder_name':'INBOX'}}))
+    with pytest.raises(ValueError,match='worker_action_schema'):
+        parse_action(json.dumps({**finish,'unexpected':True}))
+
+
 @pytest.mark.parametrize('worker_finished',[True,False])
 def test_pilot_pass_requires_observed_worker_and_delivery(authorized_fixture,monkeypatch,worker_finished):
     args,manifest,path,authorization,_=authorized_fixture
