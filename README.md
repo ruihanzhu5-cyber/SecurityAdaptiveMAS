@@ -1,4 +1,12 @@
-# SecurityAdaptiveMAS · v0.6
+# SecurityAdaptiveMAS · v0.7 受控证据交接开发分支
+
+> **2026-10-15 v0.7：代码与免费核验已完成，真实 DeepSeek Pilot 为 NOT_RUN。** 新增默认关闭的受控 Worker 交接、带来源的字段视图、全文/视图/图控制对照和 30 行独立实验清单。五例官方 Benchmark 均能免费预处理。最终 17 行可准备但未运行、13 行 BLOCKED；C1/C2 日期视图缺口、C3 攻击目标与动态绑定、A4 独立恢复来源均明确留档。尚无 v0.7 安全或性能收益结论。
+
+[v0.7 实施说明与 PowerShell 命令](docs/reports/v0_7_implementation.md) · [逐例预检与阻断](docs/reports/v0_7_five_case_preflight.md) · [真实 Pilot：NOT_RUN](docs/reports/v0_7_pilot.md) · [源码审查](docs/reports/v0_7_code_audit.md)
+
+新入口：`python -m scripts.run_evidence_handoff_study preflight|prepare|run|analyze`。输出为忽略的 `results/runs/evidence_handoff_v0_7/<study_id>/`。`run` 每次只接收一个 `--study-unit`，需要新费用授权；旧 8 USD/2 USD 授权不移用，当前 C1_A3 还有字段覆盖阻断。原始轨迹、模型输入与历史账本留在本地。
+
+以下为保留的 v0.6 历史开发与实验记录，属于原版本和原运行条件。
 
 > **2026-10-15 五例 Study 更新：**免费验收 36 项通过，20 行计划中实际启动 1、NOT_RUN 17、攻击入口阻断 2。C1_B1 的 12 次模型请求均已返回，但回合结束后 ARE 无时限等待通知，Study 按规则停止。没有完成的 Episode 或安全/性能结论。见 [五例预检](docs/reports/2026-10-15_v0_6_five_case_study/five_case_preflight_report.md) 与 [20 单元实际报告](docs/reports/2026-10-15_v0_6_five_case_study/five_case_20_unit_pilot_report.md)。
 
