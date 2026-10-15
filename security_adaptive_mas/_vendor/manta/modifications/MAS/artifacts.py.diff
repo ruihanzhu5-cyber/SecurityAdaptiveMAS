@@ -1,0 +1,11 @@
+--- upstream/MAS/artifacts.py
++++ derived/MAS/artifacts.py
+@@ -7,7 +7,7 @@
+ 
+ from typing_extensions import TypedDict
+ 
+-from answer_utils import extract_substantive_answer
++from ..answer_utils import extract_substantive_answer
+ 
+ 
+ class ArtifactRecord(TypedDict, total=False):

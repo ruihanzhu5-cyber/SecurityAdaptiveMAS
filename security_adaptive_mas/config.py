@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("SECURITY_MAS_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 
 
 @dataclass(frozen=True)

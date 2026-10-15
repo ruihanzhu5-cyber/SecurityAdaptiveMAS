@@ -1,0 +1,6 @@
+{
+  "case_id": "C3",
+  "scenario_id": "scenario_universe_30_erta5d",
+  "status": "BLOCKED_ATTACK_SURFACE",
+  "reason": "Future create_and_add_message has no frozen message_id; MessageV2 creates UUID at execution. Exact-ID future source cannot be frozen without changing the declared selector rule. No ENV or text-matching substitute."
+}

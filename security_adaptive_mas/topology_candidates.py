@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from typing import Protocol
+import itertools
+import math
+import random
 
 from .online_task import TaskAnalysis
 
@@ -200,3 +203,157 @@ class TopologySelector:
             return None
         best = max(estimates, key=lambda item: (item.benefit, -item.communication_edges, -item.agent_count))
         return next(candidate for candidate in candidates if candidate.candidate_id == best.candidate_id)
+
+
+TOPOLOGY_FAMILIES = ("singleton", "star", "directed_chain", "fork_join", "hierarchical_tree",
+                     "ring", "fully_connected", "diamond", "clustered", "small_world",
+                     "hub_biased", "geometric_delaunay", "task_dag")
+
+
+def generate_edges(family, members, *, assignments, dependencies, parameters, seed):
+    """Explicit directed structures; at most eight nodes. No template substitution."""
+    from .organization_contracts import UnsupportedDesign
+    if family not in TOPOLOGY_FAMILIES:
+        raise ValueError(f"unknown_topology:{family}")
+    ids = tuple(members)
+    n = len(ids)
+    if len(set(ids)) != n or not 1 <= n <= 8:
+        raise ValueError("invalid_topology_members")
+    rng = random.Random(seed)
+    edges = set()
+    def both(a, b):
+        edges.update(((a, b), (b, a)))
+    if family == "singleton":
+        if n != 1:
+            raise UnsupportedDesign("singleton_requires_one_instance")
+    elif n < 2:
+        raise UnsupportedDesign(f"{family}_requires_multiple_instances")
+    elif family == "star":
+        center = "agent_0" if "agent_0" in ids else ids[0]
+        for node in ids:
+            if node != center:
+                both(center, node)
+    elif family == "directed_chain":
+        edges.update(zip(ids, ids[1:]))
+    elif family in {"fork_join", "diamond"}:
+        if n < 4:
+            raise UnsupportedDesign(f"{family}_requires_at_least_four_instances")
+        branches = ids[1:-1] if family == "fork_join" else ids[1:3]
+        for node in branches:
+            edges.update(((ids[0], node), (node, ids[-1] if family == "fork_join" else ids[3])))
+        if family == "diamond":
+            edges.update(zip(ids[3:], ids[4:]))
+    elif family == "hierarchical_tree":
+        ordered = ("agent_0",) + tuple(x for x in ids if x != "agent_0") if "agent_0" in ids else ids
+        for index in range(1, n):
+            both(ordered[(index - 1) // 2], ordered[index])
+    elif family == "ring":
+        edges.update((node, ids[(index + 1) % n]) for index, node in enumerate(ids))
+    elif family == "fully_connected":
+        edges.update((a, b) for a in ids for b in ids if a != b)
+    elif family == "clustered":
+        size = parameters.get("cluster_size", 2)
+        if type(size) is not int or size < 2:
+            raise ValueError("invalid_cluster_size")
+        groups = [ids[i:i+size] for i in range(0, n, size)]
+        for group in groups:
+            edges.update((a, b) for a in group for b in group if a != b)
+        for left, right in zip(groups, groups[1:]):
+            both(left[-1], right[0])
+    elif family == "small_world":
+        if n < 4:
+            raise UnsupportedDesign("small_world_requires_four_instances")
+        k, p = parameters.get("neighbors", 2), parameters.get("shortcut_probability", .25)
+        if type(k) is not int or not 1 <= k < n or not 0 <= p <= 1:
+            raise ValueError("invalid_small_world_parameters")
+        for i, node in enumerate(ids):
+            for offset in range(1, k+1):
+                edges.add((node, ids[(i+offset) % n]))
+            if rng.random() < p:
+                choices = [x for x in ids if x != node and (node, x) not in edges]
+                if choices:
+                    edges.add((node, rng.choice(choices)))
+    elif family == "hub_biased":
+        both(ids[0], ids[1])
+        degree = {ids[0]: 1, ids[1]: 1}
+        for node in ids[2:]:
+            parent = rng.choices(list(degree), weights=[v+1 for v in degree.values()])[0]
+            both(parent, node)
+            degree[parent] += 1
+            degree[node] = 1
+    elif family == "geometric_delaunay":
+        if n < 3:
+            raise UnsupportedDesign("delaunay_requires_three_noncollinear_points")
+        points = parameters.get("coordinates")
+        points = [(rng.random(), rng.random()) for _ in ids] if points is None else points
+        if len(points) != n or any(len(p) != 2 or not all(math.isfinite(x) for x in p) for p in points):
+            raise ValueError("invalid_delaunay_coordinates")
+        # Exhaustive empty-circumcircle algorithm is bounded (C(8,3) triples).
+        triangles = 0
+        for a, b, c in itertools.combinations(range(n), 3):
+            ax, ay = points[a]; bx, by = points[b]; cx, cy = points[c]
+            determinant = 2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by))
+            if abs(determinant) < 1e-12:
+                continue
+            aa, bb, cc = ax*ax+ay*ay, bx*bx+by*by, cx*cx+cy*cy
+            ux = (aa*(by-cy)+bb*(cy-ay)+cc*(ay-by))/determinant
+            uy = (aa*(cx-bx)+bb*(ax-cx)+cc*(bx-ax))/determinant
+            radius = (ux-ax)**2+(uy-ay)**2
+            distances = [(ux-x)**2+(uy-y)**2-radius for j,(x,y) in enumerate(points) if j not in (a,b,c)]
+            if any(abs(d) < 1e-12 for d in distances):
+                raise UnsupportedDesign("delaunay_cocircular_coordinates_require_explicit_perturbation")
+            if all(d > 0 for d in distances):
+                triangles += 1
+                for i,j in ((a,b),(b,c),(a,c)):
+                    both(ids[i], ids[j])
+        if not triangles:
+            raise UnsupportedDesign("delaunay_collinear_coordinates")
+    elif family == "task_dag":
+        for dependency in dependencies:
+            if dependency.certainty.value == "unknown":
+                raise UnsupportedDesign("task_dag_has_unknown_dependency")
+            if dependency.predecessor_id == "root":
+                continue
+            a, b = assignments[dependency.predecessor_id], assignments[dependency.successor_id]
+            if a != b:
+                edges.add((a,b))
+        producers = {a for a,b in edges}
+        if "agent_0" in ids:
+            edges.update((a,"agent_0") for a in ids if a != "agent_0" and a not in producers)
+    return tuple(sorted(edges))
+
+
+def compile_activations(role_specs, dependencies, edges, protocol, rounds, plan_id):
+    from .organization_contracts import Activation, UnsupportedDesign
+    owners = {role.task_id: instance for instance, role in role_specs}
+    tasks = tuple(owners)
+    prerequisites = {task: set() for task in tasks}
+    for dependency in dependencies:
+        if dependency.successor_id not in owners or dependency.predecessor_id == "root":
+            continue
+        if dependency.certainty.value == "unknown":
+            raise UnsupportedDesign("activation_has_unknown_dependency")
+        if dependency.predecessor_id not in owners:
+            raise UnsupportedDesign("activation_provider_not_in_plan")
+        a,b = owners[dependency.predecessor_id], owners[dependency.successor_id]
+        if a != b and (a,b) not in edges:
+            raise UnsupportedDesign("topology_cannot_deliver_dependency")
+        prerequisites[dependency.successor_id].add(dependency.predecessor_id)
+    ordered = []
+    remaining = set(tasks)
+    while remaining:
+        ready = sorted(t for t in remaining if prerequisites[t] <= set(ordered))
+        if not ready:
+            raise ValueError("activation_dependency_cycle")
+        ordered.extend(ready)
+        remaining.difference_update(ready)
+    count = 1 if protocol == "dependency_schedule" else 2 if protocol == "one_round_exchange" else rounds
+    activations = []
+    for round_index in range(count):
+        for task in ordered:
+            before = [f"{plan_id}:{round_index}:{t}" for t in prerequisites[task]]
+            if round_index:
+                before.extend(a.activation_id for a in activations if a.round_index == round_index-1)
+            activations.append(Activation(f"{plan_id}:{round_index}:{task}", owners[task], task,
+                                          round_index, tuple(before)))
+    return tuple(activations)

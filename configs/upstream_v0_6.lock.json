@@ -1,0 +1,230 @@
+{
+  "manta": {
+    "repository": "mao-code/MANTA",
+    "revision": "3da40879d690a25459cc401292e5c6f0cc366d84",
+    "source_root": "D:\\SecurityAdaptiveMAS\\work\\mao-code-MANTA-3da4087",
+    "files": [
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\mao-code-MANTA-3da4087\\answer_utils.py",
+        "upstream_path": "answer_utils.py",
+        "git_blob_sha": "e4d8926909eed2a7473f31fa699fd605b1d142ab",
+        "original_sha256": "21bd2a5610fca9ee2879c81640c415022cdb72534673beaca0358aed050db9b9",
+        "derived_path": "security_adaptive_mas/_vendor/manta/answer_utils.py",
+        "derived_sha256": "21bd2a5610fca9ee2879c81640c415022cdb72534673beaca0358aed050db9b9",
+        "modification_reason": "private import paths only"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\mao-code-MANTA-3da4087\\MAS\\artifacts.py",
+        "upstream_path": "MAS/artifacts.py",
+        "git_blob_sha": "361c99d19100a32ec7766b41edc56ca467bb5dd4",
+        "original_sha256": "642992ee8dee6c0f101345313491dc65c2ae2704d0ca0f0b16b330fbc18107cc",
+        "derived_path": "security_adaptive_mas/_vendor/manta/MAS/artifacts.py",
+        "derived_sha256": "84e2f25be4ae2263245c50c3904f267b6fbc5f0b93534580620554eb13b72797",
+        "modification_reason": "private import paths only"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\mao-code-MANTA-3da4087\\MAS\\relay.py",
+        "upstream_path": "MAS/relay.py",
+        "git_blob_sha": "e474eeb7e69655ee987604d337f610d1326bb1dc",
+        "original_sha256": "456b1f1a6350cac0617e2b70c2e003a77e8d77c3df9c4dfabd4045ddfb844605",
+        "derived_path": "security_adaptive_mas/_vendor/manta/MAS/relay.py",
+        "derived_sha256": "348f60f34f33c5abc7021305b2098ffd1c777853845acf0834edc11e125df8f1",
+        "modification_reason": "private import paths only"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\mao-code-MANTA-3da4087\\MAS\\self_evolved\\spec.py",
+        "upstream_path": "MAS/self_evolved/spec.py",
+        "git_blob_sha": "e081f40979db9352561780f716d746ac33d63b48",
+        "original_sha256": "1855d6b16c438ff61be096105a2089b7506960dcf620116fb2a03f4998d94422",
+        "derived_path": "security_adaptive_mas/_vendor/manta/MAS/self_evolved/spec.py",
+        "derived_sha256": "1855d6b16c438ff61be096105a2089b7506960dcf620116fb2a03f4998d94422",
+        "modification_reason": "private import paths only"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\mao-code-MANTA-3da4087\\MAS\\self_evolved\\context.py",
+        "upstream_path": "MAS/self_evolved/context.py",
+        "git_blob_sha": "7124060931ee77e1a94aec177ee16bfe94921cdc",
+        "original_sha256": "f5f0666d395ec7c45c1c16c5e8b3827d11d91576f5e75e2a29b3e08fa393219c",
+        "derived_path": "security_adaptive_mas/_vendor/manta/MAS/self_evolved/context.py",
+        "derived_sha256": "f5f0666d395ec7c45c1c16c5e8b3827d11d91576f5e75e2a29b3e08fa393219c",
+        "modification_reason": "private import paths only"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\mao-code-MANTA-3da4087\\LICENSE",
+        "upstream_path": "LICENSE",
+        "git_blob_sha": "340c4d41cb1e8e4a1298728346181c9cfd63e568",
+        "original_sha256": "32acc60c643de7d1c492359ea8c4201db0fce6063223718db94b15ef5b2f7fa4",
+        "derived_path": "security_adaptive_mas/_vendor/manta/LICENSE",
+        "derived_sha256": "32acc60c643de7d1c492359ea8c4201db0fce6063223718db94b15ef5b2f7fa4",
+        "modification_reason": "private import paths only"
+      }
+    ],
+    "license_status": "upstream_license_preserved"
+  },
+  "aorchestra": {
+    "repository": "FoundationAgents/AOrchestra",
+    "revision": "14a1a2051d6b03c479b706f8f555a60b8419e3b5",
+    "source_root": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\aorchestra",
+    "files": [
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\aorchestra\\aorchestra\\subagents\\react_agent.py",
+        "upstream_path": "aorchestra/subagents/react_agent.py",
+        "git_blob_sha": "a6e7da71d4a2203264639d35b846b054209b9470",
+        "original_sha256": "b498ccaa201260a0c3578e914eaf95af739fa133c53f4a2a6229668b41423bfb",
+        "derived_path": "security_adaptive_mas/_vendor/aorchestra/aorchestra/subagents/react_agent.py",
+        "derived_sha256": "0ea0520871c5dc73a8acb78279629f86f47fcb776b18c70013262fb122c0af39",
+        "modification_reason": "private imports; documented strict injected worker behavior"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\aorchestra\\base\\agent\\memory.py",
+        "upstream_path": "base/agent/memory.py",
+        "git_blob_sha": "a5c668261e1c53268177167fb722f54dbf6e0621",
+        "original_sha256": "91d2faf8a38f053e15201f1f7d64a114fc7cf0fb3ff048f59a1c73c43cb49e3c",
+        "derived_path": "security_adaptive_mas/_vendor/aorchestra/base/agent/memory.py",
+        "derived_sha256": "aaa190ce8c41d3fe9d568931931fd33cc4befd63ac869d9f9b76b32d5b1c8b1e",
+        "modification_reason": "private imports; documented strict injected worker behavior"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\aorchestra\\base\\agent\\base_agent.py",
+        "upstream_path": "base/agent/base_agent.py",
+        "git_blob_sha": "4868032859c146adb540ab0ff7c08d393855547f",
+        "original_sha256": "6da2583406eb56e41ddfcb2a6c7ca25c09a1cd714203beddf60dc71d200d7cef",
+        "derived_path": "security_adaptive_mas/_vendor/aorchestra/base/agent/base_agent.py",
+        "derived_sha256": "fa996e0d8b7cee5add4aad161fa044282577dee10aa118f411fc9cf1d2d3bf16",
+        "modification_reason": "private imports; documented strict injected worker behavior"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\aorchestra\\base\\agent\\base_action.py",
+        "upstream_path": "base/agent/base_action.py",
+        "git_blob_sha": "e44d70eeaeb832ed9c11a23cfd9a49c0c21185f8",
+        "original_sha256": "c4a57de62affa5a577ce9656c729bb23b91e958f61a1a01902bb1a5330995ab4",
+        "derived_path": "security_adaptive_mas/_vendor/aorchestra/base/agent/base_action.py",
+        "derived_sha256": "c4a57de62affa5a577ce9656c729bb23b91e958f61a1a01902bb1a5330995ab4",
+        "modification_reason": "private imports; documented strict injected worker behavior"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\aorchestra\\benchmark\\common\\env.py",
+        "upstream_path": "benchmark/common/env.py",
+        "git_blob_sha": "a68f47a931dc34472cd2f3ff58ffd6f7ad3a9b5f",
+        "original_sha256": "58ecfa761b67ebc2637982c90466f36d118c998f34d66c1eaabb2263a95a6dd6",
+        "derived_path": "security_adaptive_mas/_vendor/aorchestra/benchmark/common/env.py",
+        "derived_sha256": "58ecfa761b67ebc2637982c90466f36d118c998f34d66c1eaabb2263a95a6dd6",
+        "modification_reason": "private imports; documented strict injected worker behavior"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\aorchestra\\LICENSE",
+        "upstream_path": "LICENSE",
+        "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+        "original_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "derived_path": "security_adaptive_mas/_vendor/aorchestra/LICENSE",
+        "derived_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "modification_reason": "private imports; documented strict injected worker behavior"
+      }
+    ],
+    "license_status": "upstream_license_preserved"
+  },
+  "atm": {
+    "repository": "sidikbro/jiuwen_atm",
+    "revision": "951e9aa8c8421e8b8d59302ee4727cc855f84714",
+    "source_root": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm",
+    "files": [
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\jiuwen_atm\\safety\\capability_policy.py",
+        "upstream_path": "jiuwen_atm/safety/capability_policy.py",
+        "git_blob_sha": "bb043374f5ab46ae8d4a0116025a9737ba7ef93f",
+        "original_sha256": "f2bcc7a2865e4186de6fa4d39f68a82a18810a284256601290fc8f352d033d79"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\jiuwen_atm\\safety\\mutation_contract.py",
+        "upstream_path": "jiuwen_atm/safety/mutation_contract.py",
+        "git_blob_sha": "1c4332719286205bc8a89f86a72ce78dde24f2c2",
+        "original_sha256": "dbc11ffab513de4cdd74ee7d42b26a8a081cc6ff7f6bb85e4c80d1b4c44305ce"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\jiuwen_atm\\topology\\state_atoms.py",
+        "upstream_path": "jiuwen_atm/topology/state_atoms.py",
+        "git_blob_sha": "8f46e7ee9226b252dfa0b660817f56f552e4fc19",
+        "original_sha256": "d291b848d5badb46448fc69db69a98595df6a23173e931318884f5af2504421f"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\jiuwen_atm\\topology\\state_distiller.py",
+        "upstream_path": "jiuwen_atm/topology/state_distiller.py",
+        "git_blob_sha": "ca591900861f3a05c85edbc645854ec30558fdef",
+        "original_sha256": "e837130003dabf4f4a493b21071d93835a60e2847b00c471aaff3d8028aeb28e"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\jiuwen_atm\\__init__.py",
+        "upstream_path": "jiuwen_atm/__init__.py",
+        "git_blob_sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\jiuwen_atm\\safety\\__init__.py",
+        "upstream_path": "jiuwen_atm/safety/__init__.py",
+        "git_blob_sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\jiuwen_atm\\topology\\__init__.py",
+        "upstream_path": "jiuwen_atm/topology/__init__.py",
+        "git_blob_sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\README.md",
+        "upstream_path": "README.md",
+        "git_blob_sha": "6940cb2fe796865f68d5bf4ab40bcff057389459",
+        "original_sha256": "ae081e59a1de81bc68a21fdaf93015e53bb023fc76f57ad90e1097e507c349bd"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS-v0.6\\work\\upstream\\atm\\pyproject.toml",
+        "upstream_path": "pyproject.toml",
+        "git_blob_sha": "5bd88582df8add69be81c7d1aa0f790974b3b5e2",
+        "original_sha256": "8cd39664b45817592b25e1c4d62bc8ff18209fec53e389ce87b0ae3fc35c70b7"
+      }
+    ],
+    "license_status": "OPEN_missing_root_LICENSE_local_source_only"
+  },
+  "are": {
+    "repository": "facebookresearch/meta-agents-research-environments",
+    "revision": "a9fd2edccb4bc7e22fbf45c8482a5fef30a2a5a4",
+    "source_root": "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed",
+    "files": [
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\tools.py",
+        "upstream_path": "are/simulation/tools.py",
+        "git_blob_sha": "f71af236c61c520376ef8aa5e2da9baf9fc1d8c6",
+        "original_sha256": "ba32076c4ab3089ea64c0a6e83813af8e9f54dbcb11d2bf4aa96a4a6cb1cad7c"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\apps\\email_client.py",
+        "upstream_path": "are/simulation/apps/email_client.py",
+        "git_blob_sha": "3b9fb7925d14216dc0ec199f2ae3fe1b13fc2055",
+        "original_sha256": "8433c23097d0efa697bd1ddf802bcb85c1dae99004723dacdf85b14b6d31af51"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\agents\\default_agent\\base_agent.py",
+        "upstream_path": "are/simulation/agents/default_agent/base_agent.py",
+        "git_blob_sha": "60c1149457346b1a7a1dc6e948aa6ec4650cc04c",
+        "original_sha256": "c3cba7c3f02101315c65629cc7c4d6ca8927c847c8acd35b49fe08fd3e0f30ad"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\agents\\default_agent\\tools\\json_action_executor.py",
+        "upstream_path": "are/simulation/agents/default_agent/tools/json_action_executor.py",
+        "git_blob_sha": "6b948ab546c0a18cd507c3a34187147523534110",
+        "original_sha256": "7e8266edaa7683b7906cfa6f90b96494eed233f12ad42a924eb8e1db3c609030"
+      },
+      {
+        "source_path": "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\agents\\agent_log.py",
+        "upstream_path": "are/simulation/agents/agent_log.py",
+        "git_blob_sha": "764b2b33192ebeea530ada9ad38727bdd07f6cd8",
+        "original_sha256": "59f7f8013ef8f52940a3e9c141d477f6f597361ead4c19cc3ac1a3d5bcea5967"
+      }
+    ],
+    "license_status": "existing_dependency"
+  },
+  "own_base": {
+    "revision": "56a30e320eb1017e6fa5f2e66320977c3e6e2a97",
+    "repository": "ruihanzhu5-cyber/SecurityAdaptiveMAS"
+  }
+}

@@ -1,1 +1,6 @@
 configs/attack_payloads/*.txt -text
+
+# Preserve vendored bytes and upstream whitespace for fixed-hash verification.
+security_adaptive_mas/_vendor/** -text -whitespace
+
+configs/attack_cases_v0_6_five/*.txt -text

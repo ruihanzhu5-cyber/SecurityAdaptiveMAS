@@ -1,0 +1,23 @@
+name: Offline engineering checks
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  portable:
+    name: Portable v0.6 checks (no ARE integration)
+    runs-on: windows-latest
+    env:
+      DEEPSEEK_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m compileall -q security_adaptive_mas scripts
+      - run: security-mas --help
+      - run: python -m security_adaptive_mas --help
+      # doctor / ARE integration require the pinned LOCAL upstream paths. Their
+      # absence is explicitly tested as BLOCKED, never counted as integration success.
+      - name: Portable configuration, evaluation and study-stop contracts
+        run: python -m pytest -q -p no:cacheprovider tests/test_v0_6_portable.py
+      - run: python scripts/check_docs.py
+      - run: python -m ruff check security_adaptive_mas/api.py security_adaptive_mas/__main__.py security_adaptive_mas/cli scripts tests/test_v0_6_portable.py

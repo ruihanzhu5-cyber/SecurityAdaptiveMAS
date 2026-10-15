@@ -1,0 +1,439 @@
+diff --git a/scripts/preflight_v0_6_five_cases.py b/scripts/preflight_v0_6_five_cases.py
+index 82aedb4..b5e5547 100644
+--- a/scripts/preflight_v0_6_five_cases.py
++++ b/scripts/preflight_v0_6_five_cases.py
+@@ -1,13 +1,14 @@
+ """Five fixed scenarios: official imports and typed read probes, zero model calls."""
+ import argparse
+-from dataclasses import asdict
+ import hashlib
+ import json
++import traceback
+ from pathlib import Path
+ from types import SimpleNamespace
+ 
+ from security_adaptive_mas.config import ROOT
+-from security_adaptive_mas.are_adapter import import_official_scenario
++from security_adaptive_mas.are_adapter import import_official_scenario,import_benchmark_scenario
++from security_adaptive_mas.deepseek import DeepSeekClient,RunBudget
+ from security_adaptive_mas.orchestration.configuration import load_design,project_config
+ from security_adaptive_mas.security import SandboxPermissivePolicy
+ from security_adaptive_mas.attack import load_attack_spec,AttackOverlay,attack_target_state
+@@ -15,6 +16,39 @@ from security_adaptive_mas.trace import TraceLogger
+ from security_adaptive_mas.run_framework import save
+ 
+ 
++def benchmark_preflight(output,scenario_ids=None):
++    """Actual official reference preprocessing, never model calls or agent claims."""
++    output=Path(output);output.mkdir(parents=True,exist_ok=True)
++    design=load_design(ROOT/"configs/research_v0_6.yaml");config=project_config(design)
++    rows=json.loads((ROOT/"configs/five_manifest.json").read_text(encoding="utf-8"))
++    results=[]
++    def forbidden(**kwargs):raise RuntimeError("Benchmark compatibility preflight cannot call a model")
++    for index,row in enumerate(rows,1):
++        if scenario_ids is not None and row["scenario_id"] not in scenario_ids:continue
++        directory=output/f"C{index}";directory.mkdir(parents=True,exist_ok=True)
++        client=DeepSeekClient(RunBudget(TraceLogger(directory/"framework_trace.jsonl"),100,800000,.4),completion_fn=forbidden)
++        result={"case_id":f"C{index}","scenario_id":row["scenario_id"],"scenario_sha256":row["sha256"],
++            "legitimate_scope":"PARTIAL_SCOPE" if index==4 else "FULL",
++            "attack_constraint":"BLOCKED_ATTACK_SURFACE" if index==3 else "existing_frozen_configuration",
++            "paid_api_requests":0}
++        try:
++            scenario=import_benchmark_scenario(config.select(row["scenario_id"]),config.are_root,client=client,
++                filesystem=design["paths"]["gaia2_filesystem"],sandbox=design["paths"]["sandbox_root"])
++            result.update(status="READY_BENCHMARK_IMPORT_ONLY",metadata=scenario.benchmark_runtime_metadata,
++                event_count=len(scenario.events),oracle_reference_event_count=len(scenario.oracle_run_event_log),
++                condition_event_ids=[e.event_id for e in scenario.events if e.event_type.value=="CONDITION"])
++            save(directory/"event_graph.json",[e.to_dict() for e in scenario.events])
++        except Exception as error:
++            # A diagnostic boundary, not a runtime fallback: retain the exact
++            # source failure and make this case ineligible for paid execution.
++            result.update(status="BLOCKED_EVALUATION",exception_type=type(error).__name__,
++                reason=str(error),traceback=traceback.format_exc())
++        result["model_requests"]=client.budget.requests
++        save(directory/"benchmark_compatibility.json",result);results.append(result)
++    save(output/"benchmark_compatibility_matrix.json",results)
++    return results
++
++
+ def preflight(output):
+     output=Path(output);output.mkdir(parents=True,exist_ok=True)
+     design=load_design(ROOT/"configs/research_v0_6.yaml");config=project_config(design)
+@@ -61,13 +95,13 @@ def preflight(output):
+                 elif method=="read_conversation":value=app.read_conversation(spec.source_conversation_id,limit=10)
+                 else:value=app.list_recent_conversations(limit=5)
+                 overlay=AttackOverlay(spec,TraceLogger(directory/"offline_probe.jsonl"),scenario_id=sid)
+-                changed=overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
++                overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
+                 page_offset=0
+                 if method=="list_emails":
+                     while not overlay.applied and value.emails and page_offset+len(value.emails)<value.total_emails:
+                         page_offset+=len(value.emails)
+                         value=app.list_emails(folder_name="INBOX",offset=page_offset,limit=50)
+-                        changed=overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
++                        overlay.apply_tool_result(value,tool_name=spec.source_tool,agent_id="agent_0")
+                 if not overlay.applied:raise ValueError("BLOCKED_ATTACK_SURFACE:exact ID not in real typed read")
+                 if before!=json.dumps(app.get_state(),sort_keys=True,ensure_ascii=False,default=str):raise RuntimeError("SYSTEMIC_STATE_MUTATION")
+                 initial=attack_target_state(scenario,spec)
+@@ -97,6 +131,13 @@ def preflight(output):
+         except (ValueError,TypeError,KeyError,FileNotFoundError) as error:
+             result.update(status="BLOCKED_PREFLIGHT",reason=f"{type(error).__name__}: {error}")
+         save(directory/"preflight.json",result);matrix.append(result)
++    benchmark={r["scenario_id"]:r for r in benchmark_preflight(output/"benchmark")}
++    for result in matrix:
++        result["benchmark_runtime"]=benchmark[result["scenario_id"]]
++        if benchmark[result["scenario_id"]]["status"]=="BLOCKED_EVALUATION":
++            result.update(source_compatibility_status=result["status"],status="BLOCKED_EVALUATION",
++                benign_ready=False,attack_ready=False,
++                reason="Official benchmark preprocessing blocked: "+benchmark[result["scenario_id"]]["reason"])
+     save(output/"compatibility_matrix.json",matrix)
+     return matrix
+ 
+diff --git a/scripts/run_v0_6_five_case_study.py b/scripts/run_v0_6_five_case_study.py
+index 916401a..7358626 100644
+--- a/scripts/run_v0_6_five_case_study.py
++++ b/scripts/run_v0_6_five_case_study.py
+@@ -102,10 +102,13 @@ def execute(directory):
+         fatal=False
+         try:
+             outcome=run(command(unit,manifest,path));summary=outcome["summaries"][0]
+-            unit.update(status="FAILED" if summary["exception_type"] else "FINISHED",run_id=summary["run_id"],
++            runtime_status=summary.get("run_status")
++            unit.update(status=runtime_status if runtime_status in {"INDETERMINATE_IDLE","BLOCKED_EVALUATION"} else
++                "FAILED" if summary["exception_type"] else "FINISHED",run_id=summary["run_id"],
+                 run_dir=str(Path(outcome["batch_dir"])/summary["scenario_id"]/summary["run_id"]),
+                 results={k:summary[k] for k in ["exception_type","stop_reason","official_runner_success","legitimate_task_completed","model_requests_submitted","successful_model_responses","input_tokens_total","output_tokens_total","cost_estimate_usd","unknown_cost_bound","wall_time_seconds","effective_graph_patches"]})
+             fatal=summary["exception_type"] not in {None,"BudgetExceeded","MaxIterationsAgentError","UnavailableToolAgentError"}
++            fatal=fatal or runtime_status in {"INDETERMINATE_IDLE","BLOCKED_EVALUATION"}
+         except (Exception,SystemExit) as error:
+             unit.update(status="FAILED",error_type=type(error).__name__,reason=str(error),traceback=traceback.format_exc());fatal=True
+         unit["finished_at_utc"]=datetime.now(timezone.utc).isoformat()
+diff --git a/security_adaptive_mas/adapters/are_modular.py b/security_adaptive_mas/adapters/are_modular.py
+index 8be2d7c..db42eda 100644
+--- a/security_adaptive_mas/adapters/are_modular.py
++++ b/security_adaptive_mas/adapters/are_modular.py
+@@ -91,7 +91,7 @@ def bind_coordinator_history(agent,session):
+     base.build_history_from_logs=MethodType(history,base)
+ 
+ 
+-def make_modular_agent_builder(session,client,*,attack_spec=None):
++def make_modular_agent_builder(session,client,*,attack_spec=None,lifecycle=None):
+     from are.simulation.agents.agent_builder import AgentBuilder
+     from are.simulation.notification_system import MessageType
+     from are.simulation.agents.default_agent.base_agent import RunningState
+@@ -152,6 +152,8 @@ def make_modular_agent_builder(session,client,*,attack_spec=None):
+                     env.stop()
+                 session.stop_callback=stop
+             agent.init_tools=MethodType(initialize,agent)
++            if lifecycle is not None:
++                lifecycle.bind(agent,env,session)
+             return agent
+     return ModularBuilder(llm_engine_builder=DeepSeekEngineBuilder(client,session.before_coordinator_input,
+         on_error=session.stop_episode,on_submitted=lambda request_id:session.record_submission("agent_0","root",session.input_components["agent_0"],request_id)))
+diff --git a/security_adaptive_mas/are_adapter.py b/security_adaptive_mas/are_adapter.py
+index 67c7771..4a76f2d 100644
+--- a/security_adaptive_mas/are_adapter.py
++++ b/security_adaptive_mas/are_adapter.py
+@@ -4,7 +4,10 @@ from __future__ import annotations
+ import sys
+ import os
+ import tempfile
++import time
+ from pathlib import Path
++from threading import RLock
++from types import MethodType
+ 
+ from .config import ROOT
+ 
+@@ -38,6 +41,179 @@ def import_official_scenario(record, are_root, *, filesystem=None, sandbox=None)
+     return scenario
+ 
+ 
++class BenchmarkEvaluationBlocked(RuntimeError):
++    """A benchmark cannot be run without its evaluation contract."""
++
++
++class BudgetedJudgeEngine:
++    """Official Judge callable, sharing the episode client and budget."""
++
++    def __init__(self, client):
++        self.client = client
++
++    def __call__(self, messages, **kwargs):
++        response = self.client.complete(messages, purpose="benchmark_judge",
++            instance_id="benchmark_judge", input_components=[{"kind": "harness_private_judge"}])
++        content = response.choices[0].message.content
++        if not isinstance(content, str) or not content.strip():
++            raise BenchmarkEvaluationBlocked("Benchmark Judge returned no text")
++        return content, {"usage": response.usage}
++
++
++def import_benchmark_scenario(record, are_root, *, client, max_turns=20,
++                              filesystem=None, sandbox=None, on_error=None):
++    """Prepare the pinned official benchmark; Oracle data stays in the Harness.
++
++    Do not initialize the plain Scenario first. Official preprocessing owns the
++    one initialization and the reference-only Oracle run/soft reset.
++    """
++    if client is None:
++        raise BenchmarkEvaluationBlocked("A budgeted benchmark Judge client is required")
++    if str(are_root) not in sys.path:
++        sys.path.insert(0, str(are_root))
++    prepare_are_sandbox(filesystem=filesystem, sandbox=sandbox)
++    from are.simulation.data_handler.importer import JsonScenarioImporter
++    from are.simulation.scenarios.scenario_imported_from_json.utils import preprocess_scenario
++    from are.simulation.validation.configs import GraphPerEventJudgeConfig
++    # Judge may run on ARE's environment thread while RiskMonitor is finishing
++    # a tool result. Serialize the same client's requests; do not create a second
++    # counter, change token limits, or bypass the original reservation logic.
++    if not hasattr(client, "_benchmark_request_lock"):
++        client._benchmark_request_lock = RLock()
++        complete = client.complete
++        def serialized(*args, **kwargs):
++            with client._benchmark_request_lock:
++                return complete(*args, **kwargs)
++        client.complete = serialized
++
++    def tracer(**metadata):
++        def decorate(function):
++            def observed(instance, *args, **kwargs):
++                try:
++                    result = function(instance, *args, **kwargs)
++                except Exception as error:
++                    client.budget.trace.log("benchmark_judge_error", exception_type=type(error).__name__, reason=str(error))
++                    if on_error is not None:
++                        on_error(error)
++                    raise
++                if result is None and str(metadata.get("trace_type", "")).endswith("_checker"):
++                    # ARE's LLMChecker explicitly returns None when no verdict
++                    # can be parsed. Keep its raw result, but do not publish it
++                    # as a reliable negative task score.
++                    client.benchmark_evaluation_error = BenchmarkEvaluationBlocked(
++                        f"Official Judge returned unknown: {metadata['trace_type']}")
++                    client.budget.trace.log("benchmark_judge_unknown", checker=metadata["trace_type"])
++                if metadata.get("trace_type") == "judge" and hasattr(result, "success"):
++                    client.budget.trace.log("benchmark_judgment", turn_index=instance.state.turn_idx,
++                        success=result.success, reason=str(result.failure),
++                        event_id_mapping=result.agent_event_id_to_oracle_event_id)
++                return result
++            return observed
++        return decorate
++
++    scenario, _, _ = JsonScenarioImporter().import_from_json_to_benchmark(
++        record.path.read_bytes(), load_completed_events=False)
++    if scenario.scenario_id != record.scenario_id:
++        raise ValueError("Official benchmark importer scenario ID mismatch")
++    judge_config = GraphPerEventJudgeConfig(engine=BudgetedJudgeEngine(client), tracer=tracer)
++    preprocess_scenario(scenario, judge_config=judge_config)
++    if not getattr(scenario, "judge", None) or not scenario._turns_initialized:
++        raise BenchmarkEvaluationBlocked("Official preprocessing did not install the benchmark Judge")
++    if scenario.nb_turns is None or not 1 <= scenario.nb_turns <= max_turns:
++        raise BenchmarkEvaluationBlocked(f"Native benchmark turns {scenario.nb_turns} exceed execution cap {max_turns}")
++    scenario.benchmark_runtime_metadata = {
++        "importer": "import_from_json_to_benchmark", "preprocessor": "preprocess_scenario",
++        "scenario_type": type(scenario).__name__, "preprocessed": True,
++        "judge": type(scenario.judge).__name__, "judge_mode": "official_default_hard_and_soft",
++        "judge_model": "deepseek-flash", "judge_budget": "shared_episode",
++        "judge_configured": True, "native_turns": scenario.nb_turns, "execution_turn_cap": max_turns,
++        "runtime_duration": scenario.duration, "reference_oracle_run": "harness_only_soft_reset_before_agent",
++        "scenario_sha256": record.sha256}
++    client.budget.trace.log("benchmark_preprocessed", **scenario.benchmark_runtime_metadata)
++    return scenario
++
++
++class BenchmarkLifecycle:
++    """Observe the official loop and optionally bound idle wall time, not API time."""
++
++    def __init__(self, trace, client, idle_wait_seconds=None):
++        if idle_wait_seconds is not None and idle_wait_seconds <= 0:
++            raise ValueError("idle_wait_seconds must be positive")
++        self.trace, self.client = trace, client
++        self.idle_wait_seconds = idle_wait_seconds
++        self.env = self.agent = self.session = None
++        self.stop_reason = self.stop_snapshot = None
++        self.idle_since = None
++
++    def snapshot(self):
++        if self.env is None:
++            return None
++        env = self.env
++        past = env.event_log.list_view()
++        completed = {e.event_id for e in past}
++        return {"environment_state": env.state.value, "simulation_time": env.time_manager.time(),
++            "simulation_elapsed_seconds": env.time_manager.time_passed(),
++            "simulation_paused": env.time_manager.is_paused, "tick_count": env.tick_count,
++            "agent_running_state": str(self.agent.react_agent.custom_state.get("running_state")),
++            "actual_agent_turns": self.session.turns,
++            "last_completed_event": past[-1].event_id if past else None,
++            "message_queue": [{"type": m.message_type.value, "timestamp": str(m.timestamp)}
++                              for m in env.notification_system.message_queue.list_view()],
++            "queued_event_ids": [e.event_id for e in env.event_queue.list_view()],
++            "uncompleted_dependencies": [{"event_id": e.event_id,
++                "dependencies": [d.event_id for d in e.dependencies if d.event_id not in completed]}
++                for e in env.events_to_schedule if e.event_id not in completed]}
++
++    def request_stop(self, reason):
++        self.stop_reason, self.stop_snapshot = reason, self.snapshot()
++        self.trace.log("benchmark_lifecycle_stop", reason=reason, snapshot=self.stop_snapshot)
++        if self.env is not None:
++            self.env.stop()
++
++    def bind(self, agent, env, session):
++        from are.simulation.agents.default_agent.base_agent import RunningState
++        self.agent, self.env, self.session = agent, env, session
++        original = agent.get_notifications
++        def get_notifications(instance, notification_system):
++            messages = original(notification_system)
++            if any(messages):
++                self.idle_since = None
++            elif (agent.react_agent.custom_state.get("running_state") == RunningState.TERMINATED
++                  and not env.time_manager.is_paused and self.client.budget.request_reservation == (0, 0.0)):
++                now = time.monotonic()
++                if self.idle_since is None:
++                    self.idle_since = now
++                    self.trace.log("benchmark_idle_started", snapshot=self.snapshot())
++                elif self.idle_wait_seconds is not None and now - self.idle_since >= self.idle_wait_seconds:
++                    self.request_stop("INDETERMINATE_IDLE")
++                    return original(notification_system)
++            else:
++                self.idle_since = None
++            return messages
++        agent.get_notifications = MethodType(get_notifications, agent)
++
++    def close(self):
++        if self.env is not None:
++            self.env.stop()
++            self.env.thread.join(timeout=5)
++            self.trace.log("benchmark_environment_cleanup", thread_alive=self.env.thread.is_alive())
++
++
++def benchmark_evaluation(scenario, result, *, interrupted=False):
++    """Separate a returned Runner result from an evaluated benchmark task."""
++    judge = getattr(scenario, "judge", None)
++    evaluated = bool(judge and judge.state.initialized and judge.state.turn_idx >= 0
++                     and (judge.state.turn_idx == judge.state.nb_turns - 1 or not judge.state.last_turn_success)
++                     and result is not None and type(result.success) is bool
++                     and result.exception is None and not interrupted)
++    return {"official_runner_returned": result is not None,
++        "benchmark_judge_status": "VALID" if evaluated else "BLOCKED_EVALUATION",
++        "benchmark_judge_completed": evaluated,
++        "benchmark_judge_turn_index": judge.state.turn_idx if judge else None,
++        "legitimate_task_completed": bool(result.success) if evaluated else "unknown",
++        "semantic_verified": "official_benchmark_judge" if evaluated else "unknown"}
++
++
+ def official_runner(agent_builder=None):
+     """Construct ARE runner with its validator and trace export intact."""
+     from are.simulation.scenario_runner import ScenarioRunner
+diff --git a/security_adaptive_mas/run_framework.py b/security_adaptive_mas/run_framework.py
+index b6ad385..b87ba4a 100644
+--- a/security_adaptive_mas/run_framework.py
++++ b/security_adaptive_mas/run_framework.py
+@@ -16,7 +16,8 @@ import traceback
+ from uuid import uuid4
+ 
+ from .config import ROOT
+-from .are_adapter import import_official_scenario,official_runner
++from .are_adapter import (import_benchmark_scenario,official_runner,BenchmarkLifecycle,
++                          benchmark_evaluation,BenchmarkEvaluationBlocked)
+ from .attack import load_attack_spec,evaluate_attack,attack_target_state,evaluate_text_attack
+ from .deepseek import API_BASE,MODEL,PROVIDER,DeepSeekClient,DeepSeekSettings,RunBudget
+ from .trace import TraceLogger
+@@ -73,6 +74,7 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
+     budget.input_rate=args.design["rates"]["input_usd_per_token"]
+     budget.output_rate=args.design["rates"]["output_usd_per_token"]
+     client=DeepSeekClient(budget,DeepSeekSettings(max_attempts=1))
++    lifecycle=BenchmarkLifecycle(trace,client,getattr(args,"idle_wait_seconds",None))
+     run_config={"study_unit":args.study_unit,"study_manifest":str(args.study_manifest) if args.study_manifest else None,"scenario_id":scenario_id,"run_id":run_id,"mode":"adaptive","attack_mode":args.attack,
+         "organization_policy":args.design["method"],"design":args.design,"design_hash":args.design_hash,
+         "task_scope_policy":args.task_scope_policy,"model_id":MODEL,"provider":PROVIDER,"api_base":API_BASE,
+@@ -81,6 +83,9 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
+         "scenario_hash":record.sha256,"oracle":False,"load_completed_events":False,
+         "coordinator_prompt_hash":hashlib.sha256(COORDINATOR_PROTOCOL.encode()).hexdigest(),
+         "risk_prompt_version":RISK_PROMPT_VERSION,**frozen}
++    run_config["benchmark_runtime"]={"preprocessed":False,"judge_configured":False}
++    run_config["idle_wait_seconds"]=lifecycle.idle_wait_seconds
++    run_config["idle_guard_clock"]="wall_monotonic_only_when_no_active_model_request"
+     save(out/"run_config.json",run_config)
+     session=None
+     result=scenario=error=None
+@@ -92,18 +97,27 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
+     with (out/"runner.log").open("a",encoding="utf-8") as stream,redirect_stdout(stream),redirect_stderr(stream):
+         try:
+             session=ModularSession(args.design,trace,client)
+-            scenario=import_official_scenario(record,config.are_root,filesystem=args.design["paths"]["gaia2_filesystem"],sandbox=args.design["paths"]["sandbox_root"])
++            scenario=import_benchmark_scenario(record,config.are_root,client=client,max_turns=args.max_turns,
++                filesystem=args.design["paths"]["gaia2_filesystem"],sandbox=args.design["paths"]["sandbox_root"],on_error=session.stop_episode)
++            run_config["benchmark_runtime"]=scenario.benchmark_runtime_metadata
++            save(out/"run_config.json",run_config)
++            save(out/"benchmark_event_graph.json",[e.to_dict() for e in scenario.events])
+             if attack_spec and attack_spec.surface=="single_entry_tool_result_text":initial_target=attack_target_state(scenario,attack_spec)
+-            builder=make_modular_agent_builder(session,client,attack_spec=attack_spec)
++            builder=make_modular_agent_builder(session,client,attack_spec=attack_spec,lifecycle=lifecycle)
+             from are.simulation.scenarios.config import ScenarioRunnerConfig
+             runner_config=ScenarioRunnerConfig(agent="default",model=MODEL,model_provider=PROVIDER,endpoint=API_BASE,
+                 oracle=False,export=True,max_turns=args.max_turns,output_dir=str(out/"official_trace"))
+             result=official_runner(builder).run(runner_config,scenario)
+-            error=session.terminal_error or result.exception
+-        except Exception as caught:
++            error=session.terminal_error or result.exception or getattr(client,"benchmark_evaluation_error",None)
++        except (Exception,KeyboardInterrupt) as caught:
+             error=caught
++            if isinstance(error,KeyboardInterrupt):
++                lifecycle.request_stop("controlled_keyboard_interrupt")
++                if budget.request_reservation != (0,0.0):
++                    budget.unknown_response(error,"interrupted_inflight")
+             trace.log("episode_failed",exception_type=type(error).__name__,reason=str(error))
+         finally:
++            lifecycle.close()
+             logging.getLogger().removeHandler(handler)
+             handler.close()
+     if error:
+@@ -118,10 +132,17 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
+         (out/filename).write_text("".join(json.dumps(e,ensure_ascii=False)+"\n" for e in events if e["kind"] in kinds),encoding="utf-8")
+     save(out/"artifact_index.json",{k:asdict(v) for k,v in session.artifact_records.items()} if session else {})
+     exhausted=type(error).__name__=="BudgetExceeded" if error else False
++    evaluation=benchmark_evaluation(scenario,result,interrupted=bool(error or lifecycle.stop_reason))
++    run_status=("BLOCKED_EVALUATION" if isinstance(error,BenchmarkEvaluationBlocked) else "FAILED" if error else
++        "INDETERMINATE_IDLE" if lifecycle.stop_reason=="INDETERMINATE_IDLE" else
++        "BLOCKED_EVALUATION" if not evaluation["benchmark_judge_completed"] else "NORMAL_END")
+     summary={**run_config,**(session.summary_fields() if session else {}),"started_at":started,
+         "finished_at":datetime.now(timezone.utc).isoformat(),"wall_time_seconds":time.monotonic()-start,
+         "exception_type":type(error).__name__ if error else None,
+-        "stop_reason":"budget_exhausted" if exhausted else "runner_exception" if error else "official_episode_end",
++        "stop_reason":"blocked_evaluation" if isinstance(error,BenchmarkEvaluationBlocked) else
++            "budget_exhausted" if exhausted else "runner_exception" if error else "official_episode_end",
++        "run_status":run_status,"lifecycle_stop_reason":lifecycle.stop_reason,
++        "lifecycle_stop_snapshot":lifecycle.stop_snapshot,
+         "official_runner_success":result.success if result is not None else None,
+         "legitimate_task_completed":"unknown","semantic_verified":"unknown",
+         "model_requests_total":budget.requests,"requests_by_purpose":budget.requests_by_purpose,
+@@ -135,7 +156,9 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
+         "attack_injection_status":"EXERCISED" if any(e["kind"]=="attack_injected_delivered" for e in events) else "NOT_EXERCISED",
+         "actual_deliveries":[{k:e[k] for k in ("object_id","view_id","agent_id","transport","decision_id") if k in e}
+                              for e in events if e["kind"]=="runtime_object_delivered"],
+-        "trace_paths":{"framework":str(trace.path),"official":str(result.export_path) if result is not None else None}}
++        "trace_paths":{"framework":str(trace.path),"official":str(result.export_path) if result is not None and result.export_path is not None else None},
++        **evaluation}
++    if lifecycle.stop_reason:summary["stop_reason"]=lifecycle.stop_reason
+     if attack_spec:
+         summary["attack_scoring"]=evaluate_attack(events,spec=attack_spec,official_success=summary["official_runner_success"],
+             stop_reason=summary["stop_reason"],require_submitted=True,
+@@ -147,7 +170,8 @@ def run_case(args,config,scenario_id,batch_dir,frozen,attack_spec=None):
+             official_success=summary["official_runner_success"],stop_reason=summary["stop_reason"])
+     save(out/"summary.json",summary)
+     save(out/"evaluation.json",{k:summary.get(k,"unknown") for k in (
+-        "official_runner_success","legitimate_task_completed","semantic_verified","stop_reason","attack_scoring")})
++        "official_runner_returned","official_runner_success","benchmark_judge_status","benchmark_judge_completed",
++        "legitimate_task_completed","semantic_verified","run_status","stop_reason","attack_scoring")})
+     return summary
+ 
+ 
+@@ -186,6 +210,7 @@ def build_parser():
+     p.add_argument("--attack",choices=("none","single_injection","single_entry_tool_result_text"),default="none")
+     p.add_argument("--attack-spec",type=Path,default=ROOT/"configs/attack_single_injection_22_kb5ah9.json")
+     p.add_argument("--max-turns",type=int,default=20)
++    p.add_argument("--idle-wait-seconds",type=float,help="Explicit idle wall-time guard; does not time out active model requests")
+     p.add_argument("--max-requests",type=int,default=100)
+     p.add_argument("--max-total-tokens",type=int,default=800000)
+     p.add_argument("--max-cost-usd",type=float,default=.4)

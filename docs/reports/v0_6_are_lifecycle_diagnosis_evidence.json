@@ -1,0 +1,293 @@
+{
+  "kind": "offline_lifecycle_diagnosis_not_paid_episode",
+  "original_run_id": "a0c5488369b7",
+  "original_code_revision": "61f421c7dbc53920cf150890364df13fedb40d57",
+  "scenario_hash": "c0e744908ac7c321d3d9009ead6307e42aef5e00b7f4e9bcab7c34db0fb97374",
+  "scenario_class": "ScenarioImportedFromJson",
+  "runtime_duration": 1000,
+  "scenario_nb_turns": null,
+  "configured_max_turns": 20,
+  "stop_reason": "diagnostic_observation_boundary",
+  "task_completed": "unknown",
+  "official_runner_returned": true,
+  "official_runner_raw_success": true,
+  "official_exception": null,
+  "official_export_path": "D:\\SecurityAdaptiveMAS-v0.6-are-lifecycle\\results\\lifecycle_diagnosis\\c1_cached_01\\official_trace\\scenario_universe_22_0421h2_85056419.json",
+  "validation_interpretation": "plain_Scenario.validate_checks_environment_state_only_not_Gaia2_goal",
+  "cached_response_count": 12,
+  "cached_purposes": [
+    "coordinator",
+    "risk_assessment",
+    "coordinator",
+    "risk_assessment",
+    "coordinator",
+    "risk_assessment",
+    "coordinator",
+    "risk_assessment",
+    "coordinator",
+    "risk_assessment",
+    "coordinator",
+    "risk_assessment"
+  ],
+  "preserved_historical_response_latency": true,
+  "new_paid_api_requests": 0,
+  "new_paid_cost_usd": 0,
+  "cached_usage_is_new_api_usage": false,
+  "diagnostic_wall_time_seconds": 51.67199999999866,
+  "worker_steps": 0,
+  "graph_patches": 0,
+  "ledger_unchanged": true,
+  "ledger_charge": 1.1909167,
+  "ledger_sha256": "b620aeb2e5e0091a0bf564c6d97fd9b69c99600b3b78cbf906df328d672cf159",
+  "original_input_sha256": {
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\run_config.json": "6ef6c3edf874adb419f7c32bb7c31e5af3776f17f7d7f287bf1004a8664afc65",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\framework_trace.jsonl": "bc74a8edf473f1f4e9fec394bcf7c54685bdcfe4989c34b09bd5ad91762579c2",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\runner.log": "e4255b5a60c01a8d79774849212eec49d8d4dace8a79757b42e6f8d9925ebead",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\bcf33512f9a843ae9b1d2f6fd4b8284b_request.json": "89ef2683fddb6b959c39909e4dad79846e29255e2550b42795b35e050f20742a",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\bcf33512f9a843ae9b1d2f6fd4b8284b_0_response.json": "eeaaf8438cf4a999b4e5b50523aa380e65d07d40ae0be83a559b1d65125c2735",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\9126e58647c84792ad61d1b3421f7751_request.json": "62fa1ea43d55058642ab9c69cb4c4dac329f79ac935921145f6b7fe4d4da9f32",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\9126e58647c84792ad61d1b3421f7751_0_response.json": "f0b1e0a87a84a900d7452e796f230de22914bbc6887d72a03f0742a396d1e29e",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\4d708d589bfd4c6a906d413c520fa80e_request.json": "a2400a251de69964d427948a49185e1bc9232cc61b097b18cf4285c86ac2e222",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\4d708d589bfd4c6a906d413c520fa80e_0_response.json": "1caac9f2b815b490b2ab2d705a8a06eb1cc1be0a0f2b8002664215478eebe877",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\eb7fb8e13d7647459e4ea4d78b620327_request.json": "9d309f591f8b6da81938c96d28c76d0572513771677bcf7a23d6983f06b565e4",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\eb7fb8e13d7647459e4ea4d78b620327_0_response.json": "228f56157e9e6d62db99953db55353403b626657912c36fd3192d69bec58a1e2",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\272139cb42cf4a1785f0b2196cc797de_request.json": "e357bc0eb7325574c71c5e0599d48403e6d12a29a37de8386c177711ab9117ef",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\272139cb42cf4a1785f0b2196cc797de_0_response.json": "16bc4218de97185c98ad2a40a733a50c2ae7fb959cd714a0ba0581868794afaf",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\baedc3b0871a4f3cba8aa3ab4487867a_request.json": "cd5ab1b38d50a47e4041141d5232feebf390886130f4fd9c2015a3025e0ff278",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\baedc3b0871a4f3cba8aa3ab4487867a_0_response.json": "979037f33e38c161d66c2f625827da94b59596c4f6beee1bdc1748fca4b3f948",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\48535b91c1d040cfb702c3d84ae004aa_request.json": "3bfc1207028f6441097708f6b32df6d895eb1646003e86ab7f456f8f7debae27",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\48535b91c1d040cfb702c3d84ae004aa_0_response.json": "4fe77525d57702091376b350cade03c5fba0f4d8658b4fb8bd3ff23d3de204a3",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\5d20fec4f61e44239acff01e407ed166_request.json": "250bc1b657140235f179e768f7965086778faa9f9fea373fd4d94e504c01f5c7",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\5d20fec4f61e44239acff01e407ed166_0_response.json": "18b81a0c58f6c249c7c0e71aa0495d57107cc7993180a0a78e85d79d7be691be",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\fa1a4272ab0344abbcd1adedc027d44e_request.json": "1ddd9969be217fba83a0cdbcd31b31255d76b70b9f71417378560d983bd4fe62",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\fa1a4272ab0344abbcd1adedc027d44e_0_response.json": "b0197b6579aa082cf18ae434af97e6e6cb0e6ab857555ae5dd330248bd0c9d70",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\94a95cd84e434d26a2039318492c12a6_request.json": "3a71aaf67d0f13eafa53294053b65e3a6925c182aaae98430ddf437e2c99b09a",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\94a95cd84e434d26a2039318492c12a6_0_response.json": "8d31114a31e5d9ea469f51c79ea7f71afc7b281276ddcc1487a0494f4e027eed",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\50b4476cce394d38a7f44e1c5c29d038_request.json": "75aa72d96a68bfd6600f7d9aec9a6d3a11ab5ce2f8bbc6d897172222808af2d7",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\50b4476cce394d38a7f44e1c5c29d038_0_response.json": "1ab6aff98273760dfe936aef241441153caed757f5e30eb47946a448208595c7",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\4b583612c8064a779c7d5d86edd19cec_request.json": "8d6290acc510894b00cb4133d184aa1c830fd0c21422498241c4b50d1ad3d36e",
+    "D:\\SecurityAdaptiveMAS-v0.6\\results\\runs\\v0_6_modular_pilot\\20261015_01\\20261015T083906Z_c5bfe8\\scenario_universe_22_0421h2\\a0c5488369b7\\model_io\\4b583612c8064a779c7d5d86edd19cec_0_response.json": "386c3de02671101abdd2e08af38c54aa6a6cbfa0a131993f5f1876a81eee64dd"
+  },
+  "original_model_usage": {
+    "requests": 12,
+    "responses": 12,
+    "input_tokens": 55288,
+    "output_tokens": 942,
+    "known_cost_estimate_usd": 0.0177168,
+    "last_framework_time_utc": "2026-10-15T08:39:54.664899+00:00"
+  },
+  "original_tool_counts": {
+    "Chats__lookup_user_id": 1,
+    "Contacts__get_current_user_details": 1,
+    "Chats__send_message": 1,
+    "Calendar__add_calendar_event": 1,
+    "Chats__read_conversation": 1,
+    "AgentUserInterface__send_message_to_user": 1
+  },
+  "runtime_snapshots": [
+    {
+      "captured_at_utc": "2026-10-15T09:29:51.422802+00:00",
+      "environment_state": "RUNNING",
+      "environment_thread_alive": true,
+      "agent_running_state": "RunningState.TERMINATED",
+      "configured_max_turns": 20,
+      "completed_turns": 1,
+      "duration": 1000,
+      "simulation_time": 1728975628.8265007,
+      "simulation_elapsed_seconds": 28.82650065422058,
+      "time_manager_paused": false,
+      "pause_event_set": false,
+      "tick_count": 31,
+      "next_event_time": null,
+      "message_queue": [],
+      "pending_event_queue": [],
+      "last_completed_event_time": 1728975627.2992396,
+      "completed_event_ids": [
+        "Event-USER-b9788127-8c92-462a-b938-99a3394f26ce",
+        "AGENT-Chats.lookup_user_id-19748387-9226-49b5-ba0d-012a792663e4",
+        "AGENT-Contacts.get_current_user_details-a4f74b72-caa3-4a69-a86c-7d2d84a2f3df",
+        "AGENT-Chats.get_existing_conversation_ids-c3960c54-bb9c-45c2-a338-572e5407b107",
+        "AGENT-Chats.send_message-d81c045c-0304-42c1-9905-63a37dd80ee9",
+        "AGENT-Calendar.add_calendar_event-02fc006a-54b6-4331-9c5a-5070ed43cc5c",
+        "AGENT-Chats.read_conversation-5d49efdf-3d9a-4534-973a-219e31b2339b",
+        "AGENT-AgentUserInterface.send_message_to_user-4a2f71f8-d3c5-4dab-b0a6-806e08e885c9"
+      ],
+      "untriggered_env_events": [
+        {
+          "event_id": "Event-ENV-392e97c5-95fe-4bc0-8122-e3e52b6a1ecf",
+          "class_name": "Event",
+          "event_type": "ENV",
+          "event_time": null,
+          "dependencies": [
+            {
+              "event_id": "OracleEvent-AGENT-68ee35ca-d7bb-4135-a7fb-9c5adf14bde7",
+              "event_time": null,
+              "present_in_completed_log": false
+            }
+          ]
+        },
+        {
+          "event_id": "Event-ENV-4a046588-ae23-4e65-aa6a-c42d1fe3ceec",
+          "class_name": "Event",
+          "event_type": "ENV",
+          "event_time": null,
+          "dependencies": [
+            {
+              "event_id": "OracleEvent-AGENT-68ee35ca-d7bb-4135-a7fb-9c5adf14bde7",
+              "event_time": null,
+              "present_in_completed_log": false
+            }
+          ]
+        }
+      ],
+      "oracle_end_of_turn_dependency": [
+        {
+          "event_id": "OracleEvent-AGENT-68ee35ca-d7bb-4135-a7fb-9c5adf14bde7",
+          "class_name": "OracleEvent",
+          "event_type": "AGENT",
+          "event_time": null,
+          "dependencies": [
+            {
+              "event_id": "OracleEvent-AGENT-359e9a85-e2ef-47c3-8e4c-4543c5286688",
+              "event_time": 1728975601.0,
+              "present_in_completed_log": false
+            },
+            {
+              "event_id": "OracleEvent-AGENT-1649675d-005c-4313-88e2-721b08d7f4c4",
+              "event_time": 1728975601.0,
+              "present_in_completed_log": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "captured_at_utc": "2026-10-15T09:29:54.427897+00:00",
+      "environment_state": "RUNNING",
+      "environment_thread_alive": true,
+      "agent_running_state": "RunningState.TERMINATED",
+      "configured_max_turns": 20,
+      "completed_turns": 1,
+      "duration": 1000,
+      "simulation_time": 1728975631.831596,
+      "simulation_elapsed_seconds": 31.83159589767456,
+      "time_manager_paused": false,
+      "pause_event_set": false,
+      "tick_count": 34,
+      "next_event_time": null,
+      "message_queue": [],
+      "pending_event_queue": [],
+      "last_completed_event_time": 1728975627.2992396,
+      "completed_event_ids": [
+        "Event-USER-b9788127-8c92-462a-b938-99a3394f26ce",
+        "AGENT-Chats.lookup_user_id-19748387-9226-49b5-ba0d-012a792663e4",
+        "AGENT-Contacts.get_current_user_details-a4f74b72-caa3-4a69-a86c-7d2d84a2f3df",
+        "AGENT-Chats.get_existing_conversation_ids-c3960c54-bb9c-45c2-a338-572e5407b107",
+        "AGENT-Chats.send_message-d81c045c-0304-42c1-9905-63a37dd80ee9",
+        "AGENT-Calendar.add_calendar_event-02fc006a-54b6-4331-9c5a-5070ed43cc5c",
+        "AGENT-Chats.read_conversation-5d49efdf-3d9a-4534-973a-219e31b2339b",
+        "AGENT-AgentUserInterface.send_message_to_user-4a2f71f8-d3c5-4dab-b0a6-806e08e885c9"
+      ],
+      "untriggered_env_events": [
+        {
+          "event_id": "Event-ENV-392e97c5-95fe-4bc0-8122-e3e52b6a1ecf",
+          "class_name": "Event",
+          "event_type": "ENV",
+          "event_time": null,
+          "dependencies": [
+            {
+              "event_id": "OracleEvent-AGENT-68ee35ca-d7bb-4135-a7fb-9c5adf14bde7",
+              "event_time": null,
+              "present_in_completed_log": false
+            }
+          ]
+        },
+        {
+          "event_id": "Event-ENV-4a046588-ae23-4e65-aa6a-c42d1fe3ceec",
+          "class_name": "Event",
+          "event_type": "ENV",
+          "event_time": null,
+          "dependencies": [
+            {
+              "event_id": "OracleEvent-AGENT-68ee35ca-d7bb-4135-a7fb-9c5adf14bde7",
+              "event_time": null,
+              "present_in_completed_log": false
+            }
+          ]
+        }
+      ],
+      "oracle_end_of_turn_dependency": [
+        {
+          "event_id": "OracleEvent-AGENT-68ee35ca-d7bb-4135-a7fb-9c5adf14bde7",
+          "class_name": "OracleEvent",
+          "event_type": "AGENT",
+          "event_time": null,
+          "dependencies": [
+            {
+              "event_id": "OracleEvent-AGENT-359e9a85-e2ef-47c3-8e4c-4543c5286688",
+              "event_time": 1728975601.0,
+              "present_in_completed_log": false
+            },
+            {
+              "event_id": "OracleEvent-AGENT-1649675d-005c-4313-88e2-721b08d7f4c4",
+              "event_time": 1728975601.0,
+              "present_in_completed_log": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "diagnostic_artifact_sha256": {
+    "results\\lifecycle_diagnosis\\c1_cached_01\\diagnosis.json": "c657037fbb1bc6dd3f8bcfe7a26f7af775ecd957bf9d01e92305781b38e3259d",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\framework_trace.jsonl": "1d67059875187420d0be1be348c4b7e818e1db987cc0f174aa1e12ae622a67ee",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\framework_trace.writes.jsonl": "d0180b9198fcb7d11ada8b39ce1d8f347e924f6450daa45b5d27d21273aa42a8",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\291ec2d923c54f5db1163e74ad4f6742_0_response.json": "a00a9429d8760258628d63475d0e589909bda4bf93ad90378956319d8fb3c08c",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\291ec2d923c54f5db1163e74ad4f6742_request.json": "2a2a509194aca56ae6eb188bad8b621d8e33a6e0d1ca2dd59f875bd0084a7b09",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\36ecd9c716ff4e9e9fd4d0d4724f9172_0_response.json": "9683d4650b1b000d7a583ba607228c765a5c39c5d8171bc44f9f61ccca69d96d",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\36ecd9c716ff4e9e9fd4d0d4724f9172_request.json": "9d309f591f8b6da81938c96d28c76d0572513771677bcf7a23d6983f06b565e4",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\5e6c579c2f764869aca6f703c7b51923_0_response.json": "2b0063cc60bc1e9b7cedd8813072d3fa1ec921ba8d7f39f012d1ad27bd78b3be",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\5e6c579c2f764869aca6f703c7b51923_request.json": "8d6290acc510894b00cb4133d184aa1c830fd0c21422498241c4b50d1ad3d36e",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\7603f2cb83d442c2a31a1b632332b16f_0_response.json": "976e65c8196c79ee525518074dc92c827003b16ce1fe8146399df710af1d2aec",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\7603f2cb83d442c2a31a1b632332b16f_request.json": "197837d036182169bb1a2463651253ea470061f41c1672cee0ccecba71d9e987",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\8c0b51219be840708f923e1306e83b0f_0_response.json": "236b328c5ee15be77b22e0d516b4c4ec402507c52bacc5530e769295644f0f7c",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\8c0b51219be840708f923e1306e83b0f_request.json": "89ef2683fddb6b959c39909e4dad79846e29255e2550b42795b35e050f20742a",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\a7d57477d2644ac391fa4318a561d254_0_response.json": "94388784a3aa233f81d8c5f6d801d9098bd4afb3154956505f4ce03d906e6d36",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\a7d57477d2644ac391fa4318a561d254_request.json": "cd5ab1b38d50a47e4041141d5232feebf390886130f4fd9c2015a3025e0ff278",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\b70ffe18318f45fdb4cdd0982a319270_0_response.json": "e2afdfb509b4d245d8af65a6fbaa488c3f91235fdad659d2aa2acc30fcd313b3",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\b70ffe18318f45fdb4cdd0982a319270_request.json": "ce2ad6ae5e4daae46b53af514f8c6bc42d9d065a042cafe7d029dae5e2e0fdc5",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\cd46eb1fa82e45f7a4e14ddd76253a74_0_response.json": "07759accca08db1f2d6b3ec675e3d3d225cc5e2eaacc7eeaa9700b02dd1ed3a8",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\cd46eb1fa82e45f7a4e14ddd76253a74_request.json": "8aa280a02e48c5689fc682e206f13b69d2737133edfbe3757cf15ab9f549ffdd",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\df6a4bac7bba4ac0a3677531514ba7bb_0_response.json": "1371d5ace538f80066908d5677f19959db7ea9a3880f0d62935f7096c39e532b",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\df6a4bac7bba4ac0a3677531514ba7bb_request.json": "36d8f691fc11679c57df2b2e625e68ec33f9fb863a54304835bd4b2614397a03",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\ec94155c152a410c8546002504dcf479_0_response.json": "0c597b519638df3f5b80fcc5ff644cc218fbb6c5e225d3e78ee691b13b28e18e",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\ec94155c152a410c8546002504dcf479_request.json": "62fa1ea43d55058642ab9c69cb4c4dac329f79ac935921145f6b7fe4d4da9f32",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\f42a23d8e1a049a19806304bca41511e_0_response.json": "e4daeb69e44cdd240a14566f521330b42b0cec62cb4efe9b60f8ed6974be65ab",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\f42a23d8e1a049a19806304bca41511e_request.json": "d4777c3c12b27b8274a2c519e9632ab07c04e67ea6d3cf09279a993a749919f9",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\fd97c49a4f2b4da3bfd8f379bffaae56_0_response.json": "914f44bb989fe48ea98e216670e78062288588c6c3a276308302434ff2ef12cb",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\model_io\\fd97c49a4f2b4da3bfd8f379bffaae56_request.json": "0b47eb96268d73e46129ee98b3e64a026e8cf754f5988c4d18bcbda9fd702d73",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\official_trace\\scenario_universe_22_0421h2_85056419.json": "6e1c7abd012af067c78063b764bccea00e93c8da1f0b709e2bb725e96b8489d6",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\runner.log": "9df50ee1348d9d71bf477fa0243d8df05899f70a0a5af9444b1fcca7ee4fe212",
+    "results\\lifecycle_diagnosis\\c1_cached_01\\runtime_snapshots.json": "7da55e66caeb7d09e362cc0acd86373204e7ab2df1d83cc6089611a09bbadef5"
+  },
+  "official_source_sha256": {
+    "are/simulation/data_handler/importer.py": "7d351b2bca453550dd87eac9aed8d3104291094fce17b96c703c0278afb79589",
+    "are/simulation/scenarios/scenario_imported_from_json/scenario.py": "a80a9f4e036bf8738928fe5e26065c607348e5dae1a72c492de29e1269341fe6",
+    "are/simulation/scenarios/scenario.py": "b13b9e2da6e621b47fa00aca5599436b41df08fc90219160aab6e15e4e280e45",
+    "are/simulation/scenarios/scenario_imported_from_json/utils.py": "193db653757081679a16d6409b47615c508da3a4d324183b2858375bb2082447",
+    "are/simulation/scenarios/scenario_imported_from_json/benchmark_scenario.py": "ba57c31937ffc0106d9fca3f1d7dc889f676491cf739ae0d75c28382fe8fd9b0",
+    "are/simulation/scenario_runner.py": "39335f838840989a3b3d0159b0b45ebf0e5ecc5606d4af374fe1fc023d2c5043",
+    "are/simulation/environment.py": "742348ce375a39a88cab123ee25383220781d089814c56afa24e74defd69fc96",
+    "are/simulation/notification_system.py": "9590980f6be4f2632dc96bacb80b54446354a3d289cd436d1e92d00996eb070a",
+    "are/simulation/agents/default_agent/are_simulation_main.py": "5c8ed8dd9d86a4af0ba60bf05cc2b8f14a8430ed7f9573317e99856ff6d7a9c7"
+  },
+  "are_lock_files_unchanged": {
+    "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\tools.py": true,
+    "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\apps\\email_client.py": true,
+    "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\agents\\default_agent\\base_agent.py": true,
+    "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\agents\\default_agent\\tools\\json_action_executor.py": true,
+    "D:\\SecurityAdaptiveMAS\\work\\facebookresearch-meta-agents-research-environments-a9fd2ed\\are\\simulation\\agents\\agent_log.py": true
+  },
+  "official_pinned_revision": "a9fd2edccb4bc7e22fbf45c8482a5fef30a2a5a4",
+  "raw_logs_retained_locally": "D:\\SecurityAdaptiveMAS-v0.6-are-lifecycle\\results\\lifecycle_diagnosis\\c1_cached_01"
+}

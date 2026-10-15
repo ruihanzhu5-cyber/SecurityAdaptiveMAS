@@ -250,6 +250,7 @@ class TaskScopePolicy:
         self.provenance, self.trace = provenance, trace
         self.user_ids = []
         self.scopes = []
+        self.delegated_capabilities = {}
 
     def register_user(self, evidence_id):
         import re
@@ -278,7 +279,7 @@ class TaskScopePolicy:
                        scope_count=len(self.scopes), policy_version=self.version)
 
     def permits(self, agent_id, version, tool_name, operation, resource, arguments, evidence_id):
-        if agent_id != "agent_0" or not self.user_ids:
+        if (agent_id != "agent_0" and tool_name not in self.delegated_capabilities.get(agent_id, ())) or not self.user_ids:
             return False
         # A reply to the trusted user is a fixed system capability, never an
         # authorization to email/message arbitrary external recipients.
@@ -341,6 +342,7 @@ class SandboxPermissivePolicy:
         self.provenance, self.trace = provenance, trace
         self.user_ids = []
         self.allowed_write_tools = frozenset(allowed_write_tools)
+        self.delegated_capabilities = {}
 
     def register_user(self, evidence_id):
         evidence = self.provenance.items[evidence_id]
@@ -351,7 +353,7 @@ class SandboxPermissivePolicy:
                        scope_count=len(self.user_ids), policy_version=self.version)
 
     def permits(self, agent_id, version, tool_name, operation, resource, arguments, evidence_id):
-        if agent_id != "agent_0" or not self.user_ids:
+        if (agent_id != "agent_0" and tool_name not in self.delegated_capabilities.get(agent_id, ())) or not self.user_ids:
             return False
         # A reply to the trusted user is a fixed system capability, never an
         # authorization to email/message arbitrary external recipients.

@@ -17,5 +17,8 @@ setup.log
 git_metadata_probe/
 write_probe
 .env
+*.egg-info/
+build/
+dist/
 .env.*
 !.env.example

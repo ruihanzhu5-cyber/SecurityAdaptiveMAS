@@ -1,0 +1,21 @@
+--- upstream/base/agent/memory.py
++++ derived/base/agent/memory.py
+@@ -5,13 +5,16 @@
+ 
+ import json
+ 
+-from base.engine.async_llm import AsyncLLM 
+-from benchmark.common.env import Observation, Action
++from typing import Callable, Awaitable
++AsyncLLM = Callable[[str], Awaitable[str]] 
++from security_adaptive_mas._vendor.aorchestra.benchmark.common.env import Observation, Action
+ 
+ 
+ class Memory(ABC):
+ 
+     def __init__(self, llm: AsyncLLM, max_memory: int = 10, keep_recent: int = 3):
++        if not callable(llm):
++            raise ValueError('memory_requires_injected_callable')
+         self.llm = llm
+         self.max_memory = max_memory
+         self.keep_recent = keep_recent
