@@ -4,9 +4,9 @@
 
 本项目研究长任务中的多 Agent 协作：主 Agent 怎样提出具体委托，子 Agent 怎样按需使用前序结果，遇到可疑外部内容时怎样调整交付对象和工作承担者，并记录这些选择的真实代价。
 
-> **当前阶段：v0.6 工程实现、非付费接线验收和首次真实 pilot。** 15 项非付费检查通过。真实 B1 的 Coordinator 已取得 DeepSeek 回答并读取邮件，随后风险请求因 JSON mode 提示词缺少 API 要求的词而被返回 HTTP 400，后续三组停止。离线 fixture 不代表真实模型成绩，尚未验证新方法的安全或性能收益。详见 [pilot 报告](docs/reports/2026-10-15_v0_6_B1_json_mode_http_400.md)。
+> **当前阶段：v0.6 四组真实 pilot 已运行，均因 Token 预算预检停止。** Issue #3 的 JSON 契约已修复；19 项免费检查通过。四组共 98 次真实请求全部成功响应，但都没有 Worker 或图重组，两个攻击组的载荷均未送达，完整任务完成仍为 unknown。不能据此宣称动态组织或安全/性能收益。详见 [四组真实实验报告](docs/reports/2026-10-15_v0_6_issue3_fixed_four_group_real_pilot.md)。
 
-> **2026-10-15 补充：**Issue #3 的 JSON 提示词契约已最小修复，16 项免费测试通过。修复后使用原 Runner 启动新四组时，被既有失败清单的重复执行保护阻止，新增模型请求为 0。详见 [修复与启动检查报告](docs/reports/2026-10-15_v0_6_issue3_fix_and_four_group_preflight.md)。
+> **历史记录保留：**此前 [JSON mode HTTP 400 失败](docs/reports/2026-10-15_v0_6_B1_json_mode_http_400.md) 与 [固定清单启动阻塞](docs/reports/2026-10-15_v0_6_issue3_fix_and_four_group_preflight.md) 分别保留。用户批准新批次入口后，本轮沿用原共享账本，新增费用估算 0.7701927 USD；含此前记录的账本合计约 0.7909167 USD。
 
 [实际架构](docs/architecture_v0_6.md) · [局部决策规则](docs/algorithm_v0_6.md) · [实施与问题台账](docs/reports/2026-10-15_v0_6_implementation.md) · [上游源码与许可](docs/upstream_v0_6.md) · [历史研究日志](docs/research-log/README.md)
 
