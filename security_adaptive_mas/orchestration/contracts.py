@@ -87,3 +87,26 @@ class ReconfigurationCandidate:
 
     def as_dict(self):
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class EvidenceField:
+    name: str
+    value: str | int | float
+    source_ref: ArtifactRef
+    source_path: str
+    source_span: tuple[int,int] | None
+    extraction: str
+    status: str
+    source_call_id: str | None = None
+    normalization_basis: str | None = None
+
+
+@dataclass(frozen=True)
+class EvidenceView:
+    parent_ref: ArtifactRef
+    fields: tuple[EvidenceField,...]
+    covered_required_fields: tuple[str,...]
+    missing_required_fields: tuple[str,...]
+    contains_raw_untrusted_body: bool
+    rendered_content: str

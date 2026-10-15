@@ -53,6 +53,12 @@ class ModularSession:
         self.bound_logs={}
         self._controlled_starting=False
         self.handoff_pilot=None
+        self.evidence_builder=None
+        if config.get('version')=='v0.7':
+            from .evidence_views import EvidenceViewBuilder
+            from .handoff_pilot import requirements
+            experiment=config['experiment']
+            self.evidence_builder=EvidenceViewBuilder(self,requirements(experiment.get('requirements_path'))[experiment['case_id']]['required_fields'])
         if config.get('version')=='v0.7' and config['experiment']['mode']=='controlled_handoff':
             from .handoff_pilot import ControlledHandoffPilot
             self.handoff_pilot=ControlledHandoffPilot(self,config['experiment'])
@@ -126,6 +132,10 @@ class ModularSession:
                 self.handles[consumer][ref.object_id]["email_metadata_v1"]=projected
                 available.append("email_metadata_v1")
             result.append({"object_id":ref.object_id,"version":ref.version,"views":available})
+            if (ref.key,'task_evidence_v1') in self.views:
+                projected=self.views[(ref.key,'task_evidence_v1')]
+                self.handles[consumer][ref.object_id]['task_evidence_v1']=projected
+                available.append('task_evidence_v1')
         return result
 
     def component(self, ref, kind="artifact", **metadata):
@@ -177,6 +187,8 @@ class ModularSession:
             self.risk_states[full.key]={"suspicion":"not_supported","reason_evidence_ids":[],"scope":"empty_returned_page"}
         self.grant_handle(caller_id,full)
         self.seen.setdefault(caller_id,set()).add(full.key)
+        if self.evidence_builder is not None:
+            self.evidence_builder.ensure(full)
         return full
 
     def invoke_tool(self, caller, work_id, name, arguments):

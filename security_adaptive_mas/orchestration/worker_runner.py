@@ -66,6 +66,8 @@ async def run_worker(s,work):
             result_ref=s.register_artifact(result,worker_id,work.work_id,payload_kind="worker_result",
                 parents=tuple(ArtifactRef(key) for key in dict.fromkeys([*parents,*ids])),fields=work.output_fields or ("result",))
             s.risk_states[result_ref.key]=s.risk_observer.assess(worker_id,(result_ref.object_id,))
+            if s.evidence_builder is not None:
+                s.evidence_builder.ensure(result_ref)
             work.status="artifact_ready" if params["status"]=="done" else "partial"
             return list(dict.fromkeys([result_ref,*available_results])),index+1
         if name=="get_artifact":
