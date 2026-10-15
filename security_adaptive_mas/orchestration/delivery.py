@@ -1,7 +1,6 @@
 """A single policy/MANTA/ACL boundary for live and stored artifact delivery."""
 from dataclasses import asdict
-import json
-from uuid import uuid4
+import hashlib
 from ..security import Message
 from .contracts import ReconfigurationCandidate
 
@@ -42,7 +41,8 @@ class DeliveryService:
         s.runtime.receipts.add((consumer,ref.key))
         s.trace.log("runtime_object_delivered",agent_id=consumer,object_id=ref.object_id,object_version=ref.version,
             view_id=ref.view_id,author_instance_id=author,transport=transport,decision_id=decision_id,
-            graph_version=s.runtime.graph.version,delivery_bytes=len(evidence.text.encode()))
+            graph_version=s.runtime.graph.version,delivery_bytes=len(evidence.text.encode()),
+            payload_sha256=hashlib.sha256(evidence.text.encode()).hexdigest())
         return selected[0]["content"]
 
     def protected(self, consumer, graph):
@@ -73,7 +73,7 @@ class DeliveryService:
         ref=record.ref
         s.trace.log("delivery_requested",**asdict(request),current_stamp=asdict(s.runtime.stamp()))
         # Assess the actual result (or actual typed body atoms), once per goal revision.
-        roots=record.parent_refs if record.payload_kind=="email_metadata_v1" else (ref,)
+        roots=record.parent_refs if record.payload_kind in {"email_metadata_v1","task_evidence_v1"} else (ref,)
         source_ref=roots[0] if roots else ref
         ids=s.body_atoms.get(source_ref.key,(source_ref.object_id,))
         risk=s.risk_observer.assess(record.producer_id,tuple(ids)) if ids else {"suspicion":"not_supported","reason_evidence_ids":[]}
@@ -82,7 +82,7 @@ class DeliveryService:
             risk={**risk,"suspicion":"supported"}
         stamp=s.runtime.stamp()
         candidates=[]
-        def add(action, selected_ref=None, work=None, call=None):
+        def add(action, selected_ref=None, work=None, call=None, quarantine=False):
             selected_record=s.artifact_records[selected_ref.key] if selected_ref else None
             ops=[]
             if selected_ref:
@@ -91,6 +91,12 @@ class DeliveryService:
                 if author in active and author!=request.requester_id:
                     ops.append({"op":"ADD_ROUTE","source":author,"target":request.requester_id})
                 ops.append({"op":"SET_OBJECT_ACCESS","agent_id":request.requester_id,"object_id":selected_ref.key,"allowed":True})
+            if quarantine:
+                edge=(record.producer_id,request.requester_id)
+                if edge in s.runtime.graph.extra_edges:
+                    ops.append({'op':'REMOVE_ROUTE','source':edge[0],'target':edge[1]})
+                if (request.requester_id,ref.key) in s.runtime.graph.object_access:
+                    ops.append({'op':'SET_OBJECT_ACCESS','agent_id':request.requester_id,'object_id':ref.key,'allowed':False})
             replacement=None
             instruction_record=None
             if action=="REASSIGN":
@@ -115,6 +121,20 @@ class DeliveryService:
             if replacement:
                 candidate.cost_proxy["replacement_instance"]=replacement
                 candidate.object_dispositions[instruction_record.ref.key]=replacement
+            if s.policy.condition is not None:
+                view=s.evidence_builder.ledger.get(selected_ref.key) if selected_ref else None
+                provided=set(view.covered_required_fields) if view else set()
+                candidate.risk_projection.update(requested_fields=list(request.required_fields),
+                    provided_fields=sorted(provided),missing_fields=sorted(set(request.required_fields)-provided),
+                    source_ref=ref.key,delivered_view_ref=selected_ref.key if selected_ref else None,
+                    extraction_status=sorted({f.status for f in view.fields}) if view else 'unreviewed_full',
+                    contains_untrusted_lineage=s.provenance.contains_low_trust(ref.object_id),
+                    contains_attack_like_content=False if view else {'supported':True,'not_supported':False,'unknown':'unknown'}[risk['suspicion']],
+                    actual_payload_in_view='offline_evaluator_only',new_receiver_exposure_projection=selected_ref is not None,
+                    route_diff=[o for o in ops if o['op'] in {'ADD_ROUTE','REMOVE_ROUTE'}],
+                    acl_diff=[o for o in ops if o['op']=='SET_OBJECT_ACCESS'],
+                    work_assignment_diff=[o for o in ops if o['op']=='ASSIGN'],
+                    carries_suspect_payload=view is None)
             try:
                 patch=s.patch(ops or [{"op":"KEEP"}],candidate.evidence_ids,action,stamp)
                 graph=s.runtime.preview(patch)
@@ -139,14 +159,28 @@ class DeliveryService:
                 candidate.rejection_reason=str(error)
             candidates.append(candidate)
         fields=set(request.required_fields)
-        if not fields or "full" in record.fields or fields<=set(record.fields):add("RELEASE",ref)
-        projected=s.views.get((ref.key,"email_metadata_v1"))
-        if projected is not None and fields and fields<=set(s.artifact_records[projected.key].fields):
-            if projected==s.resolve(request.requester_id,ref.object_id,"email_metadata_v1"):
-                add("LIMITED_RELEASE",projected)
-        add("HOLD")
+        condition=s.policy.condition
+        if condition is not None:
+            if condition in {'clean_full','attacked_full','attacked_graph_only'} and ref.view_id=='full':
+                add('FULL_RELEASE',ref)
+            elif condition in {'attacked_context_only','attacked_joint'}:
+                projected=s.views.get((ref.key,'task_evidence_v1'))
+                if projected is None and record.payload_kind=='task_evidence_v1':
+                    projected=ref
+                if projected is not None and projected in s.handles[request.requester_id][ref.object_id].values():
+                    add('EVIDENCE_VIEW_RELEASE',projected)
+            elif condition=='attacked_delete_restart':
+                s.trace.log('unsupported',module='delivery',reason='BLOCKED_independent_restart_source_not_declared',ref=ref.key)
+            add('HOLD',quarantine=condition in {'attacked_graph_only','attacked_joint'} and risk['suspicion']!='not_supported')
+        else:
+            if not fields or "full" in record.fields or fields<=set(record.fields):add("RELEASE",ref)
+            projected=s.views.get((ref.key,"email_metadata_v1"))
+            if projected is not None and fields and fields<=set(s.artifact_records[projected.key].fields):
+                if projected==s.resolve(request.requester_id,ref.object_id,"email_metadata_v1"):
+                    add("LIMITED_RELEASE",projected)
+            add("HOLD")
         work=s.work_items.get(record.producer_work_id)
-        if work and work.repair_attempts<s.config["max_auto_repairs_per_work"] and self.repair_budget_available():
+        if condition is None and work and work.repair_attempts<s.config["max_auto_repairs_per_work"] and self.repair_budget_available():
             calls=[key for key,c in s.calls.items() if c["work_id"]==work.work_id and "result_ref" in c
                    and s.tool_gateway.tools[c["tool"]].mode=="read"]
             if calls and work.producer_id in {a.agent_id for a in s.runtime.graph.agents}:add("REQUERY",work=work,call=calls[-1])
@@ -162,10 +196,13 @@ class DeliveryService:
                     candidates=[c.as_dict() for c in candidates],selected=selected.candidate_id)
         if stamp!=s.runtime.stamp():raise ValueError("stale_selected_candidate")
         patch=s.patch(selected.graph_operations or [{"op":"KEEP"}],selected.evidence_ids,selected.action,stamp)
+        previous_version=s.runtime.graph.version
         s.runtime.apply(patch)
         s.trace.log("reconfiguration_selected",request_id=request.request_id,action=selected.action,
             decision_id=selected.candidate_id,graph_version=s.runtime.graph.version,object_epoch=s.runtime.object_epoch,
-            consumed_atm_destinations=selected.validation["destinations"])
+            consumed_atm_destinations=selected.validation["destinations"],condition=condition,
+            patch_kind='risk_driven' if selected.action=='HOLD' and selected.graph_operations else 'handoff_scaffolding',
+            effective_reconfiguration=s.runtime.graph.version!=previous_version)
         if selected.action=="HOLD":
             s.last_return_refs=[]
             s.trace.log("delivery_held",request_id=request.request_id,work_id=request.for_work_id,ref=asdict(ref))
@@ -189,7 +226,7 @@ class DeliveryService:
         text=self.deliver_authorized(request.requester_id,chosen,selected.candidate_id,s.runtime.stamp())
         s.grant_handle(request.requester_id,chosen)
         s.last_return_refs=[chosen]
-        return {"status":"limited" if selected.action=="LIMITED_RELEASE" else "released",
+        return {"status":"limited" if selected.action in {"LIMITED_RELEASE","EVIDENCE_VIEW_RELEASE"} else "released",
             "request_id":request.request_id,"artifact_ref":asdict(chosen),"content":text,"semantic_verified":"unknown"}
 
     def repair_budget_available(self):

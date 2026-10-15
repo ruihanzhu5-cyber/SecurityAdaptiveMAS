@@ -62,7 +62,7 @@ class ModularSession:
         if config.get('version')=='v0.7' and config['experiment']['mode']=='controlled_handoff':
             from .handoff_pilot import ControlledHandoffPilot
             self.handoff_pilot=ControlledHandoffPilot(self,config['experiment'])
-        self.policy=ReconfigurationPolicy(config["method"])
+        self.policy=ReconfigurationPolicy(config["method"],config['experiment']['condition'] if config.get('version')=='v0.7' else None)
         lock=json.loads(Path(config["upstream_lock"]).read_text(encoding="utf-8"))
         self.atm=ATMMutationAdapter(config["paths"]["atm_root"],lock,trace)
         self.risk_observer=RiskMonitor(client,self.provenance,self.goal_text,trace,"semantic")
