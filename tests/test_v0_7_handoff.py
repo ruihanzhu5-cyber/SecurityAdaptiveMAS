@@ -79,6 +79,15 @@ def test_p0_real_worker_get_artifact_and_submitted_observation(tmp_path,monkeypa
             assert not any(e['kind']=='runtime_object_delivered' and e['view_id']=='task_evidence_v1' for e in events)
         else:
             assert 'agent_0' in summary['attack_scoring']['exposed_instances']
+    from scripts.analyze_evidence_handoff import handoff_episode
+    analysis=handoff_episode(trace.parent)
+    assert analysis['controlled_delegations']==1 and analysis['autonomous_delegations']==0
+    assert analysis['role_usage']['RiskMonitor'] and analysis['role_usage']['Worker']
+    measurements=json.loads((trace.parent/'handoff_context_measurements.json').read_text(encoding='utf-8'))
+    assert len(measurements)==summary['coordinator_model_inputs_prepared']+len(steps)+len(summary['risk_assessments'])
+    assert all(not row['byte_bound_is_actual_tokens'] for row in measurements)
+    deliveries=json.loads((trace.parent/'handoff_delivery_submission_audit.json').read_text(encoding='utf-8'))
+    assert any(row['component_submission_link_observed'] for row in deliveries)
 
 
 def test_p0_future_environment_is_not_a_trigger(make_session):
