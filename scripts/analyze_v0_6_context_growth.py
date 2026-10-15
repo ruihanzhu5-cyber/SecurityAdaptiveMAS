@@ -8,9 +8,34 @@ from pathlib import Path
 from security_adaptive_mas.run_framework import save,ledger_charge
 
 
-def analyze_episode(directory):
+def analyze_episode(directory,*,interrupted_record=None):
     directory=Path(directory);events=[json.loads(s) for s in (directory/"framework_trace.jsonl").read_text(encoding="utf-8").splitlines()]
-    summary=json.loads((directory/"summary.json").read_text(encoding="utf-8"))
+    if interrupted_record is None:
+        summary=json.loads((directory/"summary.json").read_text(encoding="utf-8"))
+        origin="completed_runner_summary"
+    else:
+        # Explicit partial evidence mode, never write or fabricate a Runner summary/export.
+        config=json.loads((directory/"run_config.json").read_text(encoding="utf-8"))
+        groups={}
+        for event in events:
+            if event["kind"]!="model_usage":continue
+            item=groups.setdefault(event["purpose"],{"requests":0,"input_tokens":0,"output_tokens":0,"cost_estimate_usd":0.0,"latency_seconds":0.0})
+            item["requests"]+=1;item["input_tokens"]+=event["prompt_tokens"];item["output_tokens"]+=event["completion_tokens"]
+            item["latency_seconds"]+=event["latency_seconds"]
+            item["cost_estimate_usd"]+=event["prompt_tokens"]*config["design"]["rates"]["input_usd_per_token"]+event["completion_tokens"]*config["design"]["rates"]["output_usd_per_token"]
+        counts=Counter(e["kind"] for e in events)
+        summary={**config,"actual_usage_by_purpose":groups,"exception_type":"unknown_no_runner_return",
+            "stop_reason":"operator_stop_systemic_ARE_notification_wait","official_runner_success":"unknown_no_official_export",
+            "legitimate_task_completed":"unknown","model_requests_submitted":counts["model_request_submitted"],
+            "successful_model_responses":counts["model_response_received"],
+            "requests_by_purpose":dict(Counter(e["purpose"] for e in events if e["kind"]=="model_request_submitted")),
+            "input_tokens_total":interrupted_record["actual_input_tokens"],"output_tokens_total":interrupted_record["actual_output_tokens"],
+            "cost_estimate_usd":interrupted_record["known_cost_estimate_usd"],"unknown_cost_bound":"unknown_core_summary_missing",
+            "wall_time_seconds":"unknown_core_summary_missing","distinct_agent_instances":sorted({"agent_0"}|{e["instance_id"] for e in events if e["kind"]=="worker_started"}),
+            "worker_steps":0 if counts["worker_started"]==0 else "unknown_interrupted",
+            "effective_graph_patches":sum(e["graph_version"]!=e["previous_version"] for e in events if e["kind"]=="topology_patch_applied")}
+        origin="partial_trace_after_explicit_operator_stop"
+
     submitted={e["request_id"].split(":")[0]:e for e in events if e["kind"]=="model_request_submitted"}
     received={e["request_id"]:e for e in events if e["kind"]=="model_response_received"}
     rows=[];seen_requests=set();seen_refs=defaultdict(set)
@@ -51,11 +76,11 @@ def analyze_episode(directory):
             "artifact_refs":refs,"repeated_identified_rendered_bytes":repeat_known_bytes,"repeated_refs_unknown_byte_length":unknown_repeated,
             "exact_duplicate_input":digest in seen_requests,"official_history_attribution":"unknown","bytes_are_tokens":False})
         seen_requests.add(digest)
-    save(directory/"context_growth.json",{"requests":rows,"budget_preflight":[e for e in events if e["kind"]=="preflight_budget_rejection"],"per_completed_subgoal_cost":"unknown_no_independent_checker"})
+    save(directory/"context_growth.json",{"analysis_origin":origin,"requests":rows,"budget_preflight":[e for e in events if e["kind"]=="preflight_budget_rejection"],"per_completed_subgoal_cost":"unknown_no_independent_checker"})
     save(directory/"model_usage_by_purpose.json",summary["actual_usage_by_purpose"])
     save(directory/"attack_exposure_trace.json",{"score":summary.get("attack_scoring","NOT_APPLICABLE"),"events":[{k:v for k,v in e.items() if k not in {"original_text","injected_text"}} for e in events if e["kind"] in {"attack_injected","attack_injected_delivered","attack_surface_not_hit"}]})
     counts=Counter(e["kind"] for e in events)
-    return {"run_id":summary["run_id"],"exception_type":summary["exception_type"],"stop_reason":summary["stop_reason"],
+    return {"analysis_origin":origin,"run_id":summary["run_id"],"exception_type":summary["exception_type"],"stop_reason":summary["stop_reason"],
         "official_runner_success":summary["official_runner_success"],"legitimate_task_completed":summary["legitimate_task_completed"],
         "requests":summary["model_requests_submitted"],"responses":summary["successful_model_responses"],
         "requests_by_purpose":summary["requests_by_purpose"],"average_actual_input_tokens":summary["input_tokens_total"]/summary["successful_model_responses"] if summary["successful_model_responses"] else "unknown",
@@ -70,7 +95,9 @@ def analyze_study(directory):
     directory=Path(directory);manifest=json.loads((directory/"study_manifest.json").read_text(encoding="utf-8"));matrix=[]
     for unit in manifest["units"]:
         row={k:unit[k] for k in ["unit_id","scenario_id","method","attack","status","legitimate_scope"]}
-        if unit.get("run_dir"):row.update(analyze_episode(unit["run_dir"]))
+        if unit.get("run_dir"):
+            interruption=json.loads(Path(unit["operator_stop"]).read_text(encoding="utf-8")) if unit.get("operator_stop") else None
+            row.update(analyze_episode(unit["run_dir"],interrupted_record=interruption))
         else:row.update(reason=unit.get("reason",unit.get("blocked_by",unit.get("readiness_reason"))),requests="NOT_RUN",cost_estimate_usd="NOT_RUN")
         matrix.append(row)
     save(directory/"results_matrix.json",matrix)

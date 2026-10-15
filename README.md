@@ -1,5 +1,8 @@
 # SecurityAdaptiveMAS · v0.6
 
+> **2026-10-15 五例 Study 更新：**免费验收 36 项通过，20 行计划中实际启动 1、NOT_RUN 17、攻击入口阻断 2。C1_B1 的 12 次模型请求均已返回，但回合结束后 ARE 无时限等待通知，Study 按规则停止。没有完成的 Episode 或安全/性能结论。见 [五例预检](docs/reports/2026-10-15_v0_6_five_case_study/five_case_preflight_report.md) 与 [20 单元实际报告](docs/reports/2026-10-15_v0_6_five_case_study/five_case_20_unit_pilot_report.md)。
+
+以下四组 pilot 是此前独立实验记录，保留其当时事实。
 **让任务执行带动分工，在结果交付时处理风险。**
 
 本项目研究长任务中的多 Agent 协作：主 Agent 怎样提出具体委托，子 Agent 怎样按需使用前序结果，遇到可疑外部内容时怎样调整交付对象和工作承担者，并记录这些选择的真实代价。

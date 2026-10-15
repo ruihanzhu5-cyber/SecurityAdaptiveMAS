@@ -120,3 +120,17 @@ def test_context_analysis_separates_prepared_submitted_and_real_usage(tmp_path):
     assert not rows[1]["submitted"] and rows[1]["actual_input_tokens"]=="unknown"
     assert rows[1]["exact_duplicate_input"] and rows[1]["repeated_refs_unknown_byte_length"]==1
     assert rows[0]["role_text_utf8_bytes"]["user"]==3 and rows[0]["bytes_are_tokens"] is False
+
+
+def test_explicit_interruption_analysis_does_not_fabricate_summary(tmp_path):
+    from scripts.analyze_v0_6_context_growth import analyze_episode
+    config={"run_id":"interrupted_fixture","design":{"rates":{"input_usd_per_token":.3,"output_usd_per_token":1.2}}}
+    (tmp_path/"run_config.json").write_text(json.dumps(config),encoding="utf-8")
+    events=[{"kind":"model_usage","purpose":"coordinator","prompt_tokens":2,"completion_tokens":1,"latency_seconds":.1}]
+    (tmp_path/"framework_trace.jsonl").write_text(json.dumps(events[0])+"\n",encoding="utf-8")
+    observation={"actual_input_tokens":2,"actual_output_tokens":1,"known_cost_estimate_usd":1.8}
+    result=analyze_episode(tmp_path,interrupted_record=observation)
+    assert result["analysis_origin"]=="partial_trace_after_explicit_operator_stop"
+    assert result["official_runner_success"]=="unknown_no_official_export"
+    assert result["wall_time_seconds"]=="unknown_core_summary_missing"
+    assert not (tmp_path/"summary.json").exists() and not (tmp_path/"evaluation.json").exists()
