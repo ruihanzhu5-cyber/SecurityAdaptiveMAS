@@ -8,10 +8,19 @@ from ..config import ROOT, ProjectConfig, ScenarioRecord
 
 def load_design(path, override=None):
     value = yaml.safe_load(Path(path).read_text(encoding="utf-8")) if override is None else override
-    if value.get("version") != "v0.6" or value.get("runtime_kind") != "modular":
+    if value.get("version") not in {"v0.6","v0.7"} or value.get("runtime_kind") != "modular":
         raise ValueError("Use the v0.5 worktree for legacy design configurations")
     if value["method"] not in {"modular_task_only", "modular_risk_aware"}:
         raise ValueError("invalid_v0_6_method")
+    if value['version']=='v0.7':
+        from .handoff_pilot import CONDITIONS,requirements
+        experiment=value['experiment']
+        if (experiment['mode'] not in {'autonomous','controlled_handoff'}
+            or experiment['condition'] not in CONDITIONS.values()
+            or experiment['case_id'] not in requirements(experiment.get('requirements_path'))):
+            raise ValueError('invalid_v0_7_experiment')
+    elif 'experiment' in value:
+        raise ValueError('v0_7_experiment_requires_v0_7_configuration')
     fixed = {"model":"deepseek-flash", "scheduling":"sequential", "coordinator":"are_default",
              "worker_backend":"aorchestra_react_fork", "risk_detector":"semantic",
              "capability_mode":"coordinator_write_workers_read"}

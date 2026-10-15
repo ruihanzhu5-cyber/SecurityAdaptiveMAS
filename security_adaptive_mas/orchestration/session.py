@@ -51,6 +51,11 @@ class ModularSession:
         self.pending_call_id=None
         self.call_returned_refs={}
         self.bound_logs={}
+        self._controlled_starting=False
+        self.handoff_pilot=None
+        if config.get('version')=='v0.7' and config['experiment']['mode']=='controlled_handoff':
+            from .handoff_pilot import ControlledHandoffPilot
+            self.handoff_pilot=ControlledHandoffPilot(self,config['experiment'])
         self.policy=ReconfigurationPolicy(config["method"])
         lock=json.loads(Path(config["upstream_lock"]).read_text(encoding="utf-8"))
         self.atm=ATMMutationAdapter(config["paths"]["atm_root"],lock,trace)
@@ -229,15 +234,32 @@ class ModularSession:
             inputs.extend(values.values())
         parents=tuple(dict.fromkeys([e.evidence_id for e in self.observation_recorder.snapshot().user_events]+
             [part["object_id"] for part in self.last_submitted.get(caller_id,[]) if "object_id" in part]))
+        if self._controlled_starting:
+            parents=tuple(dict.fromkeys([*parents,*[r.object_id for r in inputs]]))
         instruction=self.provenance.add("coordinator:delegation","derived",request["task_instruction"],parents=parents,owner_agent=caller_id)
         work_id=f"work_{len(self.work_items)+1:04d}"
         work=WorkItem(work_id,caller_id,self.goal_revision,instruction.evidence_id,tuple(dict.fromkeys(inputs)),tools,fields)
         self.work_items[work_id]=work
         self.trace.log("delegation_requested",work_id=work_id,requester=caller_id,instruction_evidence_id=instruction.evidence_id,
-            input_refs=[asdict(r) for r in work.input_refs],exact_tools=tools,unknown_sources="official_rendering_unknown")
+            input_refs=[asdict(r) for r in work.input_refs],exact_tools=tools,unknown_sources="official_rendering_unknown",
+            initiation_mode='controlled_handoff' if self._controlled_starting else 'autonomous')
         instruction_ref=self.register_artifact(instruction,caller_id,work_id,payload_kind="work_instruction",fields=("instruction",))
         self.grant_handle(caller_id,instruction_ref)
         return self.run_work(work,instruction_ref=instruction_ref)
+
+    def start_controlled_work(self,plan):
+        from .delegation import DelegateTaskTool
+        snapshot=self.observation_recorder.snapshot()
+        if self.handoff_pilot is None or plan.goal_revision!=self.goal_revision:
+            raise ValueError('controlled_handoff_disabled_or_stale_goal')
+        if not snapshot.user_events or not {r.object_id for r in plan.source_refs}<=set(snapshot.evidence_ids):
+            raise PermissionError('controlled_handoff_requires_arrived_evidence')
+        self._controlled_starting=True
+        try:
+            return DelegateTaskTool(self).forward(plan.work_instruction,[r.object_id for r in plan.source_refs],
+                list(plan.tools),list(plan.required_fields),'deepseek-flash')
+        finally:
+            self._controlled_starting=False
 
     def run_work(self, work, *, instruction_ref=None, repair=False, prepared_worker=None):
         from .worker_runner import run_sync

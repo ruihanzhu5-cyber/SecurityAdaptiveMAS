@@ -1,5 +1,6 @@
 """Instance-local hooks around the pinned official ARE lifecycle and log IDs."""
 import hashlib
+import json
 from types import MethodType
 from uuid import uuid4
 from ..deepseek import DeepSeekEngineBuilder
@@ -34,6 +35,25 @@ class ModularARETool:
             raise
 
 
+def bind_observation_log(log,session,refs,call_id,tool):
+    session.bound_logs[log.id]={"call_id":call_id,"refs":refs,"tool":tool}
+    session.call_returned_refs[call_id]=refs
+    original_read=log.get_content_for_llm_no_attachment
+    def read(log_instance):
+        content=original_read()
+        if (session.rendering and log_instance.get_type() in session.render_roles
+            and log_instance.get_type() not in session.render_excluded and content):
+            payload_bytes=sum(len(session.provenance.items[ref.object_id].text.encode()) for ref in refs)
+            session.trace.log("official_observation_rendered",log_id=log_instance.id,call_id=call_id,
+                rendered_log_bytes=len(content.encode()),payload_bytes=payload_bytes,
+                wrapper_bytes_proxy=max(0,len(content.encode())-payload_bytes))
+            for ref in refs:
+                session.rendered_components.append(session.component(ref,log_id=log_instance.id,call_id=call_id))
+        return content
+    log.get_content_for_llm_no_attachment=MethodType(read,log)
+    session.trace.log("official_observation_bound",log_id=log.id,call_id=call_id,tool=tool,refs=[r.key for r in refs])
+
+
 def bind_coordinator_history(agent,session):
     """Wrap exact action/ObservationLog callbacks and the original history renderer."""
     from are.simulation.agents.agent_log import ObservationLog
@@ -51,23 +71,7 @@ def bind_coordinator_history(agent,session):
             nonlocal bound
             if owned and isinstance(log,ObservationLog):
                 refs=tuple(session.last_return_refs)
-                session.bound_logs[log.id]={"call_id":call_id,"refs":refs,"tool":parsed_action.tool_name}
-                session.call_returned_refs[call_id]=refs
-                original_read=log.get_content_for_llm_no_attachment
-                def read(log_instance):
-                    content=original_read()
-                    if (session.rendering and log_instance.get_type() in session.render_roles
-                        and log_instance.get_type() not in session.render_excluded and content):
-                        payload_bytes=sum(len(session.provenance.items[ref.object_id].text.encode()) for ref in refs)
-                        session.trace.log("official_observation_rendered",log_id=log_instance.id,call_id=call_id,
-                            rendered_log_bytes=len(content.encode()),payload_bytes=payload_bytes,
-                            wrapper_bytes_proxy=max(0,len(content.encode())-payload_bytes))
-                        for ref in refs:
-                            session.rendered_components.append(session.component(ref,log_id=log_instance.id,call_id=call_id))
-                    return content
-                log.get_content_for_llm_no_attachment=MethodType(read,log)
-                session.trace.log("official_observation_bound",log_id=log.id,call_id=call_id,
-                    tool=parsed_action.tool_name,refs=[r.key for r in refs])
+                bind_observation_log(log,session,refs,call_id,parsed_action.tool_name)
                 bound=True
             append_agent_log(log)
         try:
@@ -81,6 +85,13 @@ def bind_coordinator_history(agent,session):
     executor.execute_parsed_action=MethodType(execute,executor)
     original_history=base.build_history_from_logs
     def history(instance,exclude_log_types=None):
+        if session.handoff_pilot is not None:
+            outcome=session.handoff_pilot.maybe_run()
+            if outcome is not None:
+                log=ObservationLog(timestamp=instance.make_timestamp(),agent_id='agent_0',
+                    content='Controlled Harness get_artifact observation (untrusted result, not a USER notification):\n'+json.dumps(outcome,ensure_ascii=False))
+                bind_observation_log(log,session,tuple(session.handoff_pilot.selected_refs),uuid4().hex,'get_artifact')
+                instance.append_agent_log(log)
         excluded=[] if exclude_log_types is None else exclude_log_types
         session.rendered_components=[]
         session.render_excluded=set(excluded)
