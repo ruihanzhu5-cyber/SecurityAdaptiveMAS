@@ -1,0 +1,25 @@
+--- upstream/base/agent/base_agent.py
++++ derived/base/agent/base_agent.py
+@@ -3,8 +3,9 @@
+ 
+ from pydantic import Field, BaseModel
+ 
+-from base.agent.base_action import BaseAction
+-from base.engine.async_llm import AsyncLLM
++from security_adaptive_mas._vendor.aorchestra.base.agent.base_action import BaseAction
++from typing import Callable, Awaitable
++AsyncLLM = Callable[[str], Awaitable[str]]
+ 
+ class BaseAgent(BaseAction, BaseModel):
+     
+@@ -34,6 +35,10 @@
+     class Config:
+         arbitrary_types_allowed = True
+         
++    def model_post_init(self, __context):
++        if not callable(self.llm):
++            raise ValueError('worker_requires_injected_callable')
++
+     @abstractmethod
+     async def step(self):
+         """Execute a single step in the agent's workflow.

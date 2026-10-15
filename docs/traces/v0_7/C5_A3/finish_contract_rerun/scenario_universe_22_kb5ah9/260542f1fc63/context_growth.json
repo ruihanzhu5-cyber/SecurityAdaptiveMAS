@@ -1,0 +1,4049 @@
+{
+  "analysis_origin": "completed_runner_summary",
+  "requests": [
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "30dd424185064ac99a9d470110b7b273:0",
+      "prepared_id": "30dd424185064ac99a9d470110b7b273",
+      "step": 1,
+      "actor": "worker_0001",
+      "purpose": "worker:worker_0001",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 817,
+      "actual_output_tokens": 64,
+      "wall_time_seconds": 2.764999999999418,
+      "cost_estimate_usd": 0.00032189999999999996,
+      "role_text_utf8_bytes": {
+        "user": 3064
+      },
+      "serialized_utf8_bytes_proxy": 3298,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_3",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_2",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "3c9889719c354000ac7df3e60de4600c:0",
+      "prepared_id": "3c9889719c354000ac7df3e60de4600c",
+      "step": 2,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 483,
+      "actual_output_tokens": 30,
+      "wall_time_seconds": 1.5,
+      "cost_estimate_usd": 0.0001809,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 1110
+      },
+      "serialized_utf8_bytes_proxy": 2031,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_2",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "8a00652d431c4bc1937abf9d35b298f7:0",
+      "prepared_id": "8a00652d431c4bc1937abf9d35b298f7",
+      "step": 3,
+      "actor": "worker_0001",
+      "purpose": "worker:worker_0001",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 944,
+      "actual_output_tokens": 69,
+      "wall_time_seconds": 1.8590000000040163,
+      "cost_estimate_usd": 0.000366,
+      "role_text_utf8_bytes": {
+        "user": 3504
+      },
+      "serialized_utf8_bytes_proxy": 3739,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_3",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_2",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_4",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 2,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "c233d75545fb4138a5c9f2636bb7bd59:0",
+      "prepared_id": "c233d75545fb4138a5c9f2636bb7bd59",
+      "step": 4,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 10255,
+      "actual_output_tokens": 26,
+      "wall_time_seconds": 2.1089999999967404,
+      "cost_estimate_usd": 0.0031076999999999997,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 42404
+      },
+      "serialized_utf8_bytes_proxy": 44797,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_7",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_10",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_13",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_16",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_19",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_22",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_25",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_28",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_31",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_34",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_37",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_40",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_43",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_46",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_49",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_52",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_55",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_58",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_61",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_64",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_67",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_70",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_73",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_76",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_79",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_82",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_85",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_88",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_91",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_94",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_97",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_100",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_103",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_106",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_109",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_112",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_115",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_118",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_121",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_124",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_127",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_130",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_133",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_136",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_139",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_142",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_145",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_148",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_151",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_154",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "a98083db682045e2bfd989845d064672:0",
+      "prepared_id": "a98083db682045e2bfd989845d064672",
+      "step": 5,
+      "actor": "worker_0001",
+      "purpose": "worker:worker_0001",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 15327,
+      "actual_output_tokens": 123,
+      "wall_time_seconds": 2.7969999999986612,
+      "cost_estimate_usd": 0.0047457,
+      "role_text_utf8_bytes": {
+        "user": 58520
+      },
+      "serialized_utf8_bytes_proxy": 60224,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_3",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_2",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_6",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_5",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 2,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "35b23403aa004be4bcd95dd9080823ce:0",
+      "prepared_id": "35b23403aa004be4bcd95dd9080823ce",
+      "step": 6,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 10443,
+      "actual_output_tokens": 26,
+      "wall_time_seconds": 2.8280000000013388,
+      "cost_estimate_usd": 0.0031640999999999996,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 43245
+      },
+      "serialized_utf8_bytes_proxy": 45700,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_164",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_167",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_170",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_173",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_176",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_179",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_182",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_185",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_188",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_191",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_194",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_197",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_200",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_203",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_206",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_209",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_212",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_215",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_218",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_221",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_224",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_227",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_230",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_233",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_236",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_239",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_242",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_245",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_248",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_251",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_254",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_257",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_260",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_263",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_266",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_269",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_272",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_275",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_278",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_281",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_284",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_287",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_290",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_293",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_296",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_299",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_302",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_305",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_308",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_311",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "dc8d0b7972d14d459c4eaedf0e715402:0",
+      "prepared_id": "dc8d0b7972d14d459c4eaedf0e715402",
+      "step": 7,
+      "actor": "worker_0001",
+      "purpose": "worker:worker_0001",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 29995,
+      "actual_output_tokens": 144,
+      "wall_time_seconds": 2.7969999999986612,
+      "cost_estimate_usd": 0.0091713,
+      "role_text_utf8_bytes": {
+        "user": 114642
+      },
+      "serialized_utf8_bytes_proxy": 117850,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_3",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_2",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_163",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_162",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 2,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "ee2805b09dd04e679ce2deb96c1f1f75:0",
+      "prepared_id": "ee2805b09dd04e679ce2deb96c1f1f75",
+      "step": 8,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 2105,
+      "actual_output_tokens": 83,
+      "wall_time_seconds": 2.436999999998079,
+      "cost_estimate_usd": 0.0007311,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 8158
+      },
+      "serialized_utf8_bytes_proxy": 9339,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_321",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_324",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_327",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_330",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_333",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_336",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_339",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_342",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_345",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "845c343de0c8470981aa6c6c35c30aa2:0",
+      "prepared_id": "845c343de0c8470981aa6c6c35c30aa2",
+      "step": 9,
+      "actor": "worker_0001",
+      "purpose": "worker:worker_0001",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 32758,
+      "actual_output_tokens": 308,
+      "wall_time_seconds": 3.9219999999986612,
+      "cost_estimate_usd": 0.010197,
+      "role_text_utf8_bytes": {
+        "user": 125351
+      },
+      "serialized_utf8_bytes_proxy": 128726,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_3",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_2",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_320",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_319",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 2,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "fa8b0af618aa4f10bcb00b21c634e8ff:0",
+      "prepared_id": "fa8b0af618aa4f10bcb00b21c634e8ff",
+      "step": 10,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 2,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 649,
+      "actual_output_tokens": 30,
+      "wall_time_seconds": 1.9060000000026776,
+      "cost_estimate_usd": 0.0002307,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 1613
+      },
+      "serialized_utf8_bytes_proxy": 2578,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_354",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "7aa10b2a60d74adaa1b9e65fe586fb80:0",
+      "prepared_id": "7aa10b2a60d74adaa1b9e65fe586fb80",
+      "step": 11,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 20648,
+      "actual_output_tokens": 80,
+      "wall_time_seconds": 4.296999999998661,
+      "cost_estimate_usd": 0.0062904,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 37551
+      },
+      "serialized_utf8_bytes_proxy": 77710,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "ff300884212e42e0bd82b6b08ac3aec4:0",
+      "prepared_id": "ff300884212e42e0bd82b6b08ac3aec4",
+      "step": 12,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 10255,
+      "actual_output_tokens": 26,
+      "wall_time_seconds": 2.5469999999986612,
+      "cost_estimate_usd": 0.0031076999999999997,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 42436
+      },
+      "serialized_utf8_bytes_proxy": 44829,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_357",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_360",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_363",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_366",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_369",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_372",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_375",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_378",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_381",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_384",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_387",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_390",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_393",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_396",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_399",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_402",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_405",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_408",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_411",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_414",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_417",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_420",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_423",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_426",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_429",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_432",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_435",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_438",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_441",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_444",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_447",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_450",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_453",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_456",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_459",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_462",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_465",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_468",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_471",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_474",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_477",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_480",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_483",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_486",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_489",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_492",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_495",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_498",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_501",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_504",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "9de0bcdd983c47e5b7a78fe867e32171:0",
+      "prepared_id": "9de0bcdd983c47e5b7a78fe867e32171",
+      "step": 13,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 34012,
+      "actual_output_tokens": 128,
+      "wall_time_seconds": 3.235000000000582,
+      "cost_estimate_usd": 0.0103572,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 91155,
+        "assistant": 273
+      },
+      "serialized_utf8_bytes_proxy": 132165,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 1,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "4de811a94073419dba7bdb937e755b29:0",
+      "prepared_id": "4de811a94073419dba7bdb937e755b29",
+      "step": 14,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 10443,
+      "actual_output_tokens": 26,
+      "wall_time_seconds": 2.436999999998079,
+      "cost_estimate_usd": 0.0031640999999999996,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 43245
+      },
+      "serialized_utf8_bytes_proxy": 45700,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_513",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_516",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_519",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_522",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_525",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_528",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_531",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_534",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_537",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_540",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_543",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_546",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_549",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_552",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_555",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_558",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_561",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_564",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_567",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_570",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_573",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_576",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_579",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_582",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_585",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_588",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_591",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_594",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_597",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_600",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_603",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_606",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_609",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_612",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_615",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_618",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_621",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_624",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_627",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_630",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_633",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_636",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_639",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_642",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_645",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_648",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_651",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_654",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_657",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_660",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "9e191604cbb146e89809f99dadbe5d3d:0",
+      "prepared_id": "9e191604cbb146e89809f99dadbe5d3d",
+      "step": 15,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 47596,
+      "actual_output_tokens": 114,
+      "wall_time_seconds": 3.7660000000032596,
+      "cost_estimate_usd": 0.014415599999999999,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 145628,
+        "assistant": 716
+      },
+      "serialized_utf8_bytes_proxy": 187690,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 2,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "3e4e19c03d1d4679a513876520c37246:0",
+      "prepared_id": "3e4e19c03d1d4679a513876520c37246",
+      "step": 16,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 2057,
+      "actual_output_tokens": 26,
+      "wall_time_seconds": 1.7810000000026776,
+      "cost_estimate_usd": 0.0006483,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 7984
+      },
+      "serialized_utf8_bytes_proxy": 9161,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_669",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_672",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_675",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_678",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_681",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_684",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_687",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_690",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        },
+        {
+          "object_id": "ev_693",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "b07af33dd3094dd98cfbb6ef0ca04f07:0",
+      "prepared_id": "b07af33dd3094dd98cfbb6ef0ca04f07",
+      "step": 17,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 50082,
+      "actual_output_tokens": 1088,
+      "wall_time_seconds": 6.186999999998079,
+      "cost_estimate_usd": 0.0163302,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 155257,
+        "assistant": 1062
+      },
+      "serialized_utf8_bytes_proxy": 197846,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 3,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "56610361f936451a912ca09d60c9770b:0",
+      "prepared_id": "56610361f936451a912ca09d60c9770b",
+      "step": 18,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 346,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.5939999999973224,
+      "cost_estimate_usd": 0.0001326,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 602
+      },
+      "serialized_utf8_bytes_proxy": 1519,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "c699cf0640914daf8a6fc551421fb445:0",
+      "prepared_id": "c699cf0640914daf8a6fc551421fb445",
+      "step": 19,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 51187,
+      "actual_output_tokens": 51,
+      "wall_time_seconds": 2.125,
+      "cost_estimate_usd": 0.0154173,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 155300,
+        "assistant": 3682
+      },
+      "serialized_utf8_bytes_proxy": 200666,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 4,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "e65936eabb7f4741a3838d92d09e8fd1:0",
+      "prepared_id": "e65936eabb7f4741a3838d92d09e8fd1",
+      "step": 20,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 2387,
+      "actual_output_tokens": 30,
+      "wall_time_seconds": 2.1719999999986612,
+      "cost_estimate_usd": 0.0007521,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 7940
+      },
+      "serialized_utf8_bytes_proxy": 8869,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "5f7bf7faaf7541bd876807402b33263e:0",
+      "prepared_id": "5f7bf7faaf7541bd876807402b33263e",
+      "step": 21,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 53294,
+      "actual_output_tokens": 1000,
+      "wall_time_seconds": 4.9689999999973224,
+      "cost_estimate_usd": 0.017188199999999997,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 162675,
+        "assistant": 3869
+      },
+      "serialized_utf8_bytes_proxy": 208329,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 5,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "83f2c60c1ee04a1e87817ab0071c7545:0",
+      "prepared_id": "83f2c60c1ee04a1e87817ab0071c7545",
+      "step": 22,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 367,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 2.061999999998079,
+      "cost_estimate_usd": 0.0001389,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "41911202eb604b18bd7aab76afa2e371:0",
+      "prepared_id": "41911202eb604b18bd7aab76afa2e371",
+      "step": 23,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 54333,
+      "actual_output_tokens": 64,
+      "wall_time_seconds": 2.5160000000032596,
+      "cost_estimate_usd": 0.016376699999999998,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 162748,
+        "assistant": 5792
+      },
+      "serialized_utf8_bytes_proxy": 210470,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 6,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "18d2710516604a668cae31e73276c28a:0",
+      "prepared_id": "18d2710516604a668cae31e73276c28a",
+      "step": 24,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 359,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.625,
+      "cost_estimate_usd": 0.00013649999999999998,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "de749e02a784411699f89fdb6f6635db:0",
+      "prepared_id": "de749e02a784411699f89fdb6f6635db",
+      "step": 25,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 54428,
+      "actual_output_tokens": 62,
+      "wall_time_seconds": 2.4689999999973224,
+      "cost_estimate_usd": 0.0164028,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 162821,
+        "assistant": 5993
+      },
+      "serialized_utf8_bytes_proxy": 210844,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 7,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "1316d69cf4064effa39e1543acc82846:0",
+      "prepared_id": "1316d69cf4064effa39e1543acc82846",
+      "step": 26,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 360,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.937000000005355,
+      "cost_estimate_usd": 0.0001368,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "ce412937ab03448e9f0248c6d0e0714a:0",
+      "prepared_id": "ce412937ab03448e9f0248c6d0e0714a",
+      "step": 27,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 54521,
+      "actual_output_tokens": 62,
+      "wall_time_seconds": 1.9069999999992433,
+      "cost_estimate_usd": 0.0164307,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 162894,
+        "assistant": 6171
+      },
+      "serialized_utf8_bytes_proxy": 211194,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 8,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "6e800254e6424dfaa36fbb326beb44ba:0",
+      "prepared_id": "6e800254e6424dfaa36fbb326beb44ba",
+      "step": 28,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 361,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.514999999999418,
+      "cost_estimate_usd": 0.0001371,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "632379e11291419a8b87eb9b1d378a55:0",
+      "prepared_id": "632379e11291419a8b87eb9b1d378a55",
+      "step": 29,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 54616,
+      "actual_output_tokens": 64,
+      "wall_time_seconds": 2.3909999999959837,
+      "cost_estimate_usd": 0.016461599999999996,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 162968,
+        "assistant": 6349
+      },
+      "serialized_utf8_bytes_proxy": 211545,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 9,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "58599d1267a24fb79f0294e70ff62fd9:0",
+      "prepared_id": "58599d1267a24fb79f0294e70ff62fd9",
+      "step": 30,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 363,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.485000000000582,
+      "cost_estimate_usd": 0.00013769999999999999,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "55dbc8942e104a49a4284b72db98fa55:0",
+      "prepared_id": "55dbc8942e104a49a4284b72db98fa55",
+      "step": 31,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 54715,
+      "actual_output_tokens": 67,
+      "wall_time_seconds": 2.875,
+      "cost_estimate_usd": 0.0164949,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163042,
+        "assistant": 6528
+      },
+      "serialized_utf8_bytes_proxy": 211898,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 10,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "b4382cb0bdb84938b14ddb47dd7d7b1e:0",
+      "prepared_id": "b4382cb0bdb84938b14ddb47dd7d7b1e",
+      "step": 32,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 366,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.4219999999986612,
+      "cost_estimate_usd": 0.0001386,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "bcb73db0751445d99005aab98a8fd83b:0",
+      "prepared_id": "bcb73db0751445d99005aab98a8fd83b",
+      "step": 33,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 54820,
+      "actual_output_tokens": 64,
+      "wall_time_seconds": 1.9539999999979045,
+      "cost_estimate_usd": 0.016522799999999997,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163116,
+        "assistant": 6706
+      },
+      "serialized_utf8_bytes_proxy": 212249,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 11,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "bb03d8ea660543f1816776577d3043f9:0",
+      "prepared_id": "bb03d8ea660543f1816776577d3043f9",
+      "step": 34,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 360,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.2969999999986612,
+      "cost_estimate_usd": 0.0001368,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "c5db6cb9d0424856aa7453d62fa109dd:0",
+      "prepared_id": "c5db6cb9d0424856aa7453d62fa109dd",
+      "step": 35,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 54916,
+      "actual_output_tokens": 67,
+      "wall_time_seconds": 2.4210000000020955,
+      "cost_estimate_usd": 0.0165552,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163190,
+        "assistant": 6897
+      },
+      "serialized_utf8_bytes_proxy": 212614,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 12,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "1c3b40a115874a2bbbefc0aa19752399:0",
+      "prepared_id": "1c3b40a115874a2bbbefc0aa19752399",
+      "step": 36,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 360,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 2.0159999999959837,
+      "cost_estimate_usd": 0.0001368,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_719",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "b57a43ba225a41f68002cc3c8a03bc58:0",
+      "prepared_id": "b57a43ba225a41f68002cc3c8a03bc58",
+      "step": 37,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 55015,
+      "actual_output_tokens": 78,
+      "wall_time_seconds": 2.5789999999979045,
+      "cost_estimate_usd": 0.016598099999999998,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163264,
+        "assistant": 7101
+      },
+      "serialized_utf8_bytes_proxy": 212993,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_719",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 13,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "bf34df6dd7994d8eb6961153e21445e1:0",
+      "prepared_id": "bf34df6dd7994d8eb6961153e21445e1",
+      "step": 38,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 365,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.4060000000026776,
+      "cost_estimate_usd": 0.0001383,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_721",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "b53cb96b5e244794b06fb02cff7f8dde:0",
+      "prepared_id": "b53cb96b5e244794b06fb02cff7f8dde",
+      "step": 39,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 55130,
+      "actual_output_tokens": 4096,
+      "wall_time_seconds": 12.203000000001339,
+      "cost_estimate_usd": 0.0214542,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163338,
+        "assistant": 7331
+      },
+      "serialized_utf8_bytes_proxy": 213400,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_719",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_721",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 14,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "ad7b393bb2bc4fccb8565e373a31032d:0",
+      "prepared_id": "ad7b393bb2bc4fccb8565e373a31032d",
+      "step": 40,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 364,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.514999999999418,
+      "cost_estimate_usd": 0.000138,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_723",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "e21efa15ba6b454b9044d704bc0295c4:0",
+      "prepared_id": "e21efa15ba6b454b9044d704bc0295c4",
+      "step": 41,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 59263,
+      "actual_output_tokens": 63,
+      "wall_time_seconds": 2.4530000000013388,
+      "cost_estimate_usd": 0.0178545,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163412,
+        "assistant": 24980
+      },
+      "serialized_utf8_bytes_proxy": 232566,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_719",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_721",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_723",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 15,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "967a3820fdb54c1db7b686216df42657:0",
+      "prepared_id": "967a3820fdb54c1db7b686216df42657",
+      "step": 42,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 365,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.4060000000026776,
+      "cost_estimate_usd": 0.0001383,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_725",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "b5e97b6390884175918baad4a3a25220:0",
+      "prepared_id": "b5e97b6390884175918baad4a3a25220",
+      "step": 43,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 59363,
+      "actual_output_tokens": 4096,
+      "wall_time_seconds": 12.60899999999674,
+      "cost_estimate_usd": 0.022724099999999997,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163486,
+        "assistant": 25145
+      },
+      "serialized_utf8_bytes_proxy": 232903,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_719",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_721",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_723",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_725",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 16,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "5b792ec767d349bb8c74e2cf9c3eadde:0",
+      "prepared_id": "5b792ec767d349bb8c74e2cf9c3eadde",
+      "step": 44,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 361,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.5469999999986612,
+      "cost_estimate_usd": 0.0001371,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_727",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "c570378bf1a84a33980be84e7cf6723e:0",
+      "prepared_id": "c570378bf1a84a33980be84e7cf6723e",
+      "step": 45,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 63493,
+      "actual_output_tokens": 61,
+      "wall_time_seconds": 2.5780000000013388,
+      "cost_estimate_usd": 0.0191211,
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163560,
+        "assistant": 42807
+      },
+      "serialized_utf8_bytes_proxy": 252083,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_719",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_721",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_723",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_725",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_727",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 17,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": "46629b0a5262464dbc846978a8430a8c:0",
+      "prepared_id": "46629b0a5262464dbc846978a8430a8c",
+      "step": 46,
+      "actor": "risk_monitor",
+      "purpose": "risk_assessment",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": true,
+      "response": true,
+      "actual_input_tokens": 363,
+      "actual_output_tokens": 24,
+      "wall_time_seconds": 1.6090000000040163,
+      "cost_estimate_usd": 0.00013769999999999999,
+      "role_text_utf8_bytes": {
+        "system": 725,
+        "user": 632
+      },
+      "serialized_utf8_bytes_proxy": 1549,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_729",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 0,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    },
+    {
+      "episode_id": "260542f1fc63",
+      "request_id": null,
+      "prepared_id": "5a04fa7feda64fc389754870be0c39b3",
+      "step": 47,
+      "actor": "agent_0",
+      "purpose": "coordinator",
+      "graph_version": 3,
+      "prepared": true,
+      "submitted": false,
+      "response": false,
+      "actual_input_tokens": "unknown",
+      "actual_output_tokens": "unknown",
+      "wall_time_seconds": "unknown",
+      "cost_estimate_usd": "unknown",
+      "role_text_utf8_bytes": {
+        "system": 31267,
+        "user": 163634,
+        "assistant": 42972
+      },
+      "serialized_utf8_bytes_proxy": 252420,
+      "tools_schema_utf8_bytes": 4,
+      "artifact_refs": [
+        {
+          "object_id": "ev_355",
+          "version": 1,
+          "view": "task_evidence_v1",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_356",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_512",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_668",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_701",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_703",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_705",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_707",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_709",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_711",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_713",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_715",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_717",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_719",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_721",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_723",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_725",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_727",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": true
+        },
+        {
+          "object_id": "ev_729",
+          "version": 1,
+          "view": "full",
+          "repeated_to_actor": false
+        }
+      ],
+      "repeated_identified_rendered_bytes": 0,
+      "repeated_refs_unknown_byte_length": 18,
+      "exact_duplicate_input": false,
+      "official_history_attribution": "unknown",
+      "bytes_are_tokens": false
+    }
+  ],
+  "budget_preflight": [
+    {
+      "time_utc": "2026-10-15T15:03:51.812403+00:00",
+      "mode": "real_are_multi",
+      "kind": "preflight_budget_rejection",
+      "purpose": "coordinator",
+      "reason": "DeepSeek cost budget exhausted",
+      "reserved_input_byte_bound": 252420,
+      "reserved_output_token_bound": 4096,
+      "reserved_cost_bound_usd": 0.0806412,
+      "actual_requests": 46,
+      "actual_input_tokens": 1065410,
+      "actual_output_tokens": 12652
+    }
+  ],
+  "per_completed_subgoal_cost": "unknown_no_independent_checker"
+}

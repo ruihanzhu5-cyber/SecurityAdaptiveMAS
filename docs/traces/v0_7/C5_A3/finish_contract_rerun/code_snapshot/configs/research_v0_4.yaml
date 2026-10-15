@@ -1,0 +1,41 @@
+version: v0.4
+method: joint
+max_agents: 8
+max_candidates: 24
+search_depth: 2
+topologies: [singleton, star, directed_chain, fork_join, hierarchical_tree, ring, fully_connected, diamond, clustered, small_world, hub_biased, geometric_delaunay, task_dag]
+topology_parameters:
+  cluster_size: 2
+  neighbors: 2
+  shortcut_probability: 0.25
+protocol: bounded_review
+rounds: 2
+role_step_limit: 6
+reconfiguration_limit: 12
+cost_mode: declared_work
+calibration_file: null
+scheduling: sequential
+capability_mode: coordinator_only
+delegable_tools: []
+risk_detector: semantic
+risk_tolerance: non_increasing_vs_keep
+seed: 20261014
+subbudgets:
+  task_analysis: 20
+  risk_assessment: 24
+  role_execution: 50
+  coordinator: 30
+rates:
+  date: '2026-10-12'
+  input_usd_per_token: 0.00000030
+  output_usd_per_token: 0.00000120
+  status: historical_estimate_not_bill
+data_manifest: configs/research_v0_4_manifest.json
+attack_protocol: fixed_transfer
+attack_attempt_budgets: [1, 4, 16]
+ablations:
+  dynamic_roles: true
+  dynamic_topology: true
+  repair: true
+  compact_inputs: true
+  ordinary_replanning_same_time: false

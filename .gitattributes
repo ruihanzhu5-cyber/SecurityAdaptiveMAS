@@ -4,3 +4,6 @@ configs/attack_payloads/*.txt -text
 security_adaptive_mas/_vendor/** -text -whitespace
 
 configs/attack_cases_v0_6_five/*.txt -text
+
+# Keep published raw traces byte-identical to the local SHA-256 inventory.
+docs/traces/v0_7/C5_A3/** -text

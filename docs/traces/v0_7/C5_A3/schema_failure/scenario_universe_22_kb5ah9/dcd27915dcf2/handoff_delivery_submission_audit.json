@@ -1,0 +1,26 @@
+[
+  {
+    "time_utc": "2026-10-15T14:44:46.095048+00:00",
+    "mode": "real_are_multi",
+    "kind": "runtime_object_delivered",
+    "agent_id": "worker_0001",
+    "object_id": "ev_3",
+    "object_version": 1,
+    "view_id": "full",
+    "author_instance_id": "agent_0",
+    "transport": "live_route",
+    "decision_id": "delegation",
+    "graph_version": 2,
+    "delivery_bytes": 836,
+    "payload_sha256": "17c2317902c79cf6a786e32c3c44f8b287784a3742cc9139733c9697d3a01716",
+    "model_request_ids": [
+      "86cc99b174604100b5f0b9af4287d2b9:0",
+      "7fb7a814a4da4c1eb8b447404716551e:0",
+      "82fd2edeb39643c0b972ab330f134f7b:0",
+      "4b8a60feb28849d1a764005b5705f2b5:0",
+      "88ba33fd49554ae681ddaf0676808e73:0"
+    ],
+    "component_submission_link_observed": true,
+    "link_is_semantic_adoption": false
+  }
+]

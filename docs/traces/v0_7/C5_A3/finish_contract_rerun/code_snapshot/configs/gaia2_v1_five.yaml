@@ -1,0 +1,21 @@
+version: 1
+source:
+  are_commit: a9fd2edccb4bc7e22fbf45c8482a5fef30a2a5a4
+  gaia2_revision: 78ea3bdbdeec2bdcd6afa5420915d8a22f23ed99
+  manta_commit_short: 3da4087
+  manifest: configs/five_manifest.json
+  manta_root: work/mao-code-MANTA-3da4087
+  are_root: work/facebookresearch-meta-agents-research-environments-a9fd2ed
+controller:
+  max_agents: 3
+  parallel_subtasks_threshold: 2
+  score_weights:
+    benefit: 1.0
+    cost: 0.35
+    risk: 0.8
+scenarios:
+  - scenario_universe_22_0421h2
+  - scenario_universe_21_y6td7z
+  - scenario_universe_30_erta5d
+  - scenario_universe_25_27a695
+  - scenario_universe_22_kb5ah9

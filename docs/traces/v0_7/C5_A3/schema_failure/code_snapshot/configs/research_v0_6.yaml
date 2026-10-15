@@ -1,0 +1,32 @@
+version: v0.6
+runtime_kind: modular
+method: modular_risk_aware
+model: deepseek-flash
+scheduling: sequential
+coordinator: are_default
+worker_backend: aorchestra_react_fork
+max_active_agents: 4
+max_total_instances: 8
+worker_max_steps: 8
+max_candidates: 6
+max_auto_repairs_per_work: 1
+max_reconfigurations: 24
+risk_detector: semantic
+capability_mode: coordinator_write_workers_read
+context:
+  manta_latest_only: false
+  manta_summary_only: false
+  manta_evidence_access: own
+  deterministic_views: [email_metadata_v1]
+upstream_lock: configs/upstream_v0_6.lock.json
+paths:
+  atm_root: null
+  are_root: null
+  gaia2_filesystem: null
+  scenario_root: null
+  sandbox_root: work/are_tmp
+rates:
+  date: '2026-10-12'
+  input_usd_per_token: 0.00000030
+  output_usd_per_token: 0.00000120
+  status: historical_estimate_not_bill

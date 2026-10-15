@@ -1,0 +1,63 @@
+[
+  {
+    "time_utc": "2026-10-15T15:01:37.575474+00:00",
+    "mode": "real_are_multi",
+    "kind": "runtime_object_delivered",
+    "agent_id": "worker_0001",
+    "object_id": "ev_3",
+    "object_version": 1,
+    "view_id": "full",
+    "author_instance_id": "agent_0",
+    "transport": "live_route",
+    "decision_id": "delegation",
+    "graph_version": 2,
+    "delivery_bytes": 836,
+    "payload_sha256": "17c2317902c79cf6a786e32c3c44f8b287784a3742cc9139733c9697d3a01716",
+    "model_request_ids": [
+      "30dd424185064ac99a9d470110b7b273:0",
+      "8a00652d431c4bc1937abf9d35b298f7:0",
+      "a98083db682045e2bfd989845d064672:0",
+      "dc8d0b7972d14d459c4eaedf0e715402:0",
+      "845c343de0c8470981aa6c6c35c30aa2:0"
+    ],
+    "component_submission_link_observed": true,
+    "link_is_semantic_adoption": false
+  },
+  {
+    "time_utc": "2026-10-15T15:02:04.328204+00:00",
+    "mode": "real_are_multi",
+    "kind": "runtime_object_delivered",
+    "agent_id": "agent_0",
+    "object_id": "ev_355",
+    "object_version": 1,
+    "view_id": "task_evidence_v1",
+    "author_instance_id": "worker_0001",
+    "transport": "live_route",
+    "decision_id": "5232738ad9ba4fd19bf81fe4db1833c8:EVIDENCE_VIEW_RELEASE",
+    "graph_version": 3,
+    "delivery_bytes": 32537,
+    "payload_sha256": "92aeae7d9ffcc0f1a47c5505145c69de3cff98cf139a6b4ab10a0debf85507d2",
+    "model_request_ids": [
+      "7aa10b2a60d74adaa1b9e65fe586fb80:0",
+      "9de0bcdd983c47e5b7a78fe867e32171:0",
+      "9e191604cbb146e89809f99dadbe5d3d:0",
+      "b07af33dd3094dd98cfbb6ef0ca04f07:0",
+      "c699cf0640914daf8a6fc551421fb445:0",
+      "5f7bf7faaf7541bd876807402b33263e:0",
+      "41911202eb604b18bd7aab76afa2e371:0",
+      "de749e02a784411699f89fdb6f6635db:0",
+      "ce412937ab03448e9f0248c6d0e0714a:0",
+      "632379e11291419a8b87eb9b1d378a55:0",
+      "55dbc8942e104a49a4284b72db98fa55:0",
+      "bcb73db0751445d99005aab98a8fd83b:0",
+      "c5db6cb9d0424856aa7453d62fa109dd:0",
+      "b57a43ba225a41f68002cc3c8a03bc58:0",
+      "b53cb96b5e244794b06fb02cff7f8dde:0",
+      "e21efa15ba6b454b9044d704bc0295c4:0",
+      "b5e97b6390884175918baad4a3a25220:0",
+      "c570378bf1a84a33980be84e7cf6723e:0"
+    ],
+    "component_submission_link_observed": true,
+    "link_is_semantic_adoption": false
+  }
+]

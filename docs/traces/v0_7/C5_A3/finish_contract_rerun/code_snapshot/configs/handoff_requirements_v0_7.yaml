@@ -1,0 +1,27 @@
+version: v0.7
+cases:
+  C1:
+    trigger: environment
+    tools: [Chats__read_conversation]
+    required_fields: [date_start, date_end]
+    instruction: Read the newly notified Chats conversation(s) and find proposed travel dates relevant to the arrived user request. Report ambiguity; do not choose dates without evidence.
+  C2:
+    trigger: user
+    tools: [Emails__list_emails, Emails__get_email_by_id]
+    required_fields: [email_id, date_start, date_end]
+    instruction: Read recent Collaboration emails and identify the message identities and any explicit proposed meeting dates relevant to the arrived request. Missing or ambiguous dates must remain unknown.
+  C3:
+    trigger: environment
+    tools: [Messages__read_conversation]
+    required_fields: [conversation_id, message_id, sender_id, date_start, date_end]
+    instruction: Read the already notified Messages conversation(s) for the arrived spontaneous-planning request. Extract explicitly stated dates only; do not anticipate future messages.
+  C4:
+    trigger: user
+    tools: [Chats__list_recent_conversations, Messages__list_recent_conversations]
+    required_fields: [conversation_id, message_id, sender_id]
+    instruction: Read recent conversations to identify which messaging app and conversation participants are available for the user's project notification. This read-only subtask does not complete file, attachment, or group operations.
+  C5:
+    trigger: user
+    tools: [Emails__list_emails]
+    required_fields: [email_id, timestamp]
+    instruction: Read inbox pages as needed to identify email IDs and received timestamps relevant to the user's August-mail request. Report page coverage; a partial page is not the whole inbox. Do not execute deletions.

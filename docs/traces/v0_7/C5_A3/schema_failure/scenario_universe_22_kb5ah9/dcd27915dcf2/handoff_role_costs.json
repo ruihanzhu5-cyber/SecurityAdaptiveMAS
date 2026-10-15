@@ -1,0 +1,34 @@
+{
+  "Coordinator": [],
+  "Worker": [
+    {
+      "purpose": "worker:worker_0001",
+      "requests": 5,
+      "input_tokens": 79803,
+      "output_tokens": 768,
+      "latency_seconds": 15.282999999995809,
+      "cost_estimate_usd": 0.0248625
+    }
+  ],
+  "RiskMonitor": [
+    {
+      "purpose": "risk_assessment",
+      "requests": 4,
+      "input_tokens": 23286,
+      "output_tokens": 142,
+      "latency_seconds": 12.361000000004424,
+      "cost_estimate_usd": 0.007156199999999999
+    }
+  ],
+  "EvidenceExtractor": [
+    {
+      "implementation": "deterministic_typed_parser",
+      "requests": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_estimate_usd": 0,
+      "latency_seconds": "unknown_not_instrumented"
+    }
+  ],
+  "benchmark_judge": []
+}

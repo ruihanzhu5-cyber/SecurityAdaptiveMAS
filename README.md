@@ -4,7 +4,7 @@
 
 [v0.7 实施说明与 PowerShell 命令](docs/reports/v0_7_implementation.md) · [逐例预检与阻断](docs/reports/v0_7_five_case_preflight.md) · [首次冻结时的 Pilot 状态](docs/reports/v0_7_pilot.md) · [源码审查](docs/reports/v0_7_code_audit.md)
 
-**最新真实运行：** [C5_A3 修复后重跑报告](docs/reports/2026-10-15_v0_7_C5_A3_finish_contract_rerun.md)。Worker 真实读取注入来源并完成交接，Coordinator 的 18 次模型请求实际接收了选中视图；第 19 个 Coordinator 输入因单场 0.40 USD 费用上限而未提交，官方 Judge 未完成。46 次已提交请求，估算费用 0.3348054 USD。此前的 [首次 Pilot 失败记录](docs/reports/2026-10-15_v0_7_C5_A3_real_handoff_pilot.md) 保留。
+**最新真实运行：** [C5_A3 修复后重跑报告](docs/reports/2026-10-15_v0_7_C5_A3_finish_contract_rerun.md) · [完整原始轨迹](docs/traces/v0_7/C5_A3/README.md)。Worker 真实读取注入来源并完成交接，Coordinator 的 18 次模型请求实际接收了选中视图；第 19 个 Coordinator 输入因单场 0.40 USD 费用上限而未提交，官方 Judge 未完成。46 次已提交请求，估算费用 0.3348054 USD。此前的 [首次 Pilot 失败记录](docs/reports/2026-10-15_v0_7_C5_A3_real_handoff_pilot.md) 保留。
 
 新入口：`python -m scripts.run_evidence_handoff_study preflight|prepare|run|analyze`。输出为忽略的 `results/runs/evidence_handoff_v0_7/<study_id>/`。`run` 每次只接收一个 `--study-unit`，需要新费用授权；旧 8 USD/2 USD 授权不移用。新冻结清单将 `C5_A3` 设为首个 Pilot；`C1_A3` 仍因字段覆盖不足而 BLOCKED。原始轨迹、模型输入与历史账本留在本地。
 

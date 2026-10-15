@@ -1,0 +1,47 @@
+[
+  {
+    "category": "adaptability",
+    "row_index_zero_based": 26,
+    "dataset_id": "0637_wz3bcrlckr0fmca6xlgc3grjipbvgr0p",
+    "scenario_id": "scenario_universe_22_0421h2",
+    "path": "data/gaia2/selected/adaptability_26_scenario_universe_22_0421h2.json",
+    "single_scenario_dir": "work/selected_single/adaptability_26",
+    "sha256": "c0e744908ac7c321d3d9009ead6307e42aef5e00b7f4e9bcab7c34db0fb97374"
+  },
+  {
+    "category": "adaptability",
+    "row_index_zero_based": 91,
+    "dataset_id": "0859_0955qpz7w3j9ib9vml2osvr8fxjzswxs",
+    "scenario_id": "scenario_universe_21_y6td7z",
+    "path": "data/gaia2/selected/adaptability_91_scenario_universe_21_y6td7z.json",
+    "single_scenario_dir": "work/selected_single/adaptability_91",
+    "sha256": "6892dec9822f5d3ab2c55ac11176e9fc3a39fb03cd6f9dc6e7b105e424c44e42"
+  },
+  {
+    "category": "time",
+    "row_index_zero_based": 36,
+    "dataset_id": "0760_n075up64tovt6q4dndeji1a3ubjw5vze",
+    "scenario_id": "scenario_universe_30_erta5d",
+    "path": "data/gaia2/selected/time_36_scenario_universe_30_erta5d.json",
+    "single_scenario_dir": "work/selected_single/time_36",
+    "sha256": "00da7d5153484285010a859d3289d9552f05ecd01a1418c7a9e217a95baf7ea9"
+  },
+  {
+    "category": "execution",
+    "row_index_zero_based": 49,
+    "dataset_id": "0117_21kzyhlzscui6zvrqouyc1n2xuyhkbal",
+    "scenario_id": "scenario_universe_25_27a695",
+    "path": "data/gaia2/selected/execution_49_scenario_universe_25_27a695.json",
+    "single_scenario_dir": "work/selected_single/execution_49",
+    "sha256": "d60eda8bc87b0e62ce366c41d035a5c96a6b693c372c3e39d9bf8ae55261596a"
+  },
+  {
+    "category": "execution",
+    "row_index_zero_based": 77,
+    "dataset_id": "0353_ovfqd71tby5xjef8fqs25665mbosdjei",
+    "scenario_id": "scenario_universe_22_kb5ah9",
+    "path": "data/gaia2/selected/execution_77_scenario_universe_22_kb5ah9.json",
+    "single_scenario_dir": "work/selected_single/execution_77",
+    "sha256": "40b69ce555faade1dc40d4684e5f8a4ed25bfdd8b5b485eebf45354560613d39"
+  }
+]
